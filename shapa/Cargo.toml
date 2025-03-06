@@ -1,0 +1,10 @@
+[package]
+name = "shapa"
+version = "0.1.0"
+edition = "2024"
+description = "Self-hosted and private assistants"
+repository = "https://github.com/theOGognf/private_poker"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]
