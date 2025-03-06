@@ -1,0 +1,13 @@
+[package]
+name = "shapa_client"
+version = "0.1.0"
+edition = "2024"
+description = "A client for self-hosting private assistants"
+repository = "https://github.com/theOGognf/shapa"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]
+ratatui = "0.29.0"
+reqwest = "0.12.12"
+tokio = "1.43.0"

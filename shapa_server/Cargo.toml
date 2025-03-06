@@ -1,9 +1,9 @@
 [package]
-name = "shapa"
+name = "shapa_server"
 version = "0.1.0"
 edition = "2024"
-description = "Self-hosted and private assistants"
-repository = "https://github.com/theOGognf/private_poker"
+description = "A server for self-hosting private assistants"
+repository = "https://github.com/theOGognf/shapa"
 readme = "README.md"
 license = "Apache-2.0"
 

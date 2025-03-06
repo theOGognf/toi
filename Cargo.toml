@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "shapa",
+    "shapa_client",
+    "shapa_server",
 ]
 resolver = "2"
 exclude = [
