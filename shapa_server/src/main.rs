@@ -15,109 +15,79 @@
 
 use axum::{
     Router,
+    response::Json,
     extract::{FromRef, FromRequestParts, State},
     http::{StatusCode, request::Parts},
     routing::get,
 };
-use chrono::Utc;
-use pgvector::Vector;
-use sqlx::FromRow;
-use sqlx::{
-    postgres::{PgPool, PgPoolOptions},
-    types::chrono::DateTime,
+use diesel::prelude::{QueryDsl, SelectableHelper};
+use diesel_async::{
+    pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection, RunQueryDsl
 };
 use tokio::net::TcpListener;
 
-use std::time::Duration;
+mod models;
+use models::Note;
+mod schema;
+use schema::notes;
+
+type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_connection_str = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://postgres:mysecretpassword@localhost:5432/postgres".to_string()
     });
 
-    // set up connection pool
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .acquire_timeout(Duration::from_secs(3))
-        .connect(&db_connection_str)
-        .await
-        .expect("can't connect to database");
+    let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_connection_str);
+    let pool = bb8::Pool::builder().build(config).await?;
 
     // build our application with some routes
     let app = Router::new()
         .route(
-            "/",
-            get(using_connection_pool_extractor).post(using_connection_extractor),
+            "/notes",
+            get(list_notes),
         )
         .with_state(pool);
 
     // run it with hyper
     let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
 
 // we can extract the connection pool with `State`
-async fn using_connection_pool_extractor(
-    State(pool): State<PgPool>,
-) -> Result<String, (StatusCode, String)> {
-    sqlx::query_scalar("select 'hello world from pg'")
-        .fetch_one(&pool)
-        .await
-        .map_err(internal_error)
+#[axum::debug_handler]
+async fn list_notes(
+    State(pool): State<Pool>,
+) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
+    let mut conn = pool.get().await.map_err(internal_error)?;
+
+    let res = notes::table.select(Note::as_select()).load(&mut conn).await.map_err(internal_error)?;
+    Ok(Json(res))
 }
 
 // we can also write a custom extractor that grabs a connection from the pool
 // which setup is appropriate depends on your application
-struct DatabaseConnection(sqlx::pool::PoolConnection<sqlx::Postgres>);
+struct DatabaseConnection(
+    bb8::PooledConnection<'static, AsyncDieselConnectionManager<AsyncPgConnection>>,
+);
 
 impl<S> FromRequestParts<S> for DatabaseConnection
 where
-    PgPool: FromRef<S>,
     S: Send + Sync,
+    Pool: FromRef<S>,
 {
     type Rejection = (StatusCode, String);
 
     async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = PgPool::from_ref(state);
+        let pool = Pool::from_ref(state);
 
-        let conn = pool.acquire().await.map_err(internal_error)?;
+        let conn = pool.get_owned().await.map_err(internal_error)?;
 
         Ok(Self(conn))
     }
-}
-
-#[derive(Debug, sqlx::Type)]
-#[sqlx(type_name = "vector")]
-struct MyVector(Vector);
-
-impl From<()> for MyVector {
-    fn from(value: ()) -> Self {
-        MyVector(Vector::from(vec![]))
-    }
-}
-
-#[derive(Debug)]
-struct Note {
-    id: i32,
-    content: String,
-    embedding: Vector,
-    created_at: DateTime<Utc>,
-}
-
-async fn using_connection_extractor(
-    DatabaseConnection(mut conn): DatabaseConnection,
-) -> Result<String, (StatusCode, String)> {
-    let foo = sqlx::query_as!(
-        Note,
-        r#"select id, content, embedding as "embedding: Vector", created_at from notes limit 1"#
-    )
-    .fetch_one(&mut *conn)
-    .await
-    .map(|u| u.content)
-    .map_err(internal_error);
-
-    foo
 }
 
 /// Utility function for mapping any error into a `500 Internal Server Error`
