@@ -4,5 +4,5 @@ CREATE TABLE IF NOT EXISTS notes (
     id SERIAL PRIMARY KEY,
     content TEXT NOT NULL,
     embedding vector NOT NULL,
-    create_time TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
