@@ -9,16 +9,18 @@ use utoipa::ToSchema;
 pub struct Note {
     pub id: i32,
     pub content: String,
-    #[schema(value_type = Vec<f32>)]
-    pub embedding: Vector,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Insertable, serde::Deserialize, ToSchema)]
+#[derive(Insertable)]
 #[diesel(table_name = crate::schema::notes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewNote {
     pub content: String,
-    #[schema(value_type = Vec<f32>)]
     pub embedding: Vector,
+}
+
+#[derive(serde::Deserialize, ToSchema)]
+pub struct NewNoteRequest {
+    pub content: String,
 }

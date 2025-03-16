@@ -21,9 +21,13 @@ pub fn router(state: utils::Pool) -> OpenApiRouter {
 #[axum::debug_handler]
 pub async fn create_note(
     State(pool): State<utils::Pool>,
-    Json(new_note): Json<models::notes::NewNote>,
+    Json(new_note_request): Json<models::notes::NewNoteRequest>,
 ) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let new_note = models::notes::NewNote {
+        content: new_note_request.content,
+        embedding: vec![].into(),
+    };
     let res = diesel::insert_into(schema::notes::table)
         .values(new_note)
         .returning(models::notes::Note::as_returning())
