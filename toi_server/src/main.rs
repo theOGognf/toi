@@ -25,11 +25,10 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let db_connection_str = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "postgres://postgres:mysecretpassword@localhost:5432/postgres".to_string()
-    });
+    let db_connection_url = dotenvy::var("DATABASE_URL")?;
+    let api_addr = dotenvy::var("API_ADDR").unwrap_or("127.0.0.1:6969".into());
 
-    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_str);
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(config).await?;
 
     let (router, api) = OpenApiRouter::new()
@@ -37,8 +36,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 
-    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
-    axum::serve(listener, router).await.unwrap();
+    let listener = TcpListener::bind(api_addr).await?;
+    axum::serve(listener, router).await?;
 
     Ok(())
 }

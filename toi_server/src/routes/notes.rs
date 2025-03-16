@@ -37,7 +37,7 @@ pub async fn create_note(
     get,
     path = "", 
     responses(
-        (status = 200, description = "Successfully listed all notes", body = [models::notes::Note])
+        (status = 200, description = "Successfully listed notes", body = [models::notes::Note])
     )
 )]
 #[axum::debug_handler]
