@@ -1,4 +1,7 @@
 use axum::http::StatusCode;
+use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+
+pub type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
 /// Utility function for mapping any error into a `500 Internal Server Error`
 /// response.

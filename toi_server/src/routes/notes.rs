@@ -1,18 +1,14 @@
 use axum::{extract::State, http::StatusCode, response::Json};
 
 use diesel::prelude::{QueryDsl, SelectableHelper};
-use diesel_async::{
-    AsyncPgConnection, RunQueryDsl, pooled_connection::AsyncDieselConnectionManager,
-};
+use diesel_async::RunQueryDsl;
 
 use crate::{models, schema, utils};
-
-type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
 // we can extract the connection pool with `State`
 #[axum::debug_handler]
 pub async fn list_notes(
-    State(pool): State<Pool>,
+    State(pool): State<utils::Pool>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
 

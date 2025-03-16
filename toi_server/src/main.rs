@@ -14,7 +14,7 @@
 //! ```
 
 use axum::{Router, routing::get};
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use tokio::net::TcpListener;
 
 mod models;
@@ -28,8 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "postgres://postgres:mysecretpassword@localhost:5432/postgres".to_string()
     });
 
-    let config =
-        AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_connection_str);
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_str);
     let pool = bb8::Pool::builder().build(config).await?;
 
     // build our application with some routes
