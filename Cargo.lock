@@ -946,6 +946,7 @@ checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]
@@ -1642,29 +1643,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "toi_client"
-version = "0.1.0"
-dependencies = [
- "ratatui",
- "reqwest",
- "tokio",
-]
-
-[[package]]
-name = "toi_server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "bb8",
- "chrono",
- "diesel",
- "diesel-async",
- "pgvector",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1878,6 +1856,31 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "toi_client"
+version = "0.1.0"
+dependencies = [
+ "ratatui",
+ "reqwest",
+ "tokio",
+]
+
+[[package]]
+name = "toi_server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bb8",
+ "chrono",
+ "diesel",
+ "diesel-async",
+ "pgvector",
+ "serde",
+ "tokio",
+ "utoipa",
+ "utoipa-axum",
+]
 
 [[package]]
 name = "tokio"
@@ -2110,6 +2113,42 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "utoipa"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "435c6f69ef38c9017b4b4eea965dfb91e71e53d869e896db40d1cf2441dd75c0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-axum"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c25bae5bccc842449ec0c5ddc5cbb6a3a1eaeac4503895dc105a1138f8234a0"
+dependencies = [
+ "axum",
+ "paste",
+ "tower-layer",
+ "tower-service",
+ "utoipa",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a77d306bc75294fd52f3e99b13ece67c02c1a2789190a6f31d32f736624326f7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "vcpkg"

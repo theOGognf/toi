@@ -16,3 +16,5 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 pgvector = { version = "0.4.0", features = ["diesel", "serde"] }
 serde = { version = "1.0.218", features = ["derive"] }
 tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
+utoipa = "5.3.1"
+utoipa-axum = "0.2.0"
