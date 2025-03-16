@@ -1,9 +1,9 @@
 [package]
-name = "shapa_client"
+name = "toi_client"
 version = "0.1.0"
 edition = "2024"
 description = "A client for self-hosting private assistants"
-repository = "https://github.com/theOGognf/shapa"
+repository = "https://github.com/theOGognf/toi"
 readme = "README.md"
 license = "Apache-2.0"
 

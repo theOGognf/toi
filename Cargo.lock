@@ -1642,7 +1642,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shapa_client"
+name = "toi_client"
 version = "0.1.0"
 dependencies = [
  "ratatui",
@@ -1651,7 +1651,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shapa_server"
+name = "toi_server"
 version = "0.1.0"
 dependencies = [
  "axum",
