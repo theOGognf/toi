@@ -13,9 +13,10 @@
 //! curl -X POST 127.0.0.1:3000
 //! ```
 
-use axum::{Router, routing::get};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use tokio::net::TcpListener;
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod models;
 mod routes;
@@ -31,14 +32,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_str);
     let pool = bb8::Pool::builder().build(config).await?;
 
-    // build our application with some routes
-    let app = Router::new()
-        .route("/notes", get(routes::notes::list_notes))
-        .with_state(pool);
+    let (router, api) = OpenApiRouter::new()
+        .nest("/notes", routes::notes::router(pool))
+        .split_for_parts();
+    let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 
-    // run it with hyper
     let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, router).await.unwrap();
 
     Ok(())
 }
