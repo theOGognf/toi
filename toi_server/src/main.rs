@@ -1,18 +1,3 @@
-//! Example of application using <https://github.com/launchbadge/sqlx>
-//!
-//! Run with
-//!
-//! ```not_rust
-//! cargo run -p example-sqlx-postgres
-//! ```
-//!
-//! Test with curl:
-//!
-//! ```not_rust
-//! curl 127.0.0.1:3000
-//! curl -X POST 127.0.0.1:3000
-//! ```
-
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;

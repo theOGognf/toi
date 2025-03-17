@@ -7,7 +7,7 @@ use crate::{models, schema, utils};
 
 pub fn router(state: utils::Pool) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(create_note, list_notes))
+        .routes(routes!(add_note, filter_notes))
         .with_state(state)
 }
 
@@ -15,11 +15,11 @@ pub fn router(state: utils::Pool) -> OpenApiRouter {
     post,
     path = "",
     responses(
-        (status = 201, description = "Successfully created note", body = models::notes::Note)
+        (status = 201, description = "Successfully added a note", body = models::notes::Note)
     )
 )]
 #[axum::debug_handler]
-pub async fn create_note(
+pub async fn add_note(
     State(pool): State<utils::Pool>,
     Json(new_note_request): Json<models::notes::NewNoteRequest>,
 ) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
@@ -41,11 +41,11 @@ pub async fn create_note(
     get,
     path = "", 
     responses(
-        (status = 200, description = "Successfully listed notes", body = [models::notes::Note])
+        (status = 200, description = "Successfully filtered notes", body = [models::notes::Note])
     )
 )]
 #[axum::debug_handler]
-pub async fn list_notes(
+pub async fn filter_notes(
     State(pool): State<utils::Pool>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
