@@ -45,7 +45,7 @@ pub async fn shift(
     get,
     path = "/weekday",
     params(
-        models::datetime::DateTimeParam
+        models::datetime::DateTimeQueryParams
     ),
     responses(
         (status = 200, description = "Successfully got weekday of given date", body = String)
@@ -53,7 +53,7 @@ pub async fn shift(
 )]
 #[axum::debug_handler]
 pub async fn weekday(
-    Query(params): Query<models::datetime::DateTimeParam>,
+    Query(params): Query<models::datetime::DateTimeQueryParams>,
 ) -> Result<String, (StatusCode, String)> {
     let res = params.datetime.weekday();
     Ok(res.to_string())

@@ -3,7 +3,7 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Default, serde::Deserialize, IntoParams)]
 #[serde(default)]
-pub struct DateTimeParam {
+pub struct DateTimeQueryParams {
     pub datetime: DateTime<Utc>,
 }
 

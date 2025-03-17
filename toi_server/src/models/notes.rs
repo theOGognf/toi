@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Queryable, Selectable, serde::Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::notes)]
@@ -23,4 +23,18 @@ pub struct NewNote {
 #[derive(serde::Deserialize, ToSchema)]
 pub struct NewNoteRequest {
     pub content: String,
+}
+
+#[derive(serde::Deserialize, IntoParams)]
+pub struct NoteQueryParams {
+    pub similarity_search_params: Option<NoteSimilaritySearchParams>,
+    pub from: Option<DateTime<Utc>>,
+    pub to: Option<DateTime<Utc>>,
+}
+
+#[derive(serde::Deserialize, ToSchema)]
+pub struct NoteSimilaritySearchParams {
+    pub query: String,
+    pub threshold: f64,
+    pub limit: i64,
 }
