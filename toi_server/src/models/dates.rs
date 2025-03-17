@@ -1,24 +1,19 @@
 use chrono::{DateTime, Utc};
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(serde::Deserialize, IntoParams)]
+#[derive(Default, serde::Deserialize, IntoParams)]
+#[serde(default)]
 pub struct DateTimeParam {
-    #[serde(default)]
     pub datetime: DateTime<Utc>,
 }
 
-#[derive(serde::Deserialize, ToSchema)]
+#[derive(Default, serde::Deserialize, ToSchema)]
+#[serde(default)]
 pub struct DateTimeShiftRequest {
-    #[serde(default)]
     pub datetime: DateTime<Utc>,
-    #[serde(default)]
     pub weeks: i64,
-    #[serde(default)]
     pub days: i64,
-    #[serde(default)]
     pub hours: i64,
-    #[serde(default)]
     pub minutes: i64,
-    #[serde(default)]
     pub seconds: i64,
 }
