@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = bb8::Pool::builder().build(config).await?;
 
     let (router, api) = OpenApiRouter::new()
-        .nest("/datetime", routes::dates::router())
+        .nest("/datetime", routes::datetime::router())
         .nest("/notes", routes::notes::router(pool))
         .split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));

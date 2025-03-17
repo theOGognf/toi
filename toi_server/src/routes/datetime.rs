@@ -30,7 +30,7 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 )]
 #[axum::debug_handler]
 pub async fn shift(
-    Json(datetime_shift_request): Json<models::dates::DateTimeShiftRequest>,
+    Json(datetime_shift_request): Json<models::datetime::DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     let res = datetime_shift_request.datetime
         + Duration::weeks(datetime_shift_request.weeks)
@@ -45,7 +45,7 @@ pub async fn shift(
     get,
     path = "/weekday",
     params(
-        models::dates::DateTimeParam
+        models::datetime::DateTimeParam
     ),
     responses(
         (status = 200, description = "Successfully got weekday of given date", body = String)
@@ -53,7 +53,7 @@ pub async fn shift(
 )]
 #[axum::debug_handler]
 pub async fn weekday(
-    Query(params): Query<models::dates::DateTimeParam>,
+    Query(params): Query<models::datetime::DateTimeParam>,
 ) -> Result<String, (StatusCode, String)> {
     let res = params.datetime.weekday();
     Ok(res.to_string())

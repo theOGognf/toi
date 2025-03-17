@@ -1,2 +1,2 @@
-pub mod dates;
+pub mod datetime;
 pub mod notes;
