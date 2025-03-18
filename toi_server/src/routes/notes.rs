@@ -8,12 +8,12 @@ use diesel::{
     prelude::{QueryDsl, SelectableHelper},
 };
 use diesel_async::RunQueryDsl;
-use pgvector::{Vector, VectorExpressionMethods};
+use pgvector::VectorExpressionMethods;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{models, schema, utils};
+use crate::{models, schema, state, utils};
 
-pub fn router(state: utils::Pool) -> OpenApiRouter {
+pub fn router(state: state::ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(
             add_note,
@@ -34,14 +34,17 @@ pub fn router(state: utils::Pool) -> OpenApiRouter {
 )]
 #[axum::debug_handler]
 pub async fn add_note(
-    State(pool): State<utils::Pool>,
+    State(state): State<state::ToiState>,
     Json(new_note_request): Json<models::notes::NewNoteRequest>,
 ) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    todo!("Need to actually compute embedding for the note.");
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let embedding_request = models::client::EmbeddingRequest {
+        input: new_note_request.content.clone(),
+    };
+    let embedding = state.client.embed(embedding_request).await?;
     let new_note = models::notes::NewNote {
         content: new_note_request.content,
-        embedding: vec![].into(),
+        embedding,
     };
     let res = diesel::insert_into(schema::notes::table)
         .values(new_note)
@@ -88,19 +91,21 @@ pub async fn delete_note(
 )]
 #[axum::debug_handler]
 pub async fn delete_matching_notes(
-    State(pool): State<utils::Pool>,
+    State(state): State<state::ToiState>,
     Query(params): Query<models::notes::NoteQueryParams>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let mut query = schema::notes::table.select(schema::notes::id).into_boxed();
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        todo!("Need to actually compute embedding for the query content.");
-        let embedding = Vector::from(vec![3.0]);
+        let embedding_request = models::client::EmbeddingRequest {
+            input: note_similarity_search_params.query,
+        };
+        let embedding = state.client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding
-                .cosine_distance(&embedding)
+                .cosine_distance(embedding.clone())
                 .le(note_similarity_search_params.distance_threshold),
         );
 
@@ -175,21 +180,23 @@ pub async fn get_note(
 )]
 #[axum::debug_handler]
 pub async fn get_matching_notes(
-    State(pool): State<utils::Pool>,
+    State(state): State<state::ToiState>,
     Query(params): Query<models::notes::NoteQueryParams>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let mut query = schema::notes::table
         .select(models::notes::Note::as_select())
         .into_boxed();
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        todo!("Need to actually compute embedding for the query content.");
-        let embedding = Vector::from(vec![3.0]);
+        let embedding_request = models::client::EmbeddingRequest {
+            input: note_similarity_search_params.query,
+        };
+        let embedding = state.client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding
-                .cosine_distance(&embedding)
+                .cosine_distance(embedding.clone())
                 .le(note_similarity_search_params.distance_threshold),
         );
 

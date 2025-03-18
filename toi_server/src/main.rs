@@ -9,6 +9,7 @@ mod client;
 mod models;
 mod routes;
 mod schema;
+mod state;
 mod utils;
 
 #[derive(serde::Deserialize)]
@@ -34,10 +35,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = client::Client::new(embedding_api_config, generation_api_config)?;
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(manager).await?;
+    let state = state::ToiState { client, pool };
 
     let (router, api) = OpenApiRouter::new()
         .nest("/datetime", routes::datetime::router())
-        .nest("/notes", routes::notes::router(pool))
+        .nest("/notes", routes::notes::router(state))
         .split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 

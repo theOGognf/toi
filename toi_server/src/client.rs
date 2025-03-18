@@ -1,31 +1,44 @@
-use crate::models;
+use axum::http::StatusCode;
+use pgvector::Vector;
 
+use crate::models::{self, client::HttpClientConfig};
+
+#[derive(Clone)]
 pub struct Client {
-    pub embedding_api_config: models::client::HttpClientConfig,
-    pub embedding_client: reqwest::Client,
-    pub generation_api_config: models::client::HttpClientConfig,
-    pub generation_client: reqwest::Client,
+    embedding_api_config: models::client::HttpClientConfig,
+    embedding_client: reqwest::Client,
+    generation_api_config: models::client::HttpClientConfig,
+    generation_client: reqwest::Client,
 }
 
 impl Client {
-    pub async fn embed(self, content: String) -> reqwest::Result<Vec<f32>> {
-        let base_url = self.embedding_api_config.base_url.trim_end_matches("/");
-        let url = format!("{base_url}/embeddings",);
-        let mut json = self.embedding_api_config.json.clone();
-        json.insert("input".to_string(), content);
-        let resp = self
-            .embedding_client
-            .post(url)
-            .query(&self.embedding_api_config.params)
-            .json(&json)
-            .send()
-            .await?
-            .json::<models::client::EmbeddingResponse>()
-            .await?;
-        Ok(resp.embedding)
+    pub async fn embed(
+        self,
+        request: models::client::EmbeddingRequest,
+    ) -> Result<Vector, (StatusCode, String)> {
+        let resp: models::client::EmbeddingResponse = Client::post(
+            self.embedding_api_config,
+            "/embeddings".to_string(),
+            self.embedding_client,
+            request,
+        )
+        .await?;
+        Ok(Vector::from(resp.embedding))
     }
 
-    pub async fn generate() -> reqwest::Result<String> {}
+    pub async fn generate(
+        self,
+        request: models::client::GenerateRequest,
+    ) -> Result<String, (StatusCode, String)> {
+        let resp: models::client::GenerateResponse = Client::post(
+            self.generation_api_config,
+            "/chat/completions".to_string(),
+            self.generation_client,
+            request,
+        )
+        .await?;
+        Ok(resp.content)
+    }
 
     pub fn new(
         embedding_api_config: models::client::HttpClientConfig,
@@ -47,5 +60,36 @@ impl Client {
             generation_api_config,
             generation_client,
         })
+    }
+
+    async fn post<Request: serde::ser::Serialize, ResponseModel: serde::de::DeserializeOwned>(
+        config: HttpClientConfig,
+        endpoint: String,
+        client: reqwest::Client,
+        request: Request,
+    ) -> Result<ResponseModel, (StatusCode, String)> {
+        let base_url = config.base_url.trim_end_matches("/");
+        let url = format!("{base_url}{endpoint}",);
+        let mut value = serde_json::to_value(request)
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+        let request = value
+            .as_object_mut()
+            .expect("Request value can never be empty");
+        if let Some(json) = serde_json::to_value(config.json.clone())
+            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?
+            .as_object()
+        {
+            request.extend(json.clone());
+        }
+        client
+            .post(url)
+            .query(&config.params)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?
+            .json::<ResponseModel>()
+            .await
+            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))
     }
 }
