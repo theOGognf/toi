@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use pgvector::Vector;
 
-use crate::models::{self, client::HttpClientConfig};
+use crate::models;
 
 #[derive(Clone)]
 pub struct Client {
@@ -63,7 +63,7 @@ impl Client {
     }
 
     async fn post<Request: serde::ser::Serialize, ResponseModel: serde::de::DeserializeOwned>(
-        config: HttpClientConfig,
+        config: models::client::HttpClientConfig,
         endpoint: String,
         client: reqwest::Client,
         request: Request,
