@@ -3,6 +3,8 @@ use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
 use utoipa::{IntoParams, ToSchema};
 
+use crate::utils;
+
 #[derive(Queryable, Selectable, serde::Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::notes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -30,11 +32,13 @@ pub struct NoteQueryParams {
     pub similarity_search_params: Option<NoteSimilaritySearchParams>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
+    pub order_by: Option<utils::OrderBy>,
+    pub limit: Option<i64>,
 }
 
 #[derive(serde::Deserialize, ToSchema)]
 pub struct NoteSimilaritySearchParams {
     pub query: String,
-    pub threshold: f64,
-    pub limit: i64,
+    #[serde(default = "utils::default_distance_threshold")]
+    pub distance_threshold: f64,
 }

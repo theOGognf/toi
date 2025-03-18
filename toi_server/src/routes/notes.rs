@@ -15,7 +15,13 @@ use crate::{models, schema, utils};
 
 pub fn router(state: utils::Pool) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_note, search_notes, get_note))
+        .routes(routes!(
+            add_note,
+            delete_matching_notes,
+            delete_note,
+            get_matching_notes,
+            get_note
+        ))
         .with_state(state)
 }
 
@@ -32,6 +38,7 @@ pub async fn add_note(
     Json(new_note_request): Json<models::notes::NewNoteRequest>,
 ) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    todo!("Need to actually compute embedding for the note.");
     let new_note = models::notes::NewNote {
         content: new_note_request.content,
         embedding: vec![].into(),
@@ -42,6 +49,93 @@ pub async fn add_note(
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
+    Ok(Json(res))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/{id}",
+    params(
+        ("id" = i32, Path, description = "Database ID of note to delete"),
+    ),
+    responses(
+        (status = 200, description = "Successfully deleted note"),
+        (status = 404, description = "Note not found")
+    )
+)]
+#[axum::debug_handler]
+pub async fn delete_note(
+    State(pool): State<utils::Pool>,
+    Path(id): Path<i32>,
+) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
+    let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let res = diesel::delete(schema::notes::table)
+        .filter(schema::notes::id.eq(id))
+        .returning(models::notes::Note::as_returning())
+        .get_result(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    Ok(Json(res))
+}
+
+#[utoipa::path(
+    delete,
+    path = "",
+    params(models::notes::NoteQueryParams),
+    responses(
+        (status = 200, description = "Successfully deleted notes", body = [models::notes::Note])
+    )
+)]
+#[axum::debug_handler]
+pub async fn delete_matching_notes(
+    State(pool): State<utils::Pool>,
+    Query(params): Query<models::notes::NoteQueryParams>,
+) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
+    let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let mut query = schema::notes::table.select(schema::notes::id).into_boxed();
+
+    // Filter notes similar to a query.
+    if let Some(note_similarity_search_params) = params.similarity_search_params {
+        todo!("Need to actually compute embedding for the query content.");
+        let embedding = Vector::from(vec![3.0]);
+        query = query.filter(
+            schema::notes::embedding
+                .cosine_distance(&embedding)
+                .le(note_similarity_search_params.distance_threshold),
+        );
+
+        // Sort by relevance.
+        if params.order_by == Some(utils::OrderBy::Relevance) {
+            query = query.order(schema::notes::embedding.l2_distance(embedding));
+        }
+    }
+
+    // Filter notes created on or after date.
+    if let Some(from) = params.from {
+        query = query.filter(schema::notes::created_at.ge(from));
+    }
+
+    // Filter notes created on or before date.
+    if let Some(to) = params.to {
+        query = query.filter(schema::notes::created_at.le(to));
+    }
+
+    match params.order_by {
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
+        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
+        _ => {}
+    }
+
+    // Limit number of notes deleted.
+    if let Some(limit) = params.limit {
+        query = query.limit(limit);
+    }
+
+    let res = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(query)))
+        .returning(models::notes::Note::as_returning())
+        .load(&mut conn)
+        .await
+        .map_err(utils::internal_error)?;
     Ok(Json(res))
 }
 
@@ -76,11 +170,11 @@ pub async fn get_note(
     path = "",
     params(models::notes::NoteQueryParams),
     responses(
-        (status = 200, description = "Successfully searched notes", body = [models::notes::Note])
+        (status = 200, description = "Successfully got notes", body = [models::notes::Note])
     )
 )]
 #[axum::debug_handler]
-pub async fn search_notes(
+pub async fn get_matching_notes(
     State(pool): State<utils::Pool>,
     Query(params): Query<models::notes::NoteQueryParams>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
@@ -89,29 +183,41 @@ pub async fn search_notes(
         .select(models::notes::Note::as_select())
         .into_boxed();
 
-    // Find notes similar to a query.
+    // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
         todo!("Need to actually compute embedding for the query content.");
         let embedding = Vector::from(vec![3.0]);
-        query = query
-            .filter(
-                schema::notes::embedding
-                    .cosine_distance(embedding.clone())
-                    .le(note_similarity_search_params.threshold),
-            )
-            .order(schema::notes::embedding.l2_distance(embedding))
-            .limit(note_similarity_search_params.limit)
-            .limit(5)
+        query = query.filter(
+            schema::notes::embedding
+                .cosine_distance(&embedding)
+                .le(note_similarity_search_params.distance_threshold),
+        );
+
+        // Sort by relevance.
+        if params.order_by == Some(utils::OrderBy::Relevance) {
+            query = query.order(schema::notes::embedding.l2_distance(embedding));
+        }
     }
 
-    // Get notes created on or after date.
+    // Filter notes created on or after date.
     if let Some(from) = params.from {
         query = query.filter(schema::notes::created_at.ge(from));
     }
 
-    // Get notes created on or before date.
+    // Filter notes created on or before date.
     if let Some(to) = params.to {
         query = query.filter(schema::notes::created_at.le(to));
+    }
+
+    match params.order_by {
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
+        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
+        _ => {}
+    }
+
+    // Limit number of notes returned.
+    if let Some(limit) = params.limit {
+        query = query.limit(limit);
     }
 
     let res = query.load(&mut conn).await.map_err(utils::internal_error)?;
