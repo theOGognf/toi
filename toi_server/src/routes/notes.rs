@@ -29,7 +29,8 @@ pub fn router(state: state::ToiState) -> OpenApiRouter {
     post,
     path = "",
     responses(
-        (status = 201, description = "Successfully added a note", body = models::notes::Note)
+        (status = 201, description = "Successfully added a note", body = models::notes::Note),
+        (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
@@ -86,7 +87,8 @@ pub async fn delete_note(
     path = "",
     params(models::notes::NoteQueryParams),
     responses(
-        (status = 200, description = "Successfully deleted notes", body = [models::notes::Note])
+        (status = 200, description = "Successfully deleted notes", body = [models::notes::Note]),
+        (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
@@ -175,7 +177,8 @@ pub async fn get_note(
     path = "",
     params(models::notes::NoteQueryParams),
     responses(
-        (status = 200, description = "Successfully got notes", body = [models::notes::Note])
+        (status = 200, description = "Successfully got notes", body = [models::notes::Note]),
+        (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
