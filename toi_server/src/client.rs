@@ -71,12 +71,12 @@ impl Client {
         let base_url = config.base_url.trim_end_matches("/");
         let url = format!("{base_url}{endpoint}",);
         let mut value = serde_json::to_value(request)
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
         let request = value
             .as_object_mut()
             .expect("Request value can never be empty");
         if let Some(json) = serde_json::to_value(config.json.clone())
-            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
             .as_object()
         {
             request.extend(json.clone());

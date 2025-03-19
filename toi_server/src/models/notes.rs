@@ -33,6 +33,7 @@ pub struct NoteQueryParams {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub order_by: Option<utils::OrderBy>,
+    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 
@@ -40,5 +41,6 @@ pub struct NoteQueryParams {
 pub struct NoteSimilaritySearchParams {
     pub query: String,
     #[serde(default = "utils::default_distance_threshold")]
+    #[schema(minimum = 0.1, maximum = 0.5)]
     pub distance_threshold: f64,
 }
