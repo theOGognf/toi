@@ -45,13 +45,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // for the main assistant endpoint.
     let openapi_router = OpenApiRouter::new()
         .nest("/datetime", routes::datetime::router())
-        .nest("/notes", routes::notes::router(state));
+        .nest("/notes", routes::notes::router(state.clone()));
     let openapi_spec = openapi_router.get_openapi().to_pretty_json()?;
 
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
-
+    let openapi_router =
+        openapi_router.nest("/assist", routes::assist::router(openapi_spec, state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 

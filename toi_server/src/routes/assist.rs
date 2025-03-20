@@ -3,17 +3,12 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use diesel::{
-    ExpressionMethods,
-    prelude::{QueryDsl, SelectableHelper},
-};
-use diesel_async::RunQueryDsl;
-use pgvector::VectorExpressionMethods;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{models, schema, state, utils};
+use crate::{client, models, schema, state, utils};
 
-pub fn router(state: state::ToiState) -> OpenApiRouter {
+pub fn router(openapi_spec: String, state: state::ToiState) -> OpenApiRouter {
+    let chat = move |state| chat(openapi_spec, state);
     OpenApiRouter::new().routes(routes!(chat)).with_state(state)
 }
 
@@ -21,19 +16,36 @@ pub fn router(state: state::ToiState) -> OpenApiRouter {
     post,
     path = "",
     responses(
-        (status = 200, description = "Successfully got assistance"),
+        (status = 200, description = "Successfully got a response"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
-async fn chat(State(state): State<state::ToiState>) -> Result {
-    todo!(
-        r#"Maybe a prompt that takes in the OpenAPI spec and asks an LLM to classify what to do:
-1. Provide a direct response to the user. E.g., if their request is not clear or there's an immediate
-    answer to their request.
-2. Draft the HTTP requests that could perform the user's request and ask the user to provide feedback
-    and/or confirmation.
-3. The user request is clear and HTTP requests can be made to complete the request. Make the requests
-    directly and then provide the user feedback on the response of the requests.
-"#
+async fn chat(openapi_spec: String, State(client): State<client::Client>) -> Result {
+    let chat_response_kind_system_prompt = format!(
+        r#"
+{}
+
+Here is the OpenAPI spec for reference:
+
+{}
+
+And here are your classification options:
+
+{}
+{}
+{}
+{}
+{}
+
+{}
+        "#,
+        models::assist::CHAT_RESPONSE_KIND_SYSTEM_PROMPT_INTRO,
+        openapi_spec,
+        models::assist::ChatResponseKind::Unfulfillable,
+        models::assist::ChatResponseKind::FollowUp,
+        models::assist::ChatResponseKind::Answer,
+        models::assist::ChatResponseKind::AnswerWithDraftHttpRequests,
+        models::assist::ChatResponseKind::AnswerWithHttpRequests,
+        models::assist::CHAT_RESPONSE_KIND_SYSTEM_PROMPT_OUTRO
     );
 }
