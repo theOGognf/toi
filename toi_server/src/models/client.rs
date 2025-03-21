@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub const MAX_CHAT_HISTORY_SIZE: usize = 10;
+
 #[derive(serde::Serialize)]
 pub struct EmbeddingRequest {
     pub input: String,
@@ -11,7 +13,7 @@ pub struct EmbeddingResponse {
     pub embedding: Vec<f32>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     System,
@@ -19,10 +21,10 @@ pub enum MessageRole {
     User,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Clone, serde::Serialize)]
 pub struct Message {
-    role: MessageRole,
-    content: String,
+    pub role: MessageRole,
+    pub content: String,
 }
 
 #[derive(serde::Serialize)]
