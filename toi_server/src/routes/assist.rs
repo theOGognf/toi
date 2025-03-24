@@ -8,7 +8,6 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{client, models, schema, state, utils};
 
 pub fn router(openapi_spec: String, state: state::ToiState) -> OpenApiRouter {
-    let chat = move |state| chat(openapi_spec, state);
     OpenApiRouter::new().routes(routes!(chat)).with_state(state)
 }
 
@@ -20,8 +19,8 @@ pub fn router(openapi_spec: String, state: state::ToiState) -> OpenApiRouter {
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
+#[axum::debug_handler]
 async fn chat(
-    openapi_spec: String,
     State(client): State<client::Client>,
     Json(request): Json<models::client::GenerateRequest>,
 ) -> Response {
