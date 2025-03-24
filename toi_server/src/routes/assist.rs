@@ -69,7 +69,7 @@ async fn chat(
         models::assist::ChatResponseKind::PartiallyAnswerWithHttpRequests
         | models::assist::ChatResponseKind::AnswerWithHttpRequests => {
             let chat_response_system_prompt =
-                chat_response_http_system_prompt(state.openapi_spec, chat_response_kind);
+                http_chat_response_system_prompt(state.openapi_spec, chat_response_kind);
             let mut chat_response_messages = vec![models::client::Message {
                 role: models::client::MessageRole::System,
                 content: chat_response_system_prompt,
@@ -86,6 +86,8 @@ async fn chat(
     }
 }
 
+/// Prompt template for streaming generation responses for requests
+/// that don't require HTTP request calls.
 fn chat_response_system_prompt(
     openapi_spec: String,
     chat_response_kind: models::assist::ChatResponseKind,
@@ -108,7 +110,9 @@ And here is how you should respond:
     )
 }
 
-fn chat_response_http_system_prompt(
+/// Prompt template for non-streaming generation responses that generate
+/// HTTP requests for internal API endpoints.
+fn http_chat_response_system_prompt(
     openapi_spec: String,
     chat_response_kind: models::assist::ChatResponseKind,
 ) -> String {
@@ -133,6 +137,8 @@ And here is how you should respond:
     )
 }
 
+/// Prompt template for non-streaming generation response that classifies
+/// the kind of chat response appropriate based on the user's query.
 fn chat_response_kind_system_prompt(openapi_spec: String) -> String {
     format!(
         r#"
