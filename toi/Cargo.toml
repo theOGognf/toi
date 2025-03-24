@@ -1,0 +1,10 @@
+[package]
+name = "toi"
+version = "0.1.0"
+edition = "2024"
+description = "A library for self-hosting private assistants"
+repository = "https://github.com/theOGognf/toi"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]

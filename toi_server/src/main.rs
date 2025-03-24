@@ -9,7 +9,6 @@ mod client;
 mod models;
 mod routes;
 mod schema;
-mod state;
 mod utils;
 
 #[derive(serde::Deserialize)]
@@ -39,7 +38,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = client::Client::new(embedding_api_config, generation_api_config)?;
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(manager).await?;
-    let state = state::ToiState { client, pool };
+    // Build state with empty spec first since only the assistant endpoint uses
+    // the OpenAPI spec.
+    let mut state = models::state::ToiState {
+        openapi_spec: "".to_string(),
+        client,
+        pool,
+    };
 
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.
@@ -51,13 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
-    let openapi_router =
-        openapi_router.nest("/assist", routes::assist::router(openapi_spec, state));
+    state.openapi_spec = openapi_spec;
+    let openapi_router = openapi_router.nest("/assist", routes::assist::router(state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 
     let listener = TcpListener::bind(binding_addr).await?;
     axum::serve(listener, router).await?;
-
     Ok(())
 }

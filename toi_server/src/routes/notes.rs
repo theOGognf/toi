@@ -11,9 +11,9 @@ use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{models, schema, state, utils};
+use crate::{models, schema, utils};
 
-pub fn router(state: state::ToiState) -> OpenApiRouter {
+pub fn router(state: models::state::ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(
             add_note,
@@ -35,7 +35,7 @@ pub fn router(state: state::ToiState) -> OpenApiRouter {
 )]
 #[axum::debug_handler]
 pub async fn add_note(
-    State(state): State<state::ToiState>,
+    State(state): State<models::state::ToiState>,
     Json(new_note_request): Json<models::notes::NewNoteRequest>,
 ) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
@@ -93,7 +93,7 @@ pub async fn delete_note(
 )]
 #[axum::debug_handler]
 pub async fn delete_matching_notes(
-    State(state): State<state::ToiState>,
+    State(state): State<models::state::ToiState>,
     Query(params): Query<models::notes::NoteQueryParams>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
@@ -183,7 +183,7 @@ pub async fn get_note(
 )]
 #[axum::debug_handler]
 pub async fn get_matching_notes(
-    State(state): State<state::ToiState>,
+    State(state): State<models::state::ToiState>,
     Query(params): Query<models::notes::NoteQueryParams>,
 ) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;

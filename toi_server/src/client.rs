@@ -61,16 +61,18 @@ impl Client {
     pub async fn generate_stream(
         self,
         request: models::client::GenerateRequest,
-    ) -> Result<Body,(StatusCode, String)> {
+    ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
         let url = format!("{base_url}{}", "/chat/completions");
         let request = Self::build_request_json(&self.generation_api_config, request)?;
-        let response = self.generation_client
+        let response = self
+            .generation_client
             .post(url)
             .query(&self.generation_api_config.params)
             .json(&request)
             .send()
-            .await.map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+            .await
+            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }

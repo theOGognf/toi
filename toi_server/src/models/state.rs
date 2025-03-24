@@ -5,6 +5,7 @@ use crate::{client, utils};
 #[derive(Clone)]
 pub struct ToiState {
     pub client: client::Client,
+    pub openapi_spec: String,
     pub pool: utils::Pool,
 }
 

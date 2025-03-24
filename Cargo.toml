@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "toi",
     "toi_client",
     "toi_server",
 ]
