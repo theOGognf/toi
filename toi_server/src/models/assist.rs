@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::models;
 
@@ -20,8 +20,7 @@ impl SystemPrompt {
 
 pub const CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
 You are a chat assistant that responds given an OpenAPI spec, a chat history, 
-and a designated response type.
-"#;
+and a designated response type."#;
 
 pub const HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &'static str = r#"
 Only respond with the JSON of the HTTP request(s) and nothing else. The JSON 
@@ -36,18 +35,20 @@ should have format:
             "body": Mapping of JSON body parameter names to their values.
         }
     ]
-}
-"#;
+}"#;
 
 pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
 You are a chat assistant that helps preprocess a user's message. Given an 
 OpenAPI spec and a chat history, your job is to classify what kind of 
-response is best.
-"#;
+response is best."#;
 
 pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &'static str = r#"
-Only respond with the number of the response that fits best and nothing else.
-"#;
+Only respond with the number of the response that fits best and nothing else."#;
+
+pub const SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
+You are a chat assistant that informs a user what actions were performed by
+concisely summarizing HTTP request-responses made in response to a user's
+request."#;
 
 pub enum ChatResponseKind {
     Unfulfillable,
@@ -69,17 +70,38 @@ Here is the OpenAPI spec for reference:
 {}
 
 And here are your classification options:
-
 "#,
             KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO, openapi_spec
         );
 
         for i in 1..=6 {
             let chat_response_kind: ChatResponseKind = i.into();
-            system_prompt = format!("{system_prompt}\n{i}. {chat_response_kind}");
+            system_prompt = format!(
+                r#"
+{system_prompt}
+{i}. {chat_response_kind}"#
+            );
         }
 
-        system_prompt = format!("{system_prompt}\n\n{KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}");
+        system_prompt = format!(
+            r#"
+{system_prompt}
+
+{KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
+        );
+
+        SystemPrompt(system_prompt)
+    }
+
+    pub fn to_summary_prompt(request_responses: String) -> SystemPrompt {
+        let system_prompt = format!(
+            r#"
+{SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
+
+Here are the HTTP request-responses:
+
+{request_responses}"#
+        );
 
         SystemPrompt(system_prompt)
     }
@@ -191,5 +213,76 @@ impl From<u8> for ChatResponseKind {
             6 => Self::AnswerWithHttpRequests,
             _ => Self::Unfulfillable,
         }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum HttpMethod {
+    Delete,
+    Get,
+    Post,
+    Put,
+}
+
+impl Into<reqwest::Method> for HttpMethod {
+    fn into(self) -> reqwest::Method {
+        match self {
+            Self::Delete => reqwest::Method::DELETE,
+            Self::Get => reqwest::Method::GET,
+            Self::Post => reqwest::Method::POST,
+            Self::Put => reqwest::Method::PUT,
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct HttpRequest {
+    method: HttpMethod,
+    path: String,
+    params: HashMap<String, String>,
+    body: HashMap<String, String>,
+}
+
+impl fmt::Display for HttpRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        write!(f, "{repr}")
+    }
+}
+
+impl Into<reqwest::Request> for HttpRequest {
+    fn into(self) -> reqwest::Request {
+        reqwest::Client::new()
+            .request(self.method.into(), self.path)
+            .query(&self.params)
+            .json(&self.body)
+            .build()
+            .expect("valid request")
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct HttpRequests {
+    pub requests: Vec<HttpRequest>,
+}
+
+pub struct RequestResponse {
+    pub request: String,
+    pub response: String,
+}
+
+impl fmt::Display for RequestResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = format!(
+            r#"
+Request:
+{}
+
+Response:
+{}"#,
+            self.request, self.response
+        );
+        write!(f, "{repr}")
     }
 }

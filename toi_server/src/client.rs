@@ -20,7 +20,7 @@ impl Client {
             .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
         let request = value
             .as_object_mut()
-            .expect("Request value can never be empty");
+            .expect("request value can never be empty");
         if let Some(json) = serde_json::to_value(config.json.clone())
             .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
             .as_object()
@@ -63,7 +63,7 @@ impl Client {
         request: models::client::GenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
-        let url = format!("{base_url}{}", "/chat/completions");
+        let url = format!("{base_url}/chat/completions");
         let request = Self::build_request_json(&self.generation_api_config, request)?;
         let response = self
             .generation_client

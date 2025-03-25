@@ -27,7 +27,7 @@ async fn chat(
 ) -> Result<Body, (StatusCode, String)> {
     // First step is classifying the type of response most appropriate based on the
     // user's chat history and last message.
-    let sysem_prompt = models::assist::ChatResponseKind::to_kind_system_prompt(state.openapi_spec);
+    let sysem_prompt = models::assist::ChatResponseKind::to_kind_system_prompt(&state.openapi_spec);
     let generation_request = sysem_prompt.to_generation_request(&request.messages);
     let chat_response_kind = state.client.generate(generation_request).await?;
     let chat_response_kind = chat_response_kind
@@ -37,21 +37,38 @@ async fn chat(
 
     // Map the response kind to different prompts and different ways for constructing
     // the final response.
-    match chat_response_kind {
+    let system_prompt = match chat_response_kind {
         models::assist::ChatResponseKind::Unfulfillable
         | models::assist::ChatResponseKind::FollowUp
         | models::assist::ChatResponseKind::Answer
         | models::assist::ChatResponseKind::AnswerWithDraftHttpRequests => {
-            let system_prompt = chat_response_kind.to_system_prompt(state.openapi_spec);
-            let generation_request = system_prompt.to_generation_request(&request.messages);
-            let stream = state.client.generate_stream(generation_request).await?;
-            Ok(stream)
+            chat_response_kind.to_system_prompt(&state.openapi_spec)
         }
         models::assist::ChatResponseKind::PartiallyAnswerWithHttpRequests
         | models::assist::ChatResponseKind::AnswerWithHttpRequests => {
-            let system_prompt = chat_response_kind.to_system_prompt(state.openapi_spec);
+            let system_prompt = chat_response_kind.to_system_prompt(&state.openapi_spec);
             let generation_request = system_prompt.to_generation_request(&request.messages);
             let http_requests = state.client.generate(generation_request).await?;
+            let http_requests =
+                serde_json::from_str::<models::assist::HttpRequests>(&http_requests)
+                    .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+            let mut request_responses: Vec<String> = vec![];
+            for http_request in http_requests.requests {
+                let request: reqwest::Request = http_request.into();
+                let response = reqwest::Client::new()
+                    .execute(request)
+                    .await
+                    .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?;
+                let request_response = models::assist::RequestResponse {
+                    request: http_request.to_string(),
+                    response: response.text().await.unwrap_or_else(|err| err.to_string()),
+                };
+                request_responses.push(request_response.to_string());
+            }
+            models::assist::ChatResponseKind::to_summary_prompt(&request_responses.join("\n"))
         }
-    }
+    };
+    let generation_request = system_prompt.to_generation_request(&request.messages);
+    let stream = state.client.generate_stream(generation_request).await?;
+    Ok(stream)
 }
