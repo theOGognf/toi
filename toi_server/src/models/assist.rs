@@ -1,22 +1,21 @@
 use std::{collections::HashMap, fmt};
 
 use serde::{Deserialize, Serialize};
-
-use crate::models;
+use toi::{Message, MessageRole, GenerationRequest};
 
 pub struct SystemPrompt(String);
 
 impl SystemPrompt {
     pub fn to_generation_request(
         self,
-        history: &[models::client::Message],
-    ) -> models::client::GenerationRequest {
-        let mut messages = vec![models::client::Message {
-            role: models::client::MessageRole::System,
+        history: &[toi::Message],
+    ) -> GenerationRequest {
+        let mut messages = vec![Message {
+            role: MessageRole::System,
             content: self.0,
         }];
         messages.extend_from_slice(history);
-        models::client::GenerationRequest { messages }
+        GenerationRequest { messages }
     }
 }
 

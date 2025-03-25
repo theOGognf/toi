@@ -1,4 +1,5 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
+use toi::GenerationRequest;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models;
@@ -20,7 +21,7 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
 #[axum::debug_handler]
 async fn chat(
     State(state): State<models::state::ToiState>,
-    Json(request): Json<models::client::GenerationRequest>,
+    Json(request): Json<GenerationRequest>,
 ) -> Result<Body, (StatusCode, String)> {
     // First step is classifying the type of response most appropriate based on the
     // user's chat history and last message.

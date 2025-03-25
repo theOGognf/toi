@@ -1,6 +1,7 @@
 use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
 use serde::{Serialize, de::DeserializeOwned};
+use toi::{GenerationRequest, GenerationResponse};
 
 use crate::models;
 
@@ -51,9 +52,9 @@ impl Client {
 
     pub async fn generate(
         &self,
-        request: models::client::GenerationRequest,
+        request: GenerationRequest,
     ) -> Result<String, (StatusCode, String)> {
-        let resp: models::client::GenerationResponse = Self::post(
+        let resp: GenerationResponse = Self::post(
             &self.generation_api_config,
             "/chat/completions".to_string(),
             &self.generation_client,
@@ -65,7 +66,7 @@ impl Client {
 
     pub async fn generate_stream(
         &self,
-        request: models::client::GenerationRequest,
+        request: GenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
         let url = format!("{base_url}/chat/completions");
