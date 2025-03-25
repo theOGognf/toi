@@ -1,15 +1,12 @@
 use std::{collections::HashMap, fmt};
 
 use serde::{Deserialize, Serialize};
-use toi::{Message, MessageRole, GenerationRequest};
+use toi::{GenerationRequest, Message, MessageRole};
 
 pub struct SystemPrompt(String);
 
 impl SystemPrompt {
-    pub fn to_generation_request(
-        self,
-        history: &[toi::Message],
-    ) -> GenerationRequest {
+    pub fn into_generation_request(self, history: &[toi::Message]) -> GenerationRequest {
         let mut messages = vec![Message {
             role: MessageRole::System,
             content: self.0,
@@ -19,11 +16,11 @@ impl SystemPrompt {
     }
 }
 
-pub const CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
+pub const CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
 You are a chat assistant that responds given an OpenAPI spec, a chat history, 
 and a designated response type."#;
 
-pub const HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &'static str = r#"
+pub const HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
 Only respond with the JSON of the HTTP request(s) and nothing else. The JSON 
 should have format:
 
@@ -38,15 +35,15 @@ should have format:
     ]
 }"#;
 
-pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
+pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
 You are a chat assistant that helps preprocess a user's message. Given an 
 OpenAPI spec and a chat history, your job is to classify what kind of 
 response is best."#;
 
-pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &'static str = r#"
+pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
 Only respond with the number of the response that fits best and nothing else."#;
 
-pub const SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &'static str = r#"
+pub const SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
 You are a chat assistant that informs a user what actions were performed by
 concisely summarizing HTTP request-responses made in response to a user's
 request."#;
@@ -61,7 +58,7 @@ pub enum ChatResponseKind {
 }
 
 impl ChatResponseKind {
-    pub fn to_kind_system_prompt(openapi_spec: &String) -> SystemPrompt {
+    pub fn into_kind_system_prompt(openapi_spec: &String) -> SystemPrompt {
         let mut system_prompt = format!(
             r#"
 {}
@@ -94,7 +91,7 @@ And here are your classification options:
         SystemPrompt(system_prompt)
     }
 
-    pub fn to_summary_prompt(request_responses: &String) -> SystemPrompt {
+    pub fn into_summary_prompt(request_responses: &String) -> SystemPrompt {
         let system_prompt = format!(
             r#"
 {SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
@@ -107,7 +104,7 @@ Here are the HTTP request-responses:
         SystemPrompt(system_prompt)
     }
 
-    pub fn to_system_prompt(self, openapi_spec: &String) -> SystemPrompt {
+    pub fn into_system_prompt(self, openapi_spec: &String) -> SystemPrompt {
         let system_prompt = match self {
             Self::Unfulfillable
             | Self::FollowUp
@@ -124,9 +121,7 @@ Here is the OpenAPI spec for reference:
 And here is how you should respond:
 
 {}"#,
-                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
-                    openapi_spec,
-                    self.to_string()
+                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO, openapi_spec, self
                 )
             }
             Self::PartiallyAnswerWithHttpRequests | Self::AnswerWithHttpRequests => {
@@ -145,7 +140,7 @@ And here is how you should respond:
 {}"#,
                     CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
                     openapi_spec,
-                    self.to_string(),
+                    self,
                     HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO,
                 )
             }
@@ -226,13 +221,13 @@ enum HttpMethod {
     Put,
 }
 
-impl Into<reqwest::Method> for HttpMethod {
-    fn into(self) -> reqwest::Method {
-        match self {
-            Self::Delete => reqwest::Method::DELETE,
-            Self::Get => reqwest::Method::GET,
-            Self::Post => reqwest::Method::POST,
-            Self::Put => reqwest::Method::PUT,
+impl From<HttpMethod> for reqwest::Method {
+    fn from(val: HttpMethod) -> Self {
+        match val {
+            HttpMethod::Delete => reqwest::Method::DELETE,
+            HttpMethod::Get => reqwest::Method::GET,
+            HttpMethod::Post => reqwest::Method::POST,
+            HttpMethod::Put => reqwest::Method::PUT,
         }
     }
 }
@@ -252,12 +247,12 @@ impl fmt::Display for HttpRequest {
     }
 }
 
-impl Into<reqwest::Request> for HttpRequest {
-    fn into(self) -> reqwest::Request {
+impl From<HttpRequest> for reqwest::Request {
+    fn from(val: HttpRequest) -> Self {
         reqwest::Client::new()
-            .request(self.method.into(), self.path)
-            .query(&self.params)
-            .json(&self.body)
+            .request(val.method.into(), val.path)
+            .query(&val.params)
+            .json(&val.body)
             .build()
             .expect("valid request")
     }

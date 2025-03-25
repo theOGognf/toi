@@ -25,11 +25,12 @@ async fn chat(
 ) -> Result<Body, (StatusCode, String)> {
     // First step is classifying the type of response most appropriate based on the
     // user's chat history and last message.
-    let sysem_prompt = models::assist::ChatResponseKind::to_kind_system_prompt(&state.openapi_spec);
-    let generation_request = sysem_prompt.to_generation_request(&request.messages);
+    let sysem_prompt =
+        models::assist::ChatResponseKind::into_kind_system_prompt(&state.openapi_spec);
+    let generation_request = sysem_prompt.into_generation_request(&request.messages);
     let chat_response_kind = state.client.generate(generation_request).await?;
     let chat_response_kind = chat_response_kind.parse::<u8>().map_err(|err| {
-        models::client::ClientError::ResponseJson.to_response(
+        models::client::ClientError::ResponseJson.into_response(
             &state.client.generation_api_config.base_url,
             &err.to_string(),
         )
@@ -43,18 +44,18 @@ async fn chat(
         | models::assist::ChatResponseKind::FollowUp
         | models::assist::ChatResponseKind::Answer
         | models::assist::ChatResponseKind::AnswerWithDraftHttpRequests => {
-            chat_response_kind.to_system_prompt(&state.openapi_spec)
+            chat_response_kind.into_system_prompt(&state.openapi_spec)
         }
         models::assist::ChatResponseKind::PartiallyAnswerWithHttpRequests
         | models::assist::ChatResponseKind::AnswerWithHttpRequests => {
-            let system_prompt = chat_response_kind.to_system_prompt(&state.openapi_spec);
-            let generation_request = system_prompt.to_generation_request(&request.messages);
+            let system_prompt = chat_response_kind.into_system_prompt(&state.openapi_spec);
+            let generation_request = system_prompt.into_generation_request(&request.messages);
             let http_requests = state.client.generate(generation_request).await?;
             let http_requests = serde_json::from_str::<models::assist::HttpRequests>(
                 &http_requests,
             )
             .map_err(|err| {
-                models::client::ClientError::ResponseJson.to_response(
+                models::client::ClientError::ResponseJson.into_response(
                     &state.client.generation_api_config.base_url,
                     &err.to_string(),
                 )
@@ -67,7 +68,7 @@ async fn chat(
                     .execute(request)
                     .await
                     .map_err(|err| {
-                        models::client::ClientError::ApiConnection.to_response(
+                        models::client::ClientError::ApiConnection.into_response(
                             &state.client.generation_api_config.base_url,
                             &err.to_string(),
                         )
@@ -78,10 +79,10 @@ async fn chat(
                 };
                 request_responses.push(request_response.to_string());
             }
-            models::assist::ChatResponseKind::to_summary_prompt(&request_responses.join("\n"))
+            models::assist::ChatResponseKind::into_summary_prompt(&request_responses.join("\n"))
         }
     };
-    let generation_request = system_prompt.to_generation_request(&request.messages);
+    let generation_request = system_prompt.into_generation_request(&request.messages);
     let stream = state.client.generate_stream(generation_request).await?;
     Ok(stream)
 }

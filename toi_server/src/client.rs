@@ -19,7 +19,8 @@ impl Client {
         request: Request,
     ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
         let mut value = serde_json::to_value(request).map_err(|err| {
-            models::client::ClientError::RequestJson.to_response(&config.base_url, &err.to_string())
+            models::client::ClientError::RequestJson
+                .into_response(&config.base_url, &err.to_string())
         })?;
         let request = value
             .as_object_mut()
@@ -27,7 +28,7 @@ impl Client {
         if let Some(json) = serde_json::to_value(config.json.clone())
             .map_err(|err| {
                 models::client::ClientError::DefaultJson
-                    .to_response(&config.base_url, &err.to_string())
+                    .into_response(&config.base_url, &err.to_string())
             })?
             .as_object()
         {
@@ -79,7 +80,7 @@ impl Client {
             .send()
             .await
             .map_err(|err| {
-                models::client::ClientError::ApiConnection.to_response(&url, &err.to_string())
+                models::client::ClientError::ApiConnection.into_response(&url, &err.to_string())
             })?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
@@ -115,7 +116,7 @@ impl Client {
     ) -> Result<ResponseModel, (StatusCode, String)> {
         let base_url = config.base_url.trim_end_matches("/");
         let url = format!("{base_url}{endpoint}",);
-        let request = Self::build_request_json(&config, request)?;
+        let request = Self::build_request_json(config, request)?;
         client
             .post(&url)
             .query(&config.params)
@@ -123,12 +124,12 @@ impl Client {
             .send()
             .await
             .map_err(|err| {
-                models::client::ClientError::ApiConnection.to_response(&url, &err.to_string())
+                models::client::ClientError::ApiConnection.into_response(&url, &err.to_string())
             })?
             .json::<ResponseModel>()
             .await
             .map_err(|err| {
-                models::client::ClientError::ResponseJson.to_response(&url, &err.to_string())
+                models::client::ClientError::ResponseJson.into_response(&url, &err.to_string())
             })
     }
 }

@@ -22,7 +22,7 @@ pub enum ClientError {
 }
 
 impl ClientError {
-    pub fn to_response(self, url: &str, original_err: &str) -> (StatusCode, String) {
+    pub fn into_response(self, url: &str, original_err: &str) -> (StatusCode, String) {
         match self {
             Self::ApiConnection => (
                 StatusCode::BAD_GATEWAY,
