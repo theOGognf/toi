@@ -30,6 +30,8 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
     path = "",
     responses(
         (status = 201, description = "Successfully added a note", body = models::notes::Note),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
@@ -88,6 +90,8 @@ pub async fn delete_note(
     params(models::notes::NoteQueryParams),
     responses(
         (status = 200, description = "Successfully deleted notes", body = [models::notes::Note]),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
@@ -178,6 +182,8 @@ pub async fn get_note(
     params(models::notes::NoteQueryParams),
     responses(
         (status = 200, description = "Successfully got notes", body = [models::notes::Note]),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]

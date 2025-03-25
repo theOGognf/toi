@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-pub const MAX_CHAT_HISTORY_SIZE: usize = 10;
-
 #[derive(serde::Serialize)]
 pub struct EmbeddingRequest {
     pub input: String,

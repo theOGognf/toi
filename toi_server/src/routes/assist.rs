@@ -1,9 +1,4 @@
-use axum::{
-    body::Body,
-    extract::{Path, Query, State},
-    http::StatusCode,
-    response::{Json, Response},
-};
+use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models;
@@ -17,6 +12,8 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
     path = "",
     responses(
         (status = 200, description = "Successfully got a response"),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
