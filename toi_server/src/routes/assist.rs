@@ -23,24 +23,16 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
 #[axum::debug_handler]
 async fn chat(
     State(state): State<models::state::ToiState>,
-    Json(request): Json<models::client::GenerateRequest>,
+    Json(request): Json<models::client::GenerationRequest>,
 ) -> Result<Body, (StatusCode, String)> {
     // First step is classifying the type of response most appropriate based on the
     // user's chat history and last message.
-    let chat_response_kind_system_prompt = chat_response_kind_system_prompt(state.openapi_spec);
-    let mut chat_response_kind_messages = vec![models::client::Message {
-        role: models::client::MessageRole::System,
-        content: chat_response_kind_system_prompt,
-    }];
-    chat_response_kind_messages.extend_from_slice(&request.messages);
-    let chat_response_kind_generation_request = models::client::GenerateRequest {
-        messages: chat_response_kind_messages,
-    };
-    let chat_response_kind = state
-        .client
-        .generate(chat_response_kind_generation_request)
-        .await?;
-    let chat_response_kind = chat_response_kind.parse::<u8>()?;
+    let sysem_prompt = models::assist::ChatResponseKind::to_kind_system_prompt(state.openapi_spec);
+    let generation_request = sysem_prompt.to_generation_request(&request.messages);
+    let chat_response_kind = state.client.generate(generation_request).await?;
+    let chat_response_kind = chat_response_kind
+        .parse::<u8>()
+        .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
     let chat_response_kind: models::assist::ChatResponseKind = chat_response_kind.into();
 
     // Map the response kind to different prompts and different ways for constructing
@@ -50,121 +42,16 @@ async fn chat(
         | models::assist::ChatResponseKind::FollowUp
         | models::assist::ChatResponseKind::Answer
         | models::assist::ChatResponseKind::AnswerWithDraftHttpRequests => {
-            let chat_response_system_prompt =
-                chat_response_system_prompt(state.openapi_spec, chat_response_kind);
-            let mut chat_response_messages = vec![models::client::Message {
-                role: models::client::MessageRole::System,
-                content: chat_response_system_prompt,
-            }];
-            chat_response_messages.extend_from_slice(&request.messages);
-            let chat_response_generation_request = models::client::GenerateRequest {
-                messages: chat_response_messages,
-            };
-            let stream = state
-                .client
-                .generate_stream(chat_response_generation_request)
-                .await?;
+            let system_prompt = chat_response_kind.to_system_prompt(state.openapi_spec);
+            let generation_request = system_prompt.to_generation_request(&request.messages);
+            let stream = state.client.generate_stream(generation_request).await?;
             Ok(stream)
         }
         models::assist::ChatResponseKind::PartiallyAnswerWithHttpRequests
         | models::assist::ChatResponseKind::AnswerWithHttpRequests => {
-            let chat_response_system_prompt =
-                http_chat_response_system_prompt(state.openapi_spec, chat_response_kind);
-            let mut chat_response_messages = vec![models::client::Message {
-                role: models::client::MessageRole::System,
-                content: chat_response_system_prompt,
-            }];
-            chat_response_messages.extend_from_slice(&request.messages);
-            let http_requests_generation_request = models::client::GenerateRequest {
-                messages: chat_response_messages,
-            };
-            let http_requests = state
-                .client
-                .generate(http_requests_generation_request)
-                .await?;
+            let system_prompt = chat_response_kind.to_system_prompt(state.openapi_spec);
+            let generation_request = system_prompt.to_generation_request(&request.messages);
+            let http_requests = state.client.generate(generation_request).await?;
         }
     }
-}
-
-/// Prompt template for streaming generation responses for requests
-/// that don't require HTTP request calls.
-fn chat_response_system_prompt(
-    openapi_spec: String,
-    chat_response_kind: models::assist::ChatResponseKind,
-) -> String {
-    format!(
-        r#"
-{}
-
-Here is the OpenAPI spec for reference:
-
-{}
-
-And here is how you should respond:
-
-{}
-        "#,
-        models::assist::CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
-        openapi_spec,
-        &chat_response_kind.to_string()[3..],
-    )
-}
-
-/// Prompt template for non-streaming generation responses that generate
-/// HTTP requests for internal API endpoints.
-fn http_chat_response_system_prompt(
-    openapi_spec: String,
-    chat_response_kind: models::assist::ChatResponseKind,
-) -> String {
-    format!(
-        r#"
-{}
-
-Here is the OpenAPI spec for reference:
-
-{}
-
-And here is how you should respond:
-
-{}
-
-{}
-        "#,
-        models::assist::CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
-        openapi_spec,
-        &chat_response_kind.to_string()[3..],
-        models::assist::CHAT_RESPONSE_HTTP_SYSTEM_PROMPT_OUTRO,
-    )
-}
-
-/// Prompt template for non-streaming generation response that classifies
-/// the kind of chat response appropriate based on the user's query.
-fn chat_response_kind_system_prompt(openapi_spec: String) -> String {
-    format!(
-        r#"
-{}
-
-Here is the OpenAPI spec for reference:
-
-{}
-
-And here are your classification options:
-
-{}
-{}
-{}
-{}
-{}
-
-{}
-        "#,
-        models::assist::CHAT_RESPONSE_KIND_SYSTEM_PROMPT_INTRO,
-        openapi_spec,
-        models::assist::ChatResponseKind::Unfulfillable,
-        models::assist::ChatResponseKind::FollowUp,
-        models::assist::ChatResponseKind::Answer,
-        models::assist::ChatResponseKind::AnswerWithDraftHttpRequests,
-        models::assist::ChatResponseKind::AnswerWithHttpRequests,
-        models::assist::CHAT_RESPONSE_KIND_SYSTEM_PROMPT_OUTRO
-    )
 }

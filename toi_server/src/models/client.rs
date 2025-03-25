@@ -29,12 +29,12 @@ pub struct Message {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct GenerateRequest {
+pub struct GenerationRequest {
     pub messages: Vec<Message>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, serde_query::DeserializeQuery)]
-pub struct GenerateResponse {
+pub struct GenerationResponse {
     #[query(".choices.[0].message.content")]
     pub content: String,
 }
