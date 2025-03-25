@@ -35,9 +35,9 @@ impl Client {
         request: models::client::EmbeddingRequest,
     ) -> Result<Vector, (StatusCode, String)> {
         let resp: models::client::EmbeddingResponse = Self::post(
-            self.embedding_api_config,
+            &self.embedding_api_config,
             "/embeddings".to_string(),
-            self.embedding_client,
+            &self.embedding_client,
             request,
         )
         .await?;
@@ -45,13 +45,13 @@ impl Client {
     }
 
     pub async fn generate(
-        self,
+        &self,
         request: models::client::GenerationRequest,
     ) -> Result<String, (StatusCode, String)> {
         let resp: models::client::GenerationResponse = Self::post(
-            self.generation_api_config,
+            &self.generation_api_config,
             "/chat/completions".to_string(),
-            self.generation_client,
+            &self.generation_client,
             request,
         )
         .await?;
@@ -59,7 +59,7 @@ impl Client {
     }
 
     pub async fn generate_stream(
-        self,
+        &self,
         request: models::client::GenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
@@ -100,9 +100,9 @@ impl Client {
     }
 
     async fn post<Request: serde::ser::Serialize, ResponseModel: serde::de::DeserializeOwned>(
-        config: models::client::HttpClientConfig,
+        config: &models::client::HttpClientConfig,
         endpoint: String,
-        client: reqwest::Client,
+        client: &reqwest::Client,
         request: Request,
     ) -> Result<ResponseModel, (StatusCode, String)> {
         let base_url = config.base_url.trim_end_matches("/");

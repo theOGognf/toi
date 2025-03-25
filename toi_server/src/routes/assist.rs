@@ -54,13 +54,14 @@ async fn chat(
                     .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
             let mut request_responses: Vec<String> = vec![];
             for http_request in http_requests.requests {
+                let request_repr = http_request.to_string();
                 let request: reqwest::Request = http_request.into();
                 let response = reqwest::Client::new()
                     .execute(request)
                     .await
                     .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?;
                 let request_response = models::assist::RequestResponse {
-                    request: http_request.to_string(),
+                    request: request_repr,
                     response: response.text().await.unwrap_or_else(|err| err.to_string()),
                 };
                 request_responses.push(request_response.to_string());

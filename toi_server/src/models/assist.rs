@@ -60,7 +60,7 @@ pub enum ChatResponseKind {
 }
 
 impl ChatResponseKind {
-    pub fn to_kind_system_prompt(openapi_spec: String) -> SystemPrompt {
+    pub fn to_kind_system_prompt(openapi_spec: &String) -> SystemPrompt {
         let mut system_prompt = format!(
             r#"
 {}
@@ -93,7 +93,7 @@ And here are your classification options:
         SystemPrompt(system_prompt)
     }
 
-    pub fn to_summary_prompt(request_responses: String) -> SystemPrompt {
+    pub fn to_summary_prompt(request_responses: &String) -> SystemPrompt {
         let system_prompt = format!(
             r#"
 {SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
@@ -106,7 +106,7 @@ Here are the HTTP request-responses:
         SystemPrompt(system_prompt)
     }
 
-    pub fn to_system_prompt(self, openapi_spec: String) -> SystemPrompt {
+    pub fn to_system_prompt(self, openapi_spec: &String) -> SystemPrompt {
         let system_prompt = match self {
             Self::Unfulfillable
             | Self::FollowUp
