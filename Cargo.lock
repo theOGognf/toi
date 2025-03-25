@@ -2152,7 +2152,6 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde-query",
- "serde_json",
 ]
 
 [[package]]
