@@ -1,6 +1,7 @@
 use std::fs::File;
 
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use serde::Deserialize;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
@@ -11,7 +12,7 @@ mod routes;
 mod schema;
 mod utils;
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 struct ToiConfig {
     #[serde(default = "utils::default_server_binding_addr")]
     binding_addr: String,

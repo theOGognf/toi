@@ -1,17 +1,19 @@
+use serde::{Deserialize, Serialize};
+use serde_query::DeserializeQuery;
 use std::collections::HashMap;
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
 pub struct EmbeddingRequest {
     pub input: String,
 }
 
-#[derive(serde::Deserialize, serde_query::DeserializeQuery)]
+#[derive(Deserialize, DeserializeQuery)]
 pub struct EmbeddingResponse {
     #[query(".data.[0].embedding")]
     pub embedding: Vec<f32>,
 }
 
-#[derive(Clone, serde::Deserialize, PartialEq, serde::Serialize)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     #[serde(skip)]
@@ -20,24 +22,24 @@ pub enum MessageRole {
     User,
 }
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Message {
     pub role: MessageRole,
     pub content: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct GenerationRequest {
     pub messages: Vec<Message>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, serde_query::DeserializeQuery)]
+#[derive(Deserialize, Serialize, DeserializeQuery)]
 pub struct GenerationResponse {
     #[query(".choices.[0].message.content")]
     pub content: String,
 }
 
-#[derive(Clone, Default, serde::Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct HttpClientConfig {
     pub base_url: String,

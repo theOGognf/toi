@@ -1,5 +1,6 @@
 use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::models;
 
@@ -12,7 +13,7 @@ pub struct Client {
 }
 
 impl Client {
-    fn build_request_json<Request: serde::ser::Serialize>(
+    fn build_request_json<Request: Serialize>(
         config: &models::client::HttpClientConfig,
         request: Request,
     ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
@@ -99,7 +100,7 @@ impl Client {
         })
     }
 
-    async fn post<Request: serde::ser::Serialize, ResponseModel: serde::de::DeserializeOwned>(
+    async fn post<Request: Serialize, ResponseModel: DeserializeOwned>(
         config: &models::client::HttpClientConfig,
         endpoint: String,
         client: &reqwest::Client,

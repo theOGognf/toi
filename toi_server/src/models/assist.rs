@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt};
 
+use serde::{Deserialize, Serialize};
+
 use crate::models;
 
 pub struct SystemPrompt(String);
@@ -30,9 +32,9 @@ should have format:
     "requests": [
         {
             "method": DELETE/GET/POST/PUT,
-            "path": The endpoint path beginning with a forward slash.
-            "params": Mapping of query parameter names to their values.
-            "body": Mapping of JSON body parameter names to their values.
+            "path": The endpoint path beginning with a forward slash,
+            "params": Mapping of query parameter names to their values,
+            "body": Mapping of JSON body parameter names to their values,
         }
     ]
 }"#;
@@ -216,7 +218,7 @@ impl From<u8> for ChatResponseKind {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum HttpMethod {
     Delete,
@@ -236,7 +238,7 @@ impl Into<reqwest::Method> for HttpMethod {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct HttpRequest {
     method: HttpMethod,
     path: String,
@@ -262,7 +264,7 @@ impl Into<reqwest::Request> for HttpRequest {
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct HttpRequests {
     pub requests: Vec<HttpRequest>,
 }

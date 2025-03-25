@@ -1,11 +1,12 @@
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
+use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::utils;
 
-#[derive(Queryable, Selectable, serde::Serialize, ToSchema)]
+#[derive(Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::notes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Note {
@@ -22,12 +23,12 @@ pub struct NewNote {
     pub embedding: Vector,
 }
 
-#[derive(serde::Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema)]
 pub struct NewNoteRequest {
     pub content: String,
 }
 
-#[derive(serde::Deserialize, IntoParams)]
+#[derive(Deserialize, IntoParams)]
 pub struct NoteQueryParams {
     pub similarity_search_params: Option<NoteSimilaritySearchParams>,
     pub from: Option<DateTime<Utc>>,
@@ -37,7 +38,7 @@ pub struct NoteQueryParams {
     pub limit: Option<i64>,
 }
 
-#[derive(serde::Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema)]
 pub struct NoteSimilaritySearchParams {
     pub query: String,
     #[serde(default = "utils::default_distance_threshold")]

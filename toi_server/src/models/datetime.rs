@@ -1,13 +1,14 @@
 use chrono::{DateTime, Utc};
+use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(Default, serde::Deserialize, IntoParams)]
+#[derive(Default, Deserialize, IntoParams)]
 #[serde(default)]
 pub struct DateTimeQueryParams {
     pub datetime: DateTime<Utc>,
 }
 
-#[derive(Default, serde::Deserialize, ToSchema)]
+#[derive(Default, Deserialize, ToSchema)]
 #[serde(default)]
 pub struct DateTimeShiftRequest {
     pub datetime: DateTime<Utc>,
