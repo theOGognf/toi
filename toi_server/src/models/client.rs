@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_query::DeserializeQuery;
 use std::collections::HashMap;
@@ -37,6 +38,38 @@ pub struct GenerationRequest {
 pub struct GenerationResponse {
     #[query(".choices.[0].message.content")]
     pub content: String,
+}
+
+pub enum ClientError {
+    ApiConnection,
+    DefaultJson,
+    RequestJson,
+    ResponseJson,
+}
+
+impl ClientError {
+    pub fn to_response(self, url: &str, original_err: &str) -> (StatusCode, String) {
+        match self {
+            Self::ApiConnection => (
+                StatusCode::BAD_GATEWAY,
+                format!(
+                    "connection error when getting response from {url} resultin in '{original_err}'"
+                ),
+            ),
+            Self::DefaultJson => (
+                StatusCode::BAD_REQUEST,
+                format!("couldn't serialize default JSON for {url} resulting in '{original_err}'"),
+            ),
+            Self::RequestJson => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("couldn't serialize request for {url} resulting in '{original_err}'"),
+            ),
+            Self::ResponseJson => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("couldn't deserialize response from {url} resulting in '{original_err}'"),
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Default, Deserialize)]

@@ -27,9 +27,12 @@ async fn chat(
     let sysem_prompt = models::assist::ChatResponseKind::to_kind_system_prompt(&state.openapi_spec);
     let generation_request = sysem_prompt.to_generation_request(&request.messages);
     let chat_response_kind = state.client.generate(generation_request).await?;
-    let chat_response_kind = chat_response_kind
-        .parse::<u8>()
-        .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+    let chat_response_kind = chat_response_kind.parse::<u8>().map_err(|err| {
+        models::client::ClientError::ResponseJson.to_response(
+            &state.client.generation_api_config.base_url,
+            &err.to_string(),
+        )
+    })?;
     let chat_response_kind: models::assist::ChatResponseKind = chat_response_kind.into();
 
     // Map the response kind to different prompts and different ways for constructing
@@ -46,9 +49,15 @@ async fn chat(
             let system_prompt = chat_response_kind.to_system_prompt(&state.openapi_spec);
             let generation_request = system_prompt.to_generation_request(&request.messages);
             let http_requests = state.client.generate(generation_request).await?;
-            let http_requests =
-                serde_json::from_str::<models::assist::HttpRequests>(&http_requests)
-                    .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+            let http_requests = serde_json::from_str::<models::assist::HttpRequests>(
+                &http_requests,
+            )
+            .map_err(|err| {
+                models::client::ClientError::ResponseJson.to_response(
+                    &state.client.generation_api_config.base_url,
+                    &err.to_string(),
+                )
+            })?;
             let mut request_responses: Vec<String> = vec![];
             for http_request in http_requests.requests {
                 let request_repr = http_request.to_string();
@@ -56,7 +65,12 @@ async fn chat(
                 let response = reqwest::Client::new()
                     .execute(request)
                     .await
-                    .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?;
+                    .map_err(|err| {
+                        models::client::ClientError::ApiConnection.to_response(
+                            &state.client.generation_api_config.base_url,
+                            &err.to_string(),
+                        )
+                    })?;
                 let request_response = models::assist::RequestResponse {
                     request: request_repr,
                     response: response.text().await.unwrap_or_else(|err| err.to_string()),

@@ -6,9 +6,9 @@ use crate::models;
 
 #[derive(Clone)]
 pub struct Client {
-    embedding_api_config: models::client::HttpClientConfig,
+    pub embedding_api_config: models::client::HttpClientConfig,
     embedding_client: reqwest::Client,
-    generation_api_config: models::client::HttpClientConfig,
+    pub generation_api_config: models::client::HttpClientConfig,
     generation_client: reqwest::Client,
 }
 
@@ -17,13 +17,17 @@ impl Client {
         config: &models::client::HttpClientConfig,
         request: Request,
     ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
-        let mut value = serde_json::to_value(request)
-            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+        let mut value = serde_json::to_value(request).map_err(|err| {
+            models::client::ClientError::RequestJson.to_response(&config.base_url, &err.to_string())
+        })?;
         let request = value
             .as_object_mut()
             .expect("request value can never be empty");
         if let Some(json) = serde_json::to_value(config.json.clone())
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
+            .map_err(|err| {
+                models::client::ClientError::DefaultJson
+                    .to_response(&config.base_url, &err.to_string())
+            })?
             .as_object()
         {
             request.extend(json.clone());
@@ -68,12 +72,14 @@ impl Client {
         let request = Self::build_request_json(&self.generation_api_config, request)?;
         let response = self
             .generation_client
-            .post(url)
+            .post(&url)
             .query(&self.generation_api_config.params)
             .json(&request)
             .send()
             .await
-            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))?;
+            .map_err(|err| {
+                models::client::ClientError::ApiConnection.to_response(&url, &err.to_string())
+            })?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }
@@ -110,14 +116,18 @@ impl Client {
         let url = format!("{base_url}{endpoint}",);
         let request = Self::build_request_json(&config, request)?;
         client
-            .post(url)
+            .post(&url)
             .query(&config.params)
             .json(&request)
             .send()
             .await
-            .map_err(|err| (StatusCode::BAD_GATEWAY, err.to_string()))?
+            .map_err(|err| {
+                models::client::ClientError::ApiConnection.to_response(&url, &err.to_string())
+            })?
             .json::<ResponseModel>()
             .await
-            .map_err(|err| (StatusCode::UNPROCESSABLE_ENTITY, err.to_string()))
+            .map_err(|err| {
+                models::client::ClientError::ResponseJson.to_response(&url, &err.to_string())
+            })
     }
 }
