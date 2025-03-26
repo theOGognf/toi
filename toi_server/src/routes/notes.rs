@@ -11,9 +11,16 @@ use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{models, schema, utils};
+use crate::{
+    models::{
+        client::EmbeddingRequest,
+        notes::{NewNote, NewNoteRequest, Note, NoteQueryParams},
+        state::ToiState,
+    },
+    schema, utils,
+};
 
-pub fn router(state: models::state::ToiState) -> OpenApiRouter {
+pub fn router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(
             add_note,
@@ -29,7 +36,7 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
     post,
     path = "",
     responses(
-        (status = 201, description = "Successfully added a note", body = models::notes::Note),
+        (status = 201, description = "Successfully added a note", body = Note),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -37,21 +44,21 @@ pub fn router(state: models::state::ToiState) -> OpenApiRouter {
 )]
 #[axum::debug_handler]
 pub async fn add_note(
-    State(state): State<models::state::ToiState>,
-    Json(new_note_request): Json<models::notes::NewNoteRequest>,
-) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
+    State(state): State<ToiState>,
+    Json(new_note_request): Json<NewNoteRequest>,
+) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let embedding_request = models::client::EmbeddingRequest {
+    let embedding_request = EmbeddingRequest {
         input: new_note_request.content.clone(),
     };
     let embedding = state.client.embed(embedding_request).await?;
-    let new_note = models::notes::NewNote {
+    let new_note = NewNote {
         content: new_note_request.content,
         embedding,
     };
     let res = diesel::insert_into(schema::notes::table)
         .values(new_note)
-        .returning(models::notes::Note::as_returning())
+        .returning(Note::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
@@ -73,11 +80,11 @@ pub async fn add_note(
 pub async fn delete_note(
     State(pool): State<utils::Pool>,
     Path(id): Path<i32>,
-) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
+) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
     let res = diesel::delete(schema::notes::table)
         .filter(schema::notes::id.eq(id))
-        .returning(models::notes::Note::as_returning())
+        .returning(Note::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
@@ -87,9 +94,9 @@ pub async fn delete_note(
 #[utoipa::path(
     delete,
     path = "",
-    params(models::notes::NoteQueryParams),
+    params(NoteQueryParams),
     responses(
-        (status = 200, description = "Successfully deleted notes", body = [models::notes::Note]),
+        (status = 200, description = "Successfully deleted notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -97,15 +104,15 @@ pub async fn delete_note(
 )]
 #[axum::debug_handler]
 pub async fn delete_matching_notes(
-    State(state): State<models::state::ToiState>,
-    Query(params): Query<models::notes::NoteQueryParams>,
-) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
+    State(state): State<ToiState>,
+    Query(params): Query<NoteQueryParams>,
+) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let mut query = schema::notes::table.select(schema::notes::id).into_boxed();
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = models::client::EmbeddingRequest {
+        let embedding_request = EmbeddingRequest {
             input: note_similarity_search_params.query,
         };
         let embedding = state.client.embed(embedding_request).await?;
@@ -143,7 +150,7 @@ pub async fn delete_matching_notes(
     }
 
     let res = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(query)))
-        .returning(models::notes::Note::as_returning())
+        .returning(Note::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
@@ -157,7 +164,7 @@ pub async fn delete_matching_notes(
         ("id" = i32, Path, description = "Database ID of note to get"),
     ),
     responses(
-        (status = 200, description = "Successfully got note", body = models::notes::Note),
+        (status = 200, description = "Successfully got note", body = Note),
         (status = 404, description = "Note not found")
     )
 )]
@@ -165,10 +172,10 @@ pub async fn delete_matching_notes(
 pub async fn get_note(
     State(pool): State<utils::Pool>,
     Path(id): Path<i32>,
-) -> Result<Json<models::notes::Note>, (StatusCode, String)> {
+) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
     let res = schema::notes::table
-        .select(models::notes::Note::as_select())
+        .select(Note::as_select())
         .filter(schema::notes::id.eq(id))
         .first(&mut conn)
         .await
@@ -179,9 +186,9 @@ pub async fn get_note(
 #[utoipa::path(
     get,
     path = "",
-    params(models::notes::NoteQueryParams),
+    params(NoteQueryParams),
     responses(
-        (status = 200, description = "Successfully got notes", body = [models::notes::Note]),
+        (status = 200, description = "Successfully got notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -189,17 +196,15 @@ pub async fn get_note(
 )]
 #[axum::debug_handler]
 pub async fn get_matching_notes(
-    State(state): State<models::state::ToiState>,
-    Query(params): Query<models::notes::NoteQueryParams>,
-) -> Result<Json<Vec<models::notes::Note>>, (StatusCode, String)> {
+    State(state): State<ToiState>,
+    Query(params): Query<NoteQueryParams>,
+) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::notes::table
-        .select(models::notes::Note::as_select())
-        .into_boxed();
+    let mut query = schema::notes::table.select(Note::as_select()).into_boxed();
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = models::client::EmbeddingRequest {
+        let embedding_request = EmbeddingRequest {
             input: note_similarity_search_params.query,
         };
         let embedding = state.client.embed(embedding_request).await?;

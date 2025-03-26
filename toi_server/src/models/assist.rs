@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt};
-
+use reqwest::{Client, Method, Request};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fmt};
 use toi::{GenerationRequest, Message, MessageRole};
 
 pub struct SystemPrompt(String);
@@ -151,7 +151,7 @@ And here is how you should respond:
 }
 
 impl fmt::Display for ChatResponseKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
             Self::Unfulfillable => {
                 "Unfulfillable: the user's message cannot accurately \
@@ -221,13 +221,13 @@ enum HttpMethod {
     Put,
 }
 
-impl From<HttpMethod> for reqwest::Method {
+impl From<HttpMethod> for Method {
     fn from(val: HttpMethod) -> Self {
         match val {
-            HttpMethod::Delete => reqwest::Method::DELETE,
-            HttpMethod::Get => reqwest::Method::GET,
-            HttpMethod::Post => reqwest::Method::POST,
-            HttpMethod::Put => reqwest::Method::PUT,
+            HttpMethod::Delete => Method::DELETE,
+            HttpMethod::Get => Method::GET,
+            HttpMethod::Post => Method::POST,
+            HttpMethod::Put => Method::PUT,
         }
     }
 }
@@ -247,9 +247,9 @@ impl fmt::Display for HttpRequest {
     }
 }
 
-impl From<HttpRequest> for reqwest::Request {
+impl From<HttpRequest> for Request {
     fn from(val: HttpRequest) -> Self {
-        reqwest::Client::new()
+        Client::new()
             .request(val.method.into(), val.path)
             .query(&val.params)
             .json(&val.body)
