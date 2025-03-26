@@ -36,14 +36,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Shared state components. A client is used for interacting with supporting
     // API services, while a pool is used for interacting with the database.
-    let client = client::Client::new(embedding_api_config, generation_api_config)?;
+    let model_client = client::ModelClient::new(embedding_api_config, generation_api_config)?;
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(manager).await?;
     // Build state with empty spec first since only the assistant endpoint uses
     // the OpenAPI spec.
     let mut state = models::state::ToiState {
         openapi_spec: "".to_string(),
-        client,
+        model_client,
         pool,
     };
 

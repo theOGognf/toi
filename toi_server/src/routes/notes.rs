@@ -51,7 +51,7 @@ pub async fn add_note(
     let embedding_request = EmbeddingRequest {
         input: new_note_request.content.clone(),
     };
-    let embedding = state.client.embed(embedding_request).await?;
+    let embedding = state.model_client.embed(embedding_request).await?;
     let new_note = NewNote {
         content: new_note_request.content,
         embedding,
@@ -115,7 +115,7 @@ pub async fn delete_matching_notes(
         let embedding_request = EmbeddingRequest {
             input: note_similarity_search_params.query,
         };
-        let embedding = state.client.embed(embedding_request).await?;
+        let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding
                 .cosine_distance(embedding.clone())
@@ -207,7 +207,7 @@ pub async fn get_matching_notes(
         let embedding_request = EmbeddingRequest {
             input: note_similarity_search_params.query,
         };
-        let embedding = state.client.embed(embedding_request).await?;
+        let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding
                 .cosine_distance(embedding.clone())

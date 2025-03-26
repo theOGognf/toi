@@ -214,41 +214,41 @@ impl From<u8> for ChatResponseKind {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
-enum HttpMethod {
+enum GeneratedHttpMethod {
     Delete,
     Get,
     Post,
     Put,
 }
 
-impl From<HttpMethod> for Method {
-    fn from(val: HttpMethod) -> Self {
+impl From<GeneratedHttpMethod> for Method {
+    fn from(val: GeneratedHttpMethod) -> Self {
         match val {
-            HttpMethod::Delete => Method::DELETE,
-            HttpMethod::Get => Method::GET,
-            HttpMethod::Post => Method::POST,
-            HttpMethod::Put => Method::PUT,
+            GeneratedHttpMethod::Delete => Method::DELETE,
+            GeneratedHttpMethod::Get => Method::GET,
+            GeneratedHttpMethod::Post => Method::POST,
+            GeneratedHttpMethod::Put => Method::PUT,
         }
     }
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct HttpRequest {
-    method: HttpMethod,
+pub struct GeneratedHttpRequest {
+    method: GeneratedHttpMethod,
     path: String,
     params: HashMap<String, String>,
     body: HashMap<String, String>,
 }
 
-impl fmt::Display for HttpRequest {
+impl fmt::Display for GeneratedHttpRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
     }
 }
 
-impl From<HttpRequest> for Request {
-    fn from(val: HttpRequest) -> Self {
+impl From<GeneratedHttpRequest> for Request {
+    fn from(val: GeneratedHttpRequest) -> Self {
         Client::new()
             .request(val.method.into(), val.path)
             .query(&val.params)
@@ -259,8 +259,8 @@ impl From<HttpRequest> for Request {
 }
 
 #[derive(Deserialize)]
-pub struct HttpRequests {
-    pub requests: Vec<HttpRequest>,
+pub struct GeneratedHttpRequests {
+    pub requests: Vec<GeneratedHttpRequest>,
 }
 
 pub struct RequestResponse {

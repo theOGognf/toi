@@ -14,14 +14,14 @@ pub struct EmbeddingResponse {
     pub embedding: Vec<f32>,
 }
 
-pub enum ClientError {
+pub enum ModelClientError {
     ApiConnection,
     DefaultJson,
     RequestJson,
     ResponseJson,
 }
 
-impl ClientError {
+impl ModelClientError {
     pub fn into_response(self, url: &str, original_err: &str) -> (StatusCode, String) {
         match self {
             Self::ApiConnection => (

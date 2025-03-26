@@ -2,7 +2,7 @@ use axum::{extract::Query, http::StatusCode, response::Json};
 use chrono::{DateTime, Datelike, Duration, Utc};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::models;
+use crate::models::datetime::{DateTimeQueryParams, DateTimeShiftRequest};
 
 pub fn router() -> OpenApiRouter {
     OpenApiRouter::new().routes(routes!(now, shift, weekday))
@@ -30,7 +30,7 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 )]
 #[axum::debug_handler]
 pub async fn shift(
-    Json(datetime_shift_request): Json<models::datetime::DateTimeShiftRequest>,
+    Json(datetime_shift_request): Json<DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     let res = datetime_shift_request.datetime
         + Duration::weeks(datetime_shift_request.weeks)
@@ -45,7 +45,7 @@ pub async fn shift(
     get,
     path = "/weekday",
     params(
-        models::datetime::DateTimeQueryParams
+        DateTimeQueryParams
     ),
     responses(
         (status = 200, description = "Successfully got weekday of given date", body = String)
@@ -53,7 +53,7 @@ pub async fn shift(
 )]
 #[axum::debug_handler]
 pub async fn weekday(
-    Query(params): Query<models::datetime::DateTimeQueryParams>,
+    Query(params): Query<DateTimeQueryParams>,
 ) -> Result<String, (StatusCode, String)> {
     let res = params.datetime.weekday();
     Ok(res.to_string())

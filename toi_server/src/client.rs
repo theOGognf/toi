@@ -1,34 +1,35 @@
 use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
+use reqwest::{Client, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
 use toi::{GenerationRequest, GenerationResponse};
 
-use crate::models;
+use crate::models::client::{
+    EmbeddingRequest, EmbeddingResponse, HttpClientConfig, ModelClientError,
+};
 
 #[derive(Clone)]
-pub struct Client {
-    pub embedding_api_config: models::client::HttpClientConfig,
-    embedding_client: reqwest::Client,
-    pub generation_api_config: models::client::HttpClientConfig,
-    generation_client: reqwest::Client,
+pub struct ModelClient {
+    pub embedding_api_config: HttpClientConfig,
+    embedding_client: Client,
+    pub generation_api_config: HttpClientConfig,
+    generation_client: Client,
 }
 
-impl Client {
+impl ModelClient {
     fn build_request_json<Request: Serialize>(
-        config: &models::client::HttpClientConfig,
+        config: &HttpClientConfig,
         request: Request,
     ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
         let mut value = serde_json::to_value(request).map_err(|err| {
-            models::client::ClientError::RequestJson
-                .into_response(&config.base_url, &err.to_string())
+            ModelClientError::RequestJson.into_response(&config.base_url, &err.to_string())
         })?;
         let request = value
             .as_object_mut()
             .expect("request value can never be empty");
         if let Some(json) = serde_json::to_value(config.json.clone())
             .map_err(|err| {
-                models::client::ClientError::DefaultJson
-                    .into_response(&config.base_url, &err.to_string())
+                ModelClientError::DefaultJson.into_response(&config.base_url, &err.to_string())
             })?
             .as_object()
         {
@@ -37,11 +38,8 @@ impl Client {
         Ok(request.clone())
     }
 
-    pub async fn embed(
-        self,
-        request: models::client::EmbeddingRequest,
-    ) -> Result<Vector, (StatusCode, String)> {
-        let resp: models::client::EmbeddingResponse = Self::post(
+    pub async fn embed(self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
+        let resp: EmbeddingResponse = Self::post(
             &self.embedding_api_config,
             "/embeddings".to_string(),
             &self.embedding_client,
@@ -80,25 +78,21 @@ impl Client {
             .json(&request)
             .send()
             .await
-            .map_err(|err| {
-                models::client::ClientError::ApiConnection.into_response(&url, &err.to_string())
-            })?;
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&url, &err.to_string()))?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }
 
     pub fn new(
-        embedding_api_config: models::client::HttpClientConfig,
-        generation_api_config: models::client::HttpClientConfig,
+        embedding_api_config: HttpClientConfig,
+        generation_api_config: HttpClientConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let embedding_header_map =
-            reqwest::header::HeaderMap::try_from(&embedding_api_config.headers)?;
-        let embedding_client = reqwest::Client::builder()
+        let embedding_header_map = HeaderMap::try_from(&embedding_api_config.headers)?;
+        let embedding_client = Client::builder()
             .default_headers(embedding_header_map)
             .build()?;
-        let generation_header_map =
-            reqwest::header::HeaderMap::try_from(&generation_api_config.headers)?;
-        let generation_client = reqwest::Client::builder()
+        let generation_header_map = HeaderMap::try_from(&generation_api_config.headers)?;
+        let generation_client = Client::builder()
             .default_headers(generation_header_map)
             .build()?;
         Ok(Self {
@@ -110,9 +104,9 @@ impl Client {
     }
 
     async fn post<Request: Serialize, ResponseModel: DeserializeOwned>(
-        config: &models::client::HttpClientConfig,
+        config: &HttpClientConfig,
         endpoint: String,
-        client: &reqwest::Client,
+        client: &Client,
         request: Request,
     ) -> Result<ResponseModel, (StatusCode, String)> {
         let base_url = config.base_url.trim_end_matches("/");
@@ -124,13 +118,9 @@ impl Client {
             .json(&request)
             .send()
             .await
-            .map_err(|err| {
-                models::client::ClientError::ApiConnection.into_response(&url, &err.to_string())
-            })?
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&url, &err.to_string()))?
             .json::<ResponseModel>()
             .await
-            .map_err(|err| {
-                models::client::ClientError::ResponseJson.into_response(&url, &err.to_string())
-            })
+            .map_err(|err| ModelClientError::ResponseJson.into_response(&url, &err.to_string()))
     }
 }

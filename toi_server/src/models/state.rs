@@ -1,17 +1,17 @@
 use axum::extract::FromRef;
 
-use crate::{client, utils};
+use crate::{client::ModelClient, utils};
 
 #[derive(Clone)]
 pub struct ToiState {
-    pub client: client::Client,
+    pub model_client: ModelClient,
     pub openapi_spec: String,
     pub pool: utils::Pool,
 }
 
-impl FromRef<ToiState> for client::Client {
-    fn from_ref(state: &ToiState) -> client::Client {
-        state.client.clone()
+impl FromRef<ToiState> for ModelClient {
+    fn from_ref(state: &ToiState) -> ModelClient {
+        state.model_client.clone()
     }
 }
 
