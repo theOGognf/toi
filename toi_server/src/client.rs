@@ -71,7 +71,8 @@ impl Client {
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
         let url = format!("{base_url}/chat/completions");
-        let request = Self::build_request_json(&self.generation_api_config, request)?;
+        let mut request = Self::build_request_json(&self.generation_api_config, request)?;
+        request.insert("stream".to_string(), serde_json::Value::Bool(true));
         let response = self
             .generation_client
             .post(&url)
