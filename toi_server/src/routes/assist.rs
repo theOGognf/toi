@@ -4,7 +4,7 @@ use toi::GenerationRequest;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
-    assist::{ChatResponseKind, GeneratedHttpRequests, RequestResponse},
+    assist::{ChatResponseKind, GeneratedHttpRequests, GeneratedPlan, RequestResponse},
     client::ModelClientError,
     state::ToiState,
 };
@@ -47,7 +47,8 @@ async fn chat(
         ChatResponseKind::Unfulfillable
         | ChatResponseKind::FollowUp
         | ChatResponseKind::Answer
-        | ChatResponseKind::AnswerWithDraftHttpRequests => {
+        | ChatResponseKind::AnswerWithDraftHttpRequests
+        | ChatResponseKind::AnswerWithDraftPlan => {
             chat_response_kind.into_system_prompt(&state.openapi_spec)
         }
         ChatResponseKind::PartiallyAnswerWithHttpRequests
@@ -81,6 +82,20 @@ async fn chat(
                 request_responses.push(request_response.to_string());
             }
             ChatResponseKind::into_summary_prompt(&request_responses.join("\n"))
+        }
+        ChatResponseKind::AnswerWithPlan => {
+            let system_prompt = chat_response_kind.into_system_prompt(&state.openapi_spec);
+            let generation_request = system_prompt.into_generation_request(&request.messages);
+            let generated_plan = state.model_client.generate(generation_request).await?;
+            let generated_plan =
+                serde_json::from_str::<GeneratedPlan>(&generated_plan).map_err(|err| {
+                    ModelClientError::ResponseJson.into_response(
+                        &state.model_client.generation_api_config.base_url,
+                        &err.to_string(),
+                    )
+                })?;
+            let mut request_responses: Vec<String> = vec![];
+            for generated_http_request_description in generated_plan.plan {}
         }
     };
     let generation_request = system_prompt.into_generation_request(&request.messages);

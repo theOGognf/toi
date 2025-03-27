@@ -43,6 +43,20 @@ response is best."#;
 pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
 Only respond with the number of the response that fits best and nothing else."#;
 
+pub const PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
+Only respond with the JSON of the plan and nothing else. The JSON should 
+have format:
+
+{
+    "plan": [
+        {
+            "method": DELETE/GET/POST/PUT,
+            "path": The endpoint path beginning with a forward slash,
+            "description": Description of the purpose of this request as part of the plan,
+        }
+    ]
+}"#;
+
 pub const SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
 You are a chat assistant that informs a user what actions were performed by
 concisely summarizing HTTP request-responses made in response to a user's
@@ -55,6 +69,8 @@ pub enum ChatResponseKind {
     AnswerWithDraftHttpRequests,
     PartiallyAnswerWithHttpRequests,
     AnswerWithHttpRequests,
+    AnswerWithDraftPlan,
+    AnswerWithPlan,
 }
 
 impl ChatResponseKind {
@@ -72,7 +88,7 @@ And here are your classification options:
             KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO, openapi_spec
         );
 
-        for i in 1..=6 {
+        for i in 1..=8 {
             let chat_response_kind: ChatResponseKind = i.into();
             system_prompt = format!(
                 r#"
@@ -109,7 +125,8 @@ Here are the HTTP request-responses:
             Self::Unfulfillable
             | Self::FollowUp
             | Self::Answer
-            | Self::AnswerWithDraftHttpRequests => {
+            | Self::AnswerWithDraftHttpRequests
+            | Self::AnswerWithDraftPlan => {
                 format!(
                     r#"
 {}
@@ -142,6 +159,26 @@ And here is how you should respond:
                     openapi_spec,
                     self,
                     HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO,
+                )
+            }
+            Self::AnswerWithPlan => {
+                format!(
+                    r#"
+{}
+
+Here is the OpenAPI spec for reference:
+
+{}
+
+And here is how you should respond:
+
+{}
+
+{}"#,
+                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
+                    openapi_spec,
+                    self,
+                    PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO,
                 )
             }
         };
@@ -194,6 +231,26 @@ impl fmt::Display for ChatResponseKind {
                 is good for scenarios where the user is requesting small \
                 changes like deleting or adding one or two resources."
             }
+            Self::AnswerWithDraftPlan => {
+                "Answer with a draft of a plan consisting of a bulleted list of \
+                descriptions for HTTP request(s) to make on behalf of the user: the user's \
+                message indicates they want an action to be performed with a \
+                series of HTTP request(s) that may depend on responses from one \
+                another, but some aspects of the user's message are unclear and \
+                could benefit from user clarifications and/or updates. It's best \
+                to show a plan draft to the user, summarize it, and then seek the \
+                user's input and confirmation."
+            }
+            Self::AnswerWithPlan => {
+                "Answer with a plan consisting of an array of descriptions for HTTP \
+                request(s) to make on behalf of the user: the user's message indicates they \
+                want an action to be performed with a series of HTTP request(s) \
+                that may depend on responses from one another. This is good for \
+                scenarios where the user is requesting small changes like deleting \
+                or adding one or two resources, but some HTTP response(s) are \
+                needed to construct request bodies or parameters for subsequent HTTP \
+                request(s)."
+            }
         };
         write!(f, "{repr}")
     }
@@ -207,6 +264,8 @@ impl From<u8> for ChatResponseKind {
             4 => Self::AnswerWithDraftHttpRequests,
             5 => Self::PartiallyAnswerWithHttpRequests,
             6 => Self::AnswerWithHttpRequests,
+            7 => Self::AnswerWithDraftPlan,
+            8 => Self::AnswerWithPlan,
             _ => Self::Unfulfillable,
         }
     }
@@ -230,6 +289,13 @@ impl From<GeneratedHttpMethod> for Method {
             GeneratedHttpMethod::Put => Method::PUT,
         }
     }
+}
+
+#[derive(Deserialize)]
+pub struct GeneratedHttpRequestDescription {
+    method: GeneratedHttpMethod,
+    path: String,
+    description: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -261,6 +327,11 @@ impl From<GeneratedHttpRequest> for Request {
 #[derive(Deserialize)]
 pub struct GeneratedHttpRequests {
     pub requests: Vec<GeneratedHttpRequest>,
+}
+
+#[derive(Deserialize)]
+pub struct GeneratedPlan {
+    pub plan: Vec<GeneratedHttpRequestDescription>,
 }
 
 pub struct RequestResponse {
