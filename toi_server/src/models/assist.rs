@@ -20,6 +20,22 @@ pub const CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
 You are a chat assistant that responds given an OpenAPI spec, a chat history, 
 and a designated response type."#;
 
+pub const EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
+You are a chat assistant that constructs an HTTP request given an
+OpenAPI spec, a chat history, a plan, an executed request history, and a 
+description of the HTTP request to make."#;
+
+pub const EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
+Only respond with the JSON of the HTTP request and nothing else. The JSON 
+should have format:
+
+{
+    "method": DELETE/GET/POST/PUT,
+    "path": The endpoint path beginning with a forward slash,
+    "params": Mapping of query parameter names to their values,
+    "body": Mapping of JSON body parameter names to their values,
+}"#;
+
 pub const HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
 Only respond with the JSON of the HTTP request(s) and nothing else. The JSON 
 should have format:
@@ -74,18 +90,17 @@ pub enum ChatResponseKind {
 }
 
 impl ChatResponseKind {
-    pub fn into_kind_system_prompt(openapi_spec: &String) -> SystemPrompt {
+    pub fn into_kind_system_prompt(openapi_spec: &str) -> SystemPrompt {
         let mut system_prompt = format!(
             r#"
-{}
+{KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
 
 Here is the OpenAPI spec for reference:
 
-{}
+{openapi_spec}
 
 And here are your classification options:
-"#,
-            KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO, openapi_spec
+"#
         );
 
         for i in 1..=8 {
@@ -107,20 +122,20 @@ And here are your classification options:
         SystemPrompt(system_prompt)
     }
 
-    pub fn into_summary_prompt(request_responses: &String) -> SystemPrompt {
+    pub fn into_summary_prompt(executed_requests: &ExecutedRequests) -> SystemPrompt {
         let system_prompt = format!(
             r#"
 {SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
 
 Here are the HTTP request-responses:
 
-{request_responses}"#
+{executed_requests}"#
         );
 
         SystemPrompt(system_prompt)
     }
 
-    pub fn into_system_prompt(self, openapi_spec: &String) -> SystemPrompt {
+    pub fn into_system_prompt(self, openapi_spec: &str) -> SystemPrompt {
         let system_prompt = match self {
             Self::Unfulfillable
             | Self::FollowUp
@@ -129,56 +144,47 @@ Here are the HTTP request-responses:
             | Self::AnswerWithDraftPlan => {
                 format!(
                     r#"
-{}
+{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
 
 Here is the OpenAPI spec for reference:
 
-{}
+{openapi_spec}
 
 And here is how you should respond:
 
-{}"#,
-                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO, openapi_spec, self
+{self}"#
                 )
             }
             Self::PartiallyAnswerWithHttpRequests | Self::AnswerWithHttpRequests => {
                 format!(
                     r#"
-{}
+{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
 
 Here is the OpenAPI spec for reference:
 
-{}
+{openapi_spec}
 
 And here is how you should respond:
 
-{}
+{self}
 
-{}"#,
-                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
-                    openapi_spec,
-                    self,
-                    HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO,
+{HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
                 )
             }
             Self::AnswerWithPlan => {
                 format!(
                     r#"
-{}
+{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
 
 Here is the OpenAPI spec for reference:
 
-{}
+{openapi_spec}
 
 And here is how you should respond:
 
-{}
+{self}
 
-{}"#,
-                    CHAT_RESPONSE_SYSTEM_PROMPT_INTRO,
-                    openapi_spec,
-                    self,
-                    PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO,
+{PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
                 )
             }
         };
@@ -191,31 +197,25 @@ impl fmt::Display for ChatResponseKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
             Self::Unfulfillable => {
-                "Unfulfillable: the user's message cannot accurately \
-                be responded to by an answer or fulfilled by HTTP request(s). \
-                It's best to notify the user."
+                "Unfulfillable: the user's message cannot accurately be answered \
+                or fulfilled. Notify the user."
             }
             Self::FollowUp => {
-                "Follow-up: the user's message cannot be fulfilled by \
-                an answer or HTTP request(s). It's best to follow-up to \
-                seek clarification."
+                "Follow-up: the user's message is unclear and needs clarification \
+                before proceeding."
             }
             Self::Answer => {
-                "Answer: the user's message is clear and can be answered \
-                directly without HTTP request(s). It's best to concisely \
-                answer."
+                "Answer: the user's message is clear and can be answered directly \
+                without HTTP request(s). Answer concisely."
             }
             Self::AnswerWithDraftHttpRequests => {
-                "Answer with draft HTTP request(s): the user's message \
-                indicates they want an action to be performed with HTTP \
-                request(s), but the HTTP request(s) could benefit from \
-                user clarifications and/or updates. It's best to show a \
-                draft of the HTTP request(s) to the user and seek their \
-                input and confirmation."
+                "Answer with draft HTTP request(s): the user's message requires \
+                HTTP request(s), but some details need clarification. Show \
+                draft requests for user input."
             }
             Self::PartiallyAnswerWithHttpRequests => {
-                "Partially answer with HTTP request(s): the user's message is \
-                clear and can be accurately fulfilled with HTTP request(s), \
+                "Partially answer with independent HTTP request(s): the user's message is \
+                clear and can be accurately fulfilled with independent HTTP request(s), \
                 but it's best to only partially fulfill those HTTP request(s) \
                 to make sure the user understands exactly what they're \
                 requesting. This is good for scenarios where the user is \
@@ -224,8 +224,8 @@ impl fmt::Display for ChatResponseKind {
                 so the user can confirm."
             }
             Self::AnswerWithHttpRequests => {
-                "Answer with HTTP request(s): the user's message is \
-                clear and can be accurately fulfilled with HTTP request(s). \
+                "Answer with independent HTTP request(s): the user's message is \
+                clear and can be accurately fulfilled with independent HTTP request(s). \
                 It's best to make the HTTP request(s) and summarize those \
                 requests and their respective responses to the user. This \
                 is good for scenarios where the user is requesting small \
@@ -233,23 +233,21 @@ impl fmt::Display for ChatResponseKind {
             }
             Self::AnswerWithDraftPlan => {
                 "Answer with a draft of a plan consisting of a bulleted list of \
-                descriptions for HTTP request(s) to make on behalf of the user: the user's \
-                message indicates they want an action to be performed with a \
-                series of HTTP request(s) that may depend on responses from one \
-                another, but some aspects of the user's message are unclear and \
-                could benefit from user clarifications and/or updates. It's best \
-                to show a plan draft to the user, summarize it, and then seek the \
-                user's input and confirmation."
+                descriptions for dependent HTTP request(s) to make on behalf of the user: \
+                the user's message indicates they want an action to be performed \
+                with a serries of dependent HTTP request(s), but some aspects of \
+                the user's message are unclear and could benefit from additional \
+                user input. It's best to show a plan draft to the user, summarize \
+                it, and then seek the user's input and confirmation."
             }
             Self::AnswerWithPlan => {
-                "Answer with a plan consisting of an array of descriptions for HTTP \
-                request(s) to make on behalf of the user: the user's message indicates they \
-                want an action to be performed with a series of HTTP request(s) \
-                that may depend on responses from one another. This is good for \
-                scenarios where the user is requesting small changes like deleting \
-                or adding one or two resources, but some HTTP response(s) are \
-                needed to construct request bodies or parameters for subsequent HTTP \
-                request(s)."
+                "Answer with a plan consisting of an array of descriptions for dependent HTTP \
+                request(s) to make on behalf of the user: the user's message indicates \
+                they want an action to be performed with a series of dependent HTTP \
+                request(s). This is good for scenarios where the user is requesting \
+                small changes like deleting or adding one or two resources, but some \
+                HTTP response(s) are needed to construct request bodies or parameters \
+                for subsequent HTTP request(s)."
             }
         };
         write!(f, "{repr}")
@@ -271,7 +269,7 @@ impl From<u8> for ChatResponseKind {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum GeneratedHttpMethod {
     Delete,
@@ -291,14 +289,21 @@ impl From<GeneratedHttpMethod> for Method {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct GeneratedHttpRequestDescription {
     method: GeneratedHttpMethod,
     path: String,
     description: String,
 }
 
-#[derive(Deserialize, Serialize)]
+impl fmt::Display for GeneratedHttpRequestDescription {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        write!(f, "{repr}")
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct GeneratedHttpRequest {
     method: GeneratedHttpMethod,
     path: String,
@@ -329,27 +334,83 @@ pub struct GeneratedHttpRequests {
     pub requests: Vec<GeneratedHttpRequest>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct GeneratedPlan {
     pub plan: Vec<GeneratedHttpRequestDescription>,
 }
 
+impl GeneratedPlan {
+    pub fn into_system_prompt(
+        &self,
+        openapi_spec: &str,
+        executed_requests: &ExecutedRequests,
+        generated_http_request_description: &GeneratedHttpRequestDescription,
+    ) -> SystemPrompt {
+        let system_prompt = format!(
+            r#"
+{EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
+
+Here is the OpenAPI spec:
+
+{openapi_spec}
+
+Here is the plan consisting of HTTP request(s) to make:
+
+{self}
+
+Here is the history of requests and their respective responses made so far as part of that plan:
+
+{executed_requests}
+
+And here is a description of the next HTTP request to generate:
+
+{generated_http_request_description}
+
+{EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
+        );
+
+        SystemPrompt(system_prompt)
+    }
+}
+
+impl fmt::Display for GeneratedPlan {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        write!(f, "{repr}")
+    }
+}
+
+#[derive(Serialize)]
 pub struct RequestResponse {
-    pub request: String,
+    pub request: GeneratedHttpRequest,
     pub response: String,
 }
 
 impl fmt::Display for RequestResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = format!(
-            r#"
-Request:
-{}
+        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        write!(f, "{repr}")
+    }
+}
 
-Response:
-{}"#,
-            self.request, self.response
-        );
+#[derive(Serialize)]
+pub struct ExecutedRequests {
+    pub results: Vec<RequestResponse>,
+}
+
+impl ExecutedRequests {
+    pub fn new() -> Self {
+        Self { results: vec![] }
+    }
+
+    pub fn push(&mut self, result: RequestResponse) {
+        self.results.push(result);
+    }
+}
+
+impl fmt::Display for ExecutedRequests {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
     }
 }

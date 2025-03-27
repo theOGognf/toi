@@ -4,7 +4,10 @@ use toi::GenerationRequest;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
-    assist::{ChatResponseKind, GeneratedHttpRequests, GeneratedPlan, RequestResponse},
+    assist::{
+        ChatResponseKind, ExecutedRequests, GeneratedHttpRequest, GeneratedHttpRequests,
+        GeneratedPlan, RequestResponse,
+    },
     client::ModelClientError,
     state::ToiState,
 };
@@ -65,10 +68,9 @@ async fn chat(
                     &err.to_string(),
                 )
             })?;
-            let mut request_responses: Vec<String> = vec![];
+            let mut executed_requests = ExecutedRequests::new();
             for generated_http_request in generated_http_requests.requests {
-                let request_repr = generated_http_request.to_string();
-                let request: Request = generated_http_request.into();
+                let request: Request = generated_http_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
                     ModelClientError::ApiConnection.into_response(
                         &state.model_client.generation_api_config.base_url,
@@ -76,12 +78,12 @@ async fn chat(
                     )
                 })?;
                 let request_response = RequestResponse {
-                    request: request_repr,
+                    request: generated_http_request,
                     response: response.text().await.unwrap_or_else(|err| err.to_string()),
                 };
-                request_responses.push(request_response.to_string());
+                executed_requests.push(request_response);
             }
-            ChatResponseKind::into_summary_prompt(&request_responses.join("\n"))
+            ChatResponseKind::into_summary_prompt(&executed_requests)
         }
         ChatResponseKind::AnswerWithPlan => {
             let system_prompt = chat_response_kind.into_system_prompt(&state.openapi_spec);
@@ -94,8 +96,39 @@ async fn chat(
                         &err.to_string(),
                     )
                 })?;
-            let mut request_responses: Vec<String> = vec![];
-            for generated_http_request_description in generated_plan.plan {}
+            let mut executed_requests = ExecutedRequests::new();
+            for generated_http_request_description in generated_plan.plan.iter() {
+                let system_prompt = generated_plan.into_system_prompt(
+                    &state.openapi_spec,
+                    &executed_requests,
+                    &generated_http_request_description,
+                );
+                let generation_request = system_prompt.into_generation_request(&request.messages);
+                let generated_http_request =
+                    state.model_client.generate(generation_request).await?;
+                let generated_http_request = serde_json::from_str::<GeneratedHttpRequest>(
+                    &generated_http_request,
+                )
+                .map_err(|err| {
+                    ModelClientError::ResponseJson.into_response(
+                        &state.model_client.generation_api_config.base_url,
+                        &err.to_string(),
+                    )
+                })?;
+                let request: Request = generated_http_request.clone().into();
+                let response = Client::new().execute(request).await.map_err(|err| {
+                    ModelClientError::ApiConnection.into_response(
+                        &state.model_client.generation_api_config.base_url,
+                        &err.to_string(),
+                    )
+                })?;
+                let request_response = RequestResponse {
+                    request: generated_http_request,
+                    response: response.text().await.unwrap_or_else(|err| err.to_string()),
+                };
+                executed_requests.push(request_response);
+            }
+            ChatResponseKind::into_summary_prompt(&executed_requests)
         }
     };
     let generation_request = system_prompt.into_generation_request(&request.messages);
