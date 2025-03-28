@@ -16,81 +16,6 @@ pub fn parse_generated_response<T: DeserializeOwned>(
         .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
 }
 
-pub struct SystemPrompt(String);
-
-impl SystemPrompt {
-    pub fn into_generation_request(self, history: &[toi::Message]) -> GenerationRequest {
-        let mut messages = vec![Message {
-            role: MessageRole::System,
-            content: self.0,
-        }];
-        messages.extend_from_slice(history);
-        GenerationRequest { messages }
-    }
-}
-
-pub const CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
-You are a chat assistant that responds given an OpenAPI spec, a chat history, 
-and a designated response type."#;
-
-pub const EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
-You are a chat assistant that constructs an HTTP request given an
-OpenAPI spec, a chat history, a plan, an executed request history, and a 
-description of the HTTP request to make."#;
-
-pub const EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
-Only respond with the JSON of the HTTP request and nothing else. The JSON 
-should have format:
-
-{
-    "method": DELETE/GET/POST/PUT,
-    "path": The endpoint path beginning with a forward slash,
-    "params": Mapping of query parameter names to their values,
-    "body": Mapping of JSON body parameter names to their values,
-}"#;
-
-pub const HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
-Only respond with the JSON of the HTTP request(s) and nothing else. The JSON 
-should have format:
-
-{
-    "requests": [
-        {
-            "method": DELETE/GET/POST/PUT,
-            "path": The endpoint path beginning with a forward slash,
-            "params": Mapping of query parameter names to their values,
-            "body": Mapping of JSON body parameter names to their values,
-        }
-    ]
-}"#;
-
-pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
-You are a chat assistant that helps preprocess a user's message. Given an 
-OpenAPI spec and a chat history, your job is to classify what kind of 
-response is best."#;
-
-pub const KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
-Only respond with the number of the response that fits best and nothing else."#;
-
-pub const PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO: &str = r#"
-Only respond with the JSON of the plan and nothing else. The JSON should 
-have format:
-
-{
-    "plan": [
-        {
-            "method": DELETE/GET/POST/PUT,
-            "path": The endpoint path beginning with a forward slash,
-            "description": Description of the purpose of this request as part of the plan,
-        }
-    ]
-}"#;
-
-pub const SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO: &str = r#"
-You are a chat assistant that informs a user what actions were performed by
-concisely summarizing HTTP request-responses made in response to a user's
-request."#;
-
 pub enum ChatResponseKind {
     Unfulfillable,
     FollowUp,
@@ -100,110 +25,6 @@ pub enum ChatResponseKind {
     AnswerWithHttpRequests,
     AnswerWithDraftPlan,
     AnswerWithPlan,
-}
-
-impl ChatResponseKind {
-    pub fn into_kind_system_prompt(openapi_spec: &str) -> SystemPrompt {
-        let mut system_prompt = format!(
-            r#"
-{KIND_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here is the OpenAPI spec for reference:
-
-{openapi_spec}
-
-And here are your classification options:
-"#
-        );
-
-        for i in 1..=8 {
-            let chat_response_kind: ChatResponseKind = i.into();
-            system_prompt = format!(
-                r#"
-{system_prompt}
-{i}. {chat_response_kind}"#
-            );
-        }
-
-        system_prompt = format!(
-            r#"
-{system_prompt}
-
-{KIND_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
-        );
-
-        SystemPrompt(system_prompt)
-    }
-
-    pub fn into_summary_prompt(executed_requests: &ExecutedRequests) -> SystemPrompt {
-        let system_prompt = format!(
-            r#"
-{SUMMARY_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here are the HTTP request-responses:
-
-{executed_requests}"#
-        );
-
-        SystemPrompt(system_prompt)
-    }
-
-    pub fn into_system_prompt(self, openapi_spec: &str) -> SystemPrompt {
-        let system_prompt = match self {
-            Self::Unfulfillable
-            | Self::FollowUp
-            | Self::Answer
-            | Self::AnswerWithDraftHttpRequests
-            | Self::AnswerWithDraftPlan => {
-                format!(
-                    r#"
-{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here is the OpenAPI spec for reference:
-
-{openapi_spec}
-
-And here is how you should respond:
-
-{self}"#
-                )
-            }
-            Self::PartiallyAnswerWithHttpRequests | Self::AnswerWithHttpRequests => {
-                format!(
-                    r#"
-{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here is the OpenAPI spec for reference:
-
-{openapi_spec}
-
-And here is how you should respond:
-
-{self}
-
-{HTTP_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
-                )
-            }
-            Self::AnswerWithPlan => {
-                format!(
-                    r#"
-{CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here is the OpenAPI spec for reference:
-
-{openapi_spec}
-
-And here is how you should respond:
-
-{self}
-
-{PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
-                )
-            }
-        };
-
-        SystemPrompt(system_prompt)
-    }
 }
 
 impl fmt::Display for ChatResponseKind {
@@ -324,13 +145,6 @@ pub struct GeneratedHttpRequest {
     body: HashMap<String, String>,
 }
 
-impl fmt::Display for GeneratedHttpRequest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("serializable");
-        write!(f, "{repr}")
-    }
-}
-
 impl From<GeneratedHttpRequest> for Request {
     fn from(val: GeneratedHttpRequest) -> Self {
         Client::new()
@@ -352,40 +166,6 @@ pub struct GeneratedPlan {
     pub plan: Vec<GeneratedHttpRequestDescription>,
 }
 
-impl GeneratedPlan {
-    pub fn into_system_prompt(
-        &self,
-        openapi_spec: &str,
-        executed_requests: &ExecutedRequests,
-        generated_http_request_description: &GeneratedHttpRequestDescription,
-    ) -> SystemPrompt {
-        let system_prompt = format!(
-            r#"
-{EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_INTRO}
-
-Here is the OpenAPI spec:
-
-{openapi_spec}
-
-Here is the plan consisting of HTTP request(s) to make:
-
-{self}
-
-Here is the history of requests and their respective responses made so far as part of that plan:
-
-{executed_requests}
-
-And here is a description of the next HTTP request to generate:
-
-{generated_http_request_description}
-
-{EXECUTE_PLAN_CHAT_RESPONSE_SYSTEM_PROMPT_OUTRO}"#
-        );
-
-        SystemPrompt(system_prompt)
-    }
-}
-
 impl fmt::Display for GeneratedPlan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
@@ -397,13 +177,6 @@ impl fmt::Display for GeneratedPlan {
 pub struct RequestResponse {
     pub request: GeneratedHttpRequest,
     pub response: String,
-}
-
-impl fmt::Display for RequestResponse {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("serializable");
-        write!(f, "{repr}")
-    }
 }
 
 #[derive(Serialize)]

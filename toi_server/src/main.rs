@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
     state.openapi_spec = openapi_spec;
-    let openapi_router = openapi_router.nest("/assist", routes::assist::router(state));
+    let openapi_router = openapi_router.nest("/chat", routes::chat::router(state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
 
