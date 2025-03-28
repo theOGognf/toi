@@ -61,6 +61,7 @@ async fn chat(
     // Map the response kind to different prompts and different ways for constructing
     // the final response.
     let generation_request = match chat_response_kind {
+        // We can't procedurally execute anything so just respond with a stream.
         ChatResponseKind::Unfulfillable
         | ChatResponseKind::FollowUp
         | ChatResponseKind::Answer
@@ -69,6 +70,8 @@ async fn chat(
             SimplePrompt::new(&chat_response_kind, &state.openapi_spec)
                 .to_generation_request(&request.messages)
         }
+        // We can procedurally execute a series of HTTP requests, so make those
+        // in a series, and then summarize the results with a stream.
         ChatResponseKind::PartiallyAnswerWithHttpRequests
         | ChatResponseKind::AnswerWithHttpRequests => {
             let generation_request =
@@ -96,6 +99,8 @@ async fn chat(
             }
             SummaryPrompt::new(&executed_requests).to_generation_request(&request.messages)
         }
+        // We can procedurally execute a series of dependent HTTP requests, so
+        // make those in a series, and then summarize the results with a stream.
         ChatResponseKind::AnswerWithPlan => {
             let generation_request = PlanPrompt::new(&chat_response_kind, &state.openapi_spec)
                 .to_generation_request(&request.messages);
