@@ -1,18 +1,9 @@
-use axum::http::StatusCode;
-use reqwest::{Client, Method, Request};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, fmt};
+use std::fmt;
 use toi::{GenerationRequest, Message, MessageRole};
 
-use crate::{
-    models::{
-        chat::{
+use crate::models::chat::{
             ChatResponseKind, ExecutedRequests, GeneratedHttpRequestDescription, GeneratedPlan,
-        },
-        client::ModelClientError,
-    },
-    utils,
-};
+        };
 
 pub trait SystemPrompt: fmt::Display {
     fn into_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
