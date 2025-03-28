@@ -195,7 +195,7 @@ pub fn parse_generated_response<T: DeserializeOwned>(
     url: &str,
 ) -> Result<T, (StatusCode, String)> {
     let extraction = utils::extract_json(&s)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))?;
-    serde_json::from_str::<T>(&extraction)
+        .map_err(|err| ModelClientError::ResponseJson.into_response(url, err))?;
+    serde_json::from_str::<T>(extraction)
         .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
 }

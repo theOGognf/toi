@@ -4,7 +4,7 @@ use toi::{GenerationRequest, Message, MessageRole};
 use crate::models::chat::{AutoPlan, AutoRequestDescription, ChatResponseKind, ExecutedRequests};
 
 pub trait SystemPrompt: fmt::Display {
-    fn into_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
+    fn to_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
         let mut messages = vec![Message {
             role: MessageRole::System,
             content: self.to_string(),

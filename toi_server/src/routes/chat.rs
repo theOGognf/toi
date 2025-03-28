@@ -39,7 +39,7 @@ async fn chat(
     // First step is classifying the type of response most appropriate based on the
     // user's chat history and last message.
     let generation_request = ResponseClassificationPrompt::new(&state.openapi_spec)
-        .into_generation_request(&request.messages);
+        .to_generation_request(&request.messages);
     let chat_response_kind = state.model_client.generate(generation_request).await?;
 
     // Parse first integer in string, defaulting to unfulfillable if none is found.
@@ -67,13 +67,13 @@ async fn chat(
         | ChatResponseKind::AnswerWithDraftHttpRequests
         | ChatResponseKind::AnswerWithDraftPlan => {
             SimplePrompt::new(&chat_response_kind, &state.openapi_spec)
-                .into_generation_request(&request.messages)
+                .to_generation_request(&request.messages)
         }
         ChatResponseKind::PartiallyAnswerWithHttpRequests
         | ChatResponseKind::AnswerWithHttpRequests => {
             let generation_request =
                 IndependentHttpRequestsPrompt::new(&chat_response_kind, &state.openapi_spec)
-                    .into_generation_request(&request.messages);
+                    .to_generation_request(&request.messages);
             let auto_request_series = state.model_client.generate(generation_request).await?;
             let auto_request_series = parse_generated_response::<AutoRequestSeries>(
                 auto_request_series,
@@ -94,11 +94,11 @@ async fn chat(
                 };
                 executed_requests.push(request_response);
             }
-            SummaryPrompt::new(&executed_requests).into_generation_request(&request.messages)
+            SummaryPrompt::new(&executed_requests).to_generation_request(&request.messages)
         }
         ChatResponseKind::AnswerWithPlan => {
             let generation_request = PlanPrompt::new(&chat_response_kind, &state.openapi_spec)
-                .into_generation_request(&request.messages);
+                .to_generation_request(&request.messages);
             let auto_plan = state.model_client.generate(generation_request).await?;
             let auto_plan = parse_generated_response::<AutoPlan>(
                 auto_plan,
@@ -110,9 +110,9 @@ async fn chat(
                     &state.openapi_spec,
                     &auto_plan,
                     &executed_requests,
-                    &auto_request_description,
+                    auto_request_description,
                 )
-                .into_generation_request(&request.messages);
+                .to_generation_request(&request.messages);
                 let auto_request = state.model_client.generate(generation_request).await?;
                 let auto_request = parse_generated_response::<AutoRequest>(
                     auto_request,
@@ -131,7 +131,7 @@ async fn chat(
                 };
                 executed_requests.push(request_response);
             }
-            SummaryPrompt::new(&executed_requests).into_generation_request(&request.messages)
+            SummaryPrompt::new(&executed_requests).to_generation_request(&request.messages)
         }
     };
     let stream = state
