@@ -1,9 +1,7 @@
 use std::fmt;
 use toi::{GenerationRequest, Message, MessageRole};
 
-use crate::models::chat::{
-            ChatResponseKind, ExecutedRequests, GeneratedHttpRequestDescription, GeneratedPlan,
-        };
+use crate::models::chat::{AutoPlan, AutoRequestDescription, ChatResponseKind, ExecutedRequests};
 
 pub trait SystemPrompt: fmt::Display {
     fn into_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
@@ -223,19 +221,19 @@ have format:
     }
 }
 
-pub struct DependentHttpRequestPrompt<'a> {
+pub struct DependentHttpRequestsPrompt<'a> {
     openapi_spec: &'a str,
-    generated_plan: &'a GeneratedPlan,
+    generated_plan: &'a AutoPlan,
     executed_requests: &'a ExecutedRequests,
-    generated_http_request_description: &'a GeneratedHttpRequestDescription,
+    generated_http_request_description: &'a AutoRequestDescription,
 }
 
-impl<'a> DependentHttpRequestPrompt<'a> {
+impl<'a> DependentHttpRequestsPrompt<'a> {
     pub fn new(
         openapi_spec: &'a str,
-        generated_plan: &'a GeneratedPlan,
+        generated_plan: &'a AutoPlan,
         executed_requests: &'a ExecutedRequests,
-        generated_http_request_description: &'a GeneratedHttpRequestDescription,
+        generated_http_request_description: &'a AutoRequestDescription,
     ) -> Self {
         Self {
             openapi_spec,
@@ -246,7 +244,7 @@ impl<'a> DependentHttpRequestPrompt<'a> {
     }
 }
 
-impl fmt::Display for DependentHttpRequestPrompt<'_> {
+impl fmt::Display for DependentHttpRequestsPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
         let generated_plan = self.generated_plan.to_string();

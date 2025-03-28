@@ -5,16 +5,6 @@ use std::{collections::HashMap, fmt};
 
 use crate::{models::client::ModelClientError, utils};
 
-pub fn parse_generated_response<T: DeserializeOwned>(
-    s: String,
-    url: &str,
-) -> Result<T, (StatusCode, String)> {
-    let extraction = utils::extract_json(&s)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))?;
-    serde_json::from_str::<T>(&extraction)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
-}
-
 pub enum ChatResponseKind {
     Unfulfillable,
     FollowUp,
@@ -104,32 +94,32 @@ impl From<u8> for ChatResponseKind {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
-enum GeneratedHttpMethod {
+enum AutoMethod {
     Delete,
     Get,
     Post,
     Put,
 }
 
-impl From<GeneratedHttpMethod> for Method {
-    fn from(val: GeneratedHttpMethod) -> Self {
+impl From<AutoMethod> for Method {
+    fn from(val: AutoMethod) -> Self {
         match val {
-            GeneratedHttpMethod::Delete => Method::DELETE,
-            GeneratedHttpMethod::Get => Method::GET,
-            GeneratedHttpMethod::Post => Method::POST,
-            GeneratedHttpMethod::Put => Method::PUT,
+            AutoMethod::Delete => Method::DELETE,
+            AutoMethod::Get => Method::GET,
+            AutoMethod::Post => Method::POST,
+            AutoMethod::Put => Method::PUT,
         }
     }
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct GeneratedHttpRequestDescription {
-    method: GeneratedHttpMethod,
+pub struct AutoRequestDescription {
+    method: AutoMethod,
     path: String,
     description: String,
 }
 
-impl fmt::Display for GeneratedHttpRequestDescription {
+impl fmt::Display for AutoRequestDescription {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
@@ -137,15 +127,15 @@ impl fmt::Display for GeneratedHttpRequestDescription {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct GeneratedHttpRequest {
-    method: GeneratedHttpMethod,
+pub struct AutoRequest {
+    method: AutoMethod,
     path: String,
     params: HashMap<String, String>,
     body: HashMap<String, String>,
 }
 
-impl From<GeneratedHttpRequest> for Request {
-    fn from(val: GeneratedHttpRequest) -> Self {
+impl From<AutoRequest> for Request {
+    fn from(val: AutoRequest) -> Self {
         Client::new()
             .request(val.method.into(), val.path)
             .query(&val.params)
@@ -156,16 +146,16 @@ impl From<GeneratedHttpRequest> for Request {
 }
 
 #[derive(Deserialize)]
-pub struct GeneratedHttpRequests {
-    pub requests: Vec<GeneratedHttpRequest>,
+pub struct AutoRequestSeries {
+    pub requests: Vec<AutoRequest>,
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct GeneratedPlan {
-    pub plan: Vec<GeneratedHttpRequestDescription>,
+pub struct AutoPlan {
+    pub plan: Vec<AutoRequestDescription>,
 }
 
-impl fmt::Display for GeneratedPlan {
+impl fmt::Display for AutoPlan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
@@ -174,7 +164,7 @@ impl fmt::Display for GeneratedPlan {
 
 #[derive(Serialize)]
 pub struct RequestResponse {
-    pub request: GeneratedHttpRequest,
+    pub request: AutoRequest,
     pub response: String,
 }
 
@@ -198,4 +188,14 @@ impl fmt::Display for ExecutedRequests {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
     }
+}
+
+pub fn parse_generated_response<T: DeserializeOwned>(
+    s: String,
+    url: &str,
+) -> Result<T, (StatusCode, String)> {
+    let extraction = utils::extract_json(&s)
+        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))?;
+    serde_json::from_str::<T>(&extraction)
+        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
 }
