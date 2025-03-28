@@ -2176,6 +2176,7 @@ dependencies = [
  "diesel-async",
  "dotenvy",
  "pgvector",
+ "regex",
  "reqwest",
  "serde",
  "serde-query",

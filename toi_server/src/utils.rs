@@ -28,6 +28,37 @@ pub fn diesel_error(err: diesel::result::Error) -> (StatusCode, String) {
     }
 }
 
+/// Extract the first JSON object from a string.
+pub fn extract_json(s: &str) -> Result<&str, &str> {
+    let mut depth = 0;
+    let mut start_idx = None;
+    let mut end_idx = None;
+    for (c_idx, c) in s.char_indices() {
+        match (start_idx, c) {
+            (None, '{') => {
+                start_idx = Some(c_idx);
+                depth += 1;
+            }
+            (Some(_), '{') => {
+                depth += 1;
+            }
+            (Some(_), '}') => {
+                depth -= 1;
+                if depth == 0 {
+                    end_idx = Some(c_idx + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    match (start_idx, end_idx) {
+        (Some(s_idx), Some(e_idx)) => Ok(&s[s_idx..e_idx]),
+        _ => Err("no JSON object found in string"),
+    }
+}
+
 /// Map any error into a `500 Internal Server Error` response.
 pub fn internal_error<E>(err: E) -> (StatusCode, String)
 where

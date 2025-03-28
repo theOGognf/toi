@@ -1,7 +1,20 @@
+use axum::http::StatusCode;
 use reqwest::{Client, Method, Request};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{collections::HashMap, fmt};
 use toi::{GenerationRequest, Message, MessageRole};
+
+use crate::{models::client::ModelClientError, utils};
+
+pub fn parse_generated_response<T: DeserializeOwned>(
+    s: String,
+    url: &str,
+) -> Result<T, (StatusCode, String)> {
+    let extraction = utils::extract_json(&s)
+        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))?;
+    serde_json::from_str::<T>(&extraction)
+        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
+}
 
 pub struct SystemPrompt(String);
 
