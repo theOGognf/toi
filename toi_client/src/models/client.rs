@@ -13,5 +13,5 @@ pub struct GenerationResponseChunk {
     pub content: String,
 
     #[query(".usage")]
-    pub usage: TokenUsage,
+    pub usage: Option<TokenUsage>,
 }

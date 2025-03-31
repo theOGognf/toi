@@ -4,7 +4,6 @@ use toi::Message;
 pub enum UserRequest {
     Prompt(String),
     Cancel,
-    Quit,
 }
 
 pub enum ServerRequest {
