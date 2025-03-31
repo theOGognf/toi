@@ -68,6 +68,12 @@ impl ModelClient {
         let url = format!("{base_url}/chat/completions");
         let mut request = Self::build_request_json(&self.generation_api_config, request)?;
         request.insert("stream".to_string(), serde_json::Value::Bool(true));
+        let mut stream_options = serde_json::Map::new();
+        stream_options.insert("include_usage".to_string(), serde_json::Value::Bool(true));
+        request.insert(
+            "stream_options".to_string(),
+            serde_json::Value::Object(stream_options),
+        );
         let response = self
             .generation_client
             .post(&url)

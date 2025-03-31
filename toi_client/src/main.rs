@@ -1,6 +1,7 @@
 use ctrlc::set_handler;
 use futures::stream::TryStreamExt;
 use models::client::TokenUsage;
+use pico_args::Arguments;
 use rustyline::error::ReadlineError;
 use rustyline::{
     Cmd, ConditionalEventHandler, DefaultEditor, Event, EventContext, EventHandler, KeyEvent,
@@ -19,13 +20,13 @@ use models::{
     repl::{ServerRequest, ServerResponse, UserRequest},
 };
 
-async fn client(url: &str, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
+async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
     let client = reqwest::Client::new();
 
     loop {
         if let Some(ServerRequest::Start(messages)) = rx.recv().await {
             let response = client
-                .post(url)
+                .post(&url)
                 .json(&messages)
                 .send()
                 .await
@@ -106,19 +107,22 @@ fn repl(mut rx: Receiver<()>, tx: Sender<UserRequest>) -> Result<(), ReadlineErr
     );
 
     while let Some(_) = rx.blocking_recv() {
-        match rl.readline(">> ") {
-            Ok(input) => {
-                let message = UserRequest::Prompt(input);
-                tx.blocking_send(message)
-                    .expect("user request channel full");
+        loop {
+            match rl.readline(">> ") {
+                Ok(input) => {
+                    let message = UserRequest::Prompt(input);
+                    tx.blocking_send(message)
+                        .expect("user request channel full");
+                    break;
+                }
+                Err(ReadlineError::Interrupted) => {
+                    println!("^C");
+                }
+                Err(ReadlineError::Eof) => {
+                    std::process::exit(0);
+                }
+                _ => {}
             }
-            Err(ReadlineError::Interrupted) => {
-                println!("^C");
-            }
-            Err(ReadlineError::Eof) => {
-                std::process::exit(0);
-            }
-            _ => {}
         }
     }
     Ok(())
@@ -136,15 +140,103 @@ fn ctrlc_handler(tx: Sender<UserRequest>) -> Result<(), ctrlc::Error> {
     Ok(())
 }
 
+struct History {
+    limit: u32,
+    size: u32,
+    buffer: Vec<String>,
+    message_history: VecDeque<Message>,
+    usage_history: VecDeque<TokenUsage>,
+}
+
+impl History {
+    pub fn new(limit: u32) -> Self {
+        Self {
+            limit,
+            size: 0,
+            buffer: vec![],
+            message_history: VecDeque::new(),
+            usage_history: VecDeque::new(),
+        }
+    }
+
+    pub fn pop_back(&mut self) {
+        self.message_history.pop_back();
+    }
+
+    pub fn prune(&mut self) {
+        while self.size > self.limit {
+            if let Some(usage) = self.usage_history.pop_front() {
+                self.size = self.size.wrapping_add_signed(-usage.prompt_tokens)
+                    + self.size.wrapping_add_signed(-usage.completion_tokens);
+                self.message_history = self.message_history.split_off(2);
+            }
+        }
+    }
+
+    pub fn push_assistant(&mut self, content: String, usage: TokenUsage) {
+        let message = Message {
+            role: MessageRole::Assistant,
+            content,
+        };
+        self.size = self.size.wrapping_add_signed(usage.prompt_tokens)
+            + self.size.wrapping_add_signed(usage.completion_tokens);
+        self.message_history.push_back(message);
+        self.usage_history.push_back(usage);
+        self.buffer.clear();
+    }
+
+    pub fn push_buffer(&mut self, content: String) {
+        self.buffer.push(content);
+    }
+
+    pub fn push_user(&mut self, content: String) -> Vec<Message> {
+        let message = Message {
+            role: MessageRole::User,
+            content,
+        };
+        self.message_history.push_back(message);
+        self.message_history.clone().into()
+    }
+}
+
+const HELP: &str = "\
+Chat with a private assistant
+
+USAGE:
+  toi_client [OPTIONS]
+
+OPTIONS:
+  --url IP:PORT     Server address                [default: 127.0.0.1:6969]
+  --limit           Message history context limit [default: 8000]
+
+FLAGS:
+  -h, --help            Print help information
+";
+
+struct Args {
+    url: String,
+    context_limit: u32,
+}
+
 /// Minimal REPL
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = "";
-    let context_limit = 16000;
-    let mut context_size = 0;
-    let mut message_buffer: Vec<String> = vec![];
-    let mut message_history: VecDeque<Message> = VecDeque::new();
-    let mut usage_history: VecDeque<TokenUsage> = VecDeque::new();
+    let mut pargs = Arguments::from_env();
+
+    if pargs.contains(["-h", "--help"]) {
+        println!("{}", HELP);
+        std::process::exit(0);
+    }
+
+    let args = Args {
+        url: pargs
+            .value_from_str("--url")
+            .unwrap_or("127.0.0.1:6969".into()),
+        context_limit: pargs.value_from_str("--limit").unwrap_or(8000),
+    };
+    let Args { url, context_limit } = args;
+
+    let mut history = History::new(context_limit);
 
     // Channels for all the IPC going on.
     let (start_repl_sender, start_repl_receiver) = tokio::sync::mpsc::channel(2);
@@ -176,9 +268,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(user_request) = user_request_receiver.recv() => {
                 let server_request = match user_request {
                     UserRequest::Prompt(input) => {
-                        let message = Message{role: MessageRole::User, content: input};
-                        message_history.push_back(message);
-                        ServerRequest::Start(message_history.clone().into())
+                        let messages = history.push_user(input);
+                        ServerRequest::Start(messages)
                     }
                     UserRequest::Cancel => ServerRequest::Cancel
                 };
@@ -187,20 +278,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(server_response) = server_response_receiver.recv() => {
                 match server_response {
                     ServerResponse::Chunk(chunk) => {
-                        let content = chunk.content;
-                        message_buffer.push(content.clone());
-                        print!("{content}");
+                        history.push_buffer(chunk.content.clone());
+                        print!("{}", chunk.content);
                         if let Some(usage) = chunk.usage {
-                            let message = Message{role: MessageRole::Assistant, content: message_buffer.join("")};
-                            message_history.push_back(message);
-                            usage_history.push_back(usage);
-                            message_buffer.clear();
+                            history.push_assistant(chunk.content, usage);
                         }
                     }
                     ServerResponse::Done => start_repl_sender.send(()).await?,
                     ServerResponse::Error(err) => {
-                        message_history.pop_back();
-                        let content = format!("The following error occurred when receiving a response: {err}");
+                        history.pop_back();
+                        let content = format!("Error: {err}");
                         println!("{content}");
                         start_repl_sender.send(()).await?;
                     }
@@ -209,12 +296,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Shorten message history to fit context limit.
-        while context_size > context_limit {
-            if let Some(u) = usage_history.pop_front() {
-                context_size -= u.prompt_tokens;
-                context_size -= u.completion_tokens;
-                message_history = message_history.split_off(2);
-            }
-        }
+        history.prune();
     }
 }
