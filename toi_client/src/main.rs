@@ -173,10 +173,10 @@ impl History {
         }
     }
 
-    pub fn push_assistant(&mut self, content: String, usage: TokenUsage) {
+    pub fn push_assistant(&mut self, usage: TokenUsage) {
         let message = Message {
             role: MessageRole::Assistant,
-            content,
+            content: self.buffer.join(""),
         };
         self.size = self.size.wrapping_add_signed(usage.prompt_tokens)
             + self.size.wrapping_add_signed(usage.completion_tokens);
@@ -236,8 +236,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let Args { url, context_limit } = args;
 
-    let mut history = History::new(context_limit);
-
     // Channels for all the IPC going on.
     let (start_repl_sender, start_repl_receiver) = tokio::sync::mpsc::channel(2);
     let (user_request_sender, mut user_request_receiver): (
@@ -263,6 +261,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     start_repl_sender.send(()).await?;
 
     // Main loop.
+    let mut history = History::new(context_limit);
     loop {
         tokio::select! {
             Some(user_request) = user_request_receiver.recv() => {
@@ -281,14 +280,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         history.push_buffer(chunk.content.clone());
                         print!("{}", chunk.content);
                         if let Some(usage) = chunk.usage {
-                            history.push_assistant(chunk.content, usage);
+                            history.push_assistant(usage);
                         }
                     }
                     ServerResponse::Done => start_repl_sender.send(()).await?,
                     ServerResponse::Error(err) => {
                         history.pop_back();
-                        let content = format!("Error: {err}");
-                        println!("{content}");
+                        println!("{}", format!("Error: {err}"));
                         start_repl_sender.send(()).await?;
                     }
                 }
