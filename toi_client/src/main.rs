@@ -90,10 +90,10 @@ impl ConditionalEventHandler for InterruptEventHandler {
         _: bool,
         ctx: &EventContext,
     ) -> Option<rustyline::Cmd> {
-        if ctx.line().len() > 0 {
-            Some(Cmd::Interrupt)
-        } else {
+        if ctx.line().is_empty() {
             Some(Cmd::EndOfFile)
+        } else {
+            Some(Cmd::Interrupt)
         }
     }
 }
@@ -106,7 +106,7 @@ fn repl(mut rx: Receiver<()>, tx: Sender<UserRequest>) -> Result<(), ReadlineErr
         EventHandler::Conditional(interrupt_event_handler),
     );
 
-    while let Some(_) = rx.blocking_recv() {
+    while rx.blocking_recv().is_some() {
         loop {
             match rl.readline(">> ") {
                 Ok(input) => {
@@ -286,7 +286,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ServerResponse::Done => start_repl_sender.send(()).await?,
                     ServerResponse::Error(err) => {
                         history.pop_back();
-                        println!("{}", format!("Error: {err}"));
+                        println!("Error: {err}");
                         start_repl_sender.send(()).await?;
                     }
                 }
