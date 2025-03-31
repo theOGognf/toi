@@ -21,16 +21,13 @@ impl ModelClient {
         config: &HttpClientConfig,
         request: Request,
     ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
-        let mut value = serde_json::to_value(request).map_err(|err| {
-            ModelClientError::RequestJson.into_response(&config.base_url, &err.to_string())
-        })?;
+        let mut value = serde_json::to_value(request)
+            .map_err(|err| ModelClientError::RequestJson.into_response(&err.to_string()))?;
         let request = value
             .as_object_mut()
             .expect("request value can never be empty");
         if let Some(json) = serde_json::to_value(config.json.clone())
-            .map_err(|err| {
-                ModelClientError::DefaultJson.into_response(&config.base_url, &err.to_string())
-            })?
+            .map_err(|err| ModelClientError::DefaultJson.into_response(&err.to_string()))?
             .as_object()
         {
             request.extend(json.clone());
@@ -78,7 +75,7 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| ModelClientError::ApiConnection.into_response(&url, &err.to_string()))?;
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&err.to_string()))?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }
@@ -118,9 +115,9 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| ModelClientError::ApiConnection.into_response(&url, &err.to_string()))?
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&err.to_string()))?
             .json::<ResponseModel>()
             .await
-            .map_err(|err| ModelClientError::ResponseJson.into_response(&url, &err.to_string()))
+            .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
     }
 }

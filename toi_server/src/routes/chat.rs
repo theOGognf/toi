@@ -50,12 +50,9 @@ async fn chat(
         .find(&chat_response_kind)
         .map(|m| m.as_str())
         .unwrap_or("1");
-    let chat_response_kind = chat_response_kind.parse::<u8>().map_err(|err| {
-        ModelClientError::ResponseJson.into_response(
-            &state.model_client.generation_api_config.base_url,
-            &err.to_string(),
-        )
-    })?;
+    let chat_response_kind = chat_response_kind
+        .parse::<u8>()
+        .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))?;
     let chat_response_kind: ChatResponseKind = chat_response_kind.into();
 
     // Map the response kind to different prompts and different ways for constructing
@@ -78,18 +75,13 @@ async fn chat(
                 IndependentHttpRequestsPrompt::new(&chat_response_kind, &state.openapi_spec)
                     .to_generation_request(&request.messages);
             let auto_request_series = state.model_client.generate(generation_request).await?;
-            let auto_request_series = parse_generated_response::<AutoRequestSeries>(
-                auto_request_series,
-                &state.model_client.generation_api_config.base_url,
-            )?;
+            let auto_request_series =
+                parse_generated_response::<AutoRequestSeries>(auto_request_series)?;
             let mut executed_requests = ExecutedRequests::new();
             for auto_request in auto_request_series.requests {
                 let request: Request = auto_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
-                    ModelClientError::ApiConnection.into_response(
-                        &state.model_client.generation_api_config.base_url,
-                        &err.to_string(),
-                    )
+                    ModelClientError::ApiConnection.into_response(&err.to_string())
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,
@@ -105,10 +97,7 @@ async fn chat(
             let generation_request = PlanPrompt::new(&chat_response_kind, &state.openapi_spec)
                 .to_generation_request(&request.messages);
             let auto_plan = state.model_client.generate(generation_request).await?;
-            let auto_plan = parse_generated_response::<AutoPlan>(
-                auto_plan,
-                &state.model_client.generation_api_config.base_url,
-            )?;
+            let auto_plan = parse_generated_response::<AutoPlan>(auto_plan)?;
             let mut executed_requests = ExecutedRequests::new();
             for auto_request_description in auto_plan.plan.iter() {
                 let generation_request = DependentHttpRequestsPrompt::new(
@@ -119,16 +108,10 @@ async fn chat(
                 )
                 .to_generation_request(&request.messages);
                 let auto_request = state.model_client.generate(generation_request).await?;
-                let auto_request = parse_generated_response::<AutoRequest>(
-                    auto_request,
-                    &state.model_client.generation_api_config.base_url,
-                )?;
+                let auto_request = parse_generated_response::<AutoRequest>(auto_request)?;
                 let request: Request = auto_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
-                    ModelClientError::ApiConnection.into_response(
-                        &state.model_client.generation_api_config.base_url,
-                        &err.to_string(),
-                    )
+                    ModelClientError::ApiConnection.into_response(&err.to_string())
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,

@@ -22,25 +22,23 @@ pub enum ModelClientError {
 }
 
 impl ModelClientError {
-    pub fn into_response(self, url: &str, original_err: &str) -> (StatusCode, String) {
+    pub fn into_response(self, original_err: &str) -> (StatusCode, String) {
         match self {
             Self::ApiConnection => (
                 StatusCode::BAD_GATEWAY,
-                format!(
-                    "connection error when getting response from {url} resultin in '{original_err}'"
-                ),
+                format!("connection error when getting response resulting in '{original_err}'"),
             ),
             Self::DefaultJson => (
                 StatusCode::BAD_REQUEST,
-                format!("couldn't serialize default JSON for {url} resulting in '{original_err}'"),
+                format!("couldn't serialize default JSON resulting in '{original_err}'"),
             ),
             Self::RequestJson => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                format!("couldn't serialize request for {url} resulting in '{original_err}'"),
+                format!("couldn't serialize request resulting in '{original_err}'"),
             ),
             Self::ResponseJson => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                format!("couldn't deserialize response from {url} resulting in '{original_err}'"),
+                format!("couldn't deserialize response resulting in '{original_err}'"),
             ),
         }
     }

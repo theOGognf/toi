@@ -190,12 +190,9 @@ impl fmt::Display for ExecutedRequests {
     }
 }
 
-pub fn parse_generated_response<T: DeserializeOwned>(
-    s: String,
-    url: &str,
-) -> Result<T, (StatusCode, String)> {
-    let extraction = utils::extract_json(&s)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(url, err))?;
+pub fn parse_generated_response<T: DeserializeOwned>(s: String) -> Result<T, (StatusCode, String)> {
+    let extraction =
+        utils::extract_json(&s).map_err(|err| ModelClientError::ResponseJson.into_response(err))?;
     serde_json::from_str::<T>(extraction)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(url, &err.to_string()))
+        .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
 }
