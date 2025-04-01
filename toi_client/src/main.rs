@@ -22,6 +22,7 @@ use models::{
 };
 
 async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
+    let url = format!("{url}/chat");
     let client = reqwest::Client::new();
 
     loop {
@@ -150,6 +151,10 @@ struct History {
 }
 
 impl History {
+    pub fn len(&self) -> usize {
+        self.message_history.len()
+    }
+
     pub fn new(limit: u32) -> Self {
         Self {
             limit,
@@ -207,8 +212,8 @@ USAGE:
   toi_client [OPTIONS]
 
 OPTIONS:
-  --url IP:PORT     Server address      [default: 127.0.0.1:6969]
-  --limit           Chat context limit  [default: 8000]
+  --url     Server address      [default: 127.0.0.1:6969]
+  --limit   Chat context limit  [default: 8000]
 
 FLAGS:
   -h, --help            Print help information
@@ -286,7 +291,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     ServerResponse::Done => start_repl_sender.send(()).await?,
                     ServerResponse::Error(err) => {
-                        history.pop_back();
+                        // Edge case where the assistant can finish their response,
+                        // but the done signal doesn't come through just yet. If there's
+                        // an odd number of messages, then we know this edge case
+                        // occurred, and we don't want to pop the assistant's
+                        // message.
+                        if history.len() % 2 == 1 {
+                            history.pop_back();
+                        }
                         println!("Error: {err}");
                         start_repl_sender.send(()).await?;
                     }

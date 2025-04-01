@@ -1,9 +1,15 @@
-FROM rust:alpine AS chef
+FROM rust:slim-bullseye AS chef
 
-RUN apk update \
-    && apk add --no-cache \
+RUN apt-get update \
+    && apt-get install -y \
+        curl \
         gcc \
+        libpq-dev \
+        libssl-dev \
         musl-dev \
+        openssl \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/* \
     && cargo install cargo-chef
 
 WORKDIR /usr/app
@@ -22,9 +28,14 @@ RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
 
-RUN cargo build --release
+RUN cargo build --release -p toi_server
 
-FROM alpine:latest AS runtime
+FROM debian:bullseye-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y \
+        libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV RUST_LOG=info
 

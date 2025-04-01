@@ -5,12 +5,15 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::models::datetime::{DateTimeQueryParams, DateTimeShiftRequest};
 
 pub fn router() -> OpenApiRouter {
-    OpenApiRouter::new().routes(routes!(now, shift, weekday))
+    OpenApiRouter::new()
+        .routes(routes!(now, shift))
+        .routes(routes!(weekday))
 }
 
 #[utoipa::path(
     get,
     path = "/now", 
+    request_body = DateTime<Utc>,
     responses(
         (status = 200, description = "Successfully got current date", body = DateTime<Utc>)
     )
@@ -24,6 +27,7 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 #[utoipa::path(
     post,
     path = "/shift", 
+    request_body = DateTimeShiftRequest,
     responses(
         (status = 200, description = "Successfully shifted given date", body = DateTime<Utc>)
     )

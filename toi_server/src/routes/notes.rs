@@ -22,19 +22,15 @@ use crate::{
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_note,
-            delete_matching_notes,
-            delete_note,
-            get_matching_notes,
-            get_note
-        ))
+        .routes(routes!(add_note, delete_note, get_note))
+        .routes(routes!(delete_matching_notes, get_matching_notes))
         .with_state(state)
 }
 
 #[utoipa::path(
     post,
     path = "",
+    request_body = NewNoteRequest,
     responses(
         (status = 201, description = "Successfully added a note", body = Note),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -93,7 +89,7 @@ pub async fn delete_note(
 
 #[utoipa::path(
     delete,
-    path = "",
+    path = "/search",
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully deleted notes", body = [Note]),
@@ -185,7 +181,7 @@ pub async fn get_note(
 
 #[utoipa::path(
     get,
-    path = "",
+    path = "/search",
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully got notes", body = [Note]),

@@ -24,6 +24,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 #[utoipa::path(
     post,
     path = "",
+    request_body = GenerationRequest,
     responses(
         (status = 200, description = "Successfully got a response"),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),

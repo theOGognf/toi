@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // All configuration comes from environment variables and a required
     // config file.
-    let db_connection_url = dotenvy::var("DATABASE_URL")?;
+    let db_connection_url = dotenvy::var("DB_URL")?;
     let config_path = dotenvy::var("TOI_CONFIG_PATH")?;
     let config_file = File::open(config_path)?;
     let config: ToiConfig = serde_json::from_reader(config_file)?;
@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router = openapi_router.nest("/chat", routes::chat::router(state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router
-        .merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new())

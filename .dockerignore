@@ -2,7 +2,9 @@
 .dockerignore
 .git*
 assets
+docker-compose.yaml
 Dockerfile
 LICENSE
 README.md
+rustfmt.toml
 target

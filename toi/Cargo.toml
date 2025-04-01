@@ -10,3 +10,5 @@ license = "Apache-2.0"
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
 serde-query = "0.2.0"
+utoipa = "5.3.1"
+utoipa-axum = "0.2.0"

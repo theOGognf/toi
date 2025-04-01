@@ -1,0 +1,55 @@
+services:
+  api:
+    build:
+      context: .
+    environment:
+      - DB_URL=${DB_URL:-postgres://self:hosted@db:5432/toi}
+      - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}
+      - RUST_BACKTRACE=full
+    ports:
+      - "6969:6969"
+    volumes:
+      - ./toi_server/toi.json:/usr/app/toi.json
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: pgvector/pgvector:${POSTGRES_IAMGE_VERSION:-pg17}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-self}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hosted}
+      - POSTGRES_DB=${POSTGRES_DB:-toi}
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER:-self} -d ${POSTGRES_DB:-toi}'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - db
+
+  embed:
+    image: ghcr.io/huggingface/text-embeddings-inference:${EMBED_IMAGE_VERSION:-latest}
+    command: --model-id ${EMBED_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${EMBED_NUM_GPUS:-all}
+              capabilities: [gpu]
+    profiles:
+      - models
+
+  generation:
+    image: ghcr.io/huggingface/text-generation-inference:${GENERATION_IMAGE_VERSION:-latest}
+    command: --model-id ${GENERATION_MODEL_ID:-microsoft/Phi-4-mini-instruct}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${GENERATION_NUM_GPUS:-all}
+              capabilities: [gpu]
+    profiles:
+      - models
