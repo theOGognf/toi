@@ -2,15 +2,16 @@ use ctrlc::set_handler;
 use futures::stream::TryStreamExt;
 use models::client::TokenUsage;
 use pico_args::Arguments;
-use rustyline::error::ReadlineError;
 use rustyline::{
     Cmd, ConditionalEventHandler, DefaultEditor, Event, EventContext, EventHandler, KeyEvent,
+    error::ReadlineError,
 };
-use std::collections::VecDeque;
-use std::thread;
+use std::{collections::VecDeque, thread};
 use toi::{Message, MessageRole};
-use tokio::io::AsyncBufReadExt;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::{
+    io::AsyncBufReadExt,
+    sync::mpsc::{Receiver, Sender},
+};
 use tokio_util::io::StreamReader;
 
 mod models;
@@ -206,8 +207,8 @@ USAGE:
   toi_client [OPTIONS]
 
 OPTIONS:
-  --url IP:PORT     Server address                [default: 127.0.0.1:6969]
-  --limit           Message history context limit [default: 8000]
+  --url IP:PORT     Server address      [default: 127.0.0.1:6969]
+  --limit           Chat context limit  [default: 8000]
 
 FLAGS:
   -h, --help            Print help information

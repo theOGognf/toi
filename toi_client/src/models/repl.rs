@@ -1,5 +1,5 @@
-use crate::models::client::GenerationResponseChunk;
 use toi::Message;
+use crate::models::client::GenerationResponseChunk;
 
 pub enum UserRequest {
     Prompt(String),
