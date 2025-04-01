@@ -3,6 +3,8 @@ use std::fs::File;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use serde::Deserialize;
 use tokio::net::TcpListener;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing_subscriber::EnvFilter;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -22,6 +24,12 @@ struct ToiConfig {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_target(false)
+        .compact()
+        .init();
+
     // All configuration comes from environment variables and a required
     // config file.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
@@ -60,7 +68,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     state.openapi_spec = openapi_spec;
     let openapi_router = openapi_router.nest("/chat", routes::chat::router(state));
     let (router, api) = openapi_router.split_for_parts();
-    let router = router.merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api));
+    let router = router
+        .merge(SwaggerUi::new("/swagger-ui").url("/docs/openapi.json", api))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new())
+                .on_response(DefaultOnResponse::new()),
+        );
 
     let listener = TcpListener::bind(binding_addr).await?;
     axum::serve(listener, router).await?;
