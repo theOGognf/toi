@@ -38,7 +38,7 @@ impl ModelClient {
     pub async fn embed(self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
         let resp: EmbeddingResponse = Self::post(
             &self.embedding_api_config,
-            "/embeddings".to_string(),
+            "/v1/embeddings".to_string(),
             &self.embedding_client,
             request,
         )
@@ -52,7 +52,7 @@ impl ModelClient {
     ) -> Result<String, (StatusCode, String)> {
         let resp: GenerationResponse = Self::post(
             &self.generation_api_config,
-            "/chat/completions".to_string(),
+            "/v1/chat/completions".to_string(),
             &self.generation_client,
             request,
         )
@@ -65,7 +65,7 @@ impl ModelClient {
         request: GenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
-        let url = format!("{base_url}/chat/completions");
+        let url = format!("{base_url}/v1/chat/completions");
         let mut request = Self::build_request_json(&self.generation_api_config, request)?;
         request.insert("stream".to_string(), serde_json::Value::Bool(true));
         let mut stream_options = serde_json::Map::new();

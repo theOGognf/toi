@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 #[derive(Clone, Deserialize, PartialEq, Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     System,
     Assistant,
     User,
