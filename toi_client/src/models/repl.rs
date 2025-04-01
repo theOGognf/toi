@@ -1,5 +1,5 @@
 use crate::models::client::GenerationResponseChunk;
-use toi::Message;
+use toi::GenerationRequest;
 
 pub enum UserRequest {
     Prompt(String),
@@ -7,7 +7,7 @@ pub enum UserRequest {
 }
 
 pub enum ServerRequest {
-    Start(Vec<Message>),
+    Start(GenerationRequest),
     Cancel,
 }
 

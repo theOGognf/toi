@@ -7,7 +7,7 @@ use rustyline::{
     error::ReadlineError,
 };
 use std::{collections::VecDeque, thread};
-use toi::{Message, MessageRole};
+use toi::{GenerationRequest, Message, MessageRole};
 use tokio::{
     io::AsyncBufReadExt,
     sync::mpsc::{Receiver, Sender},
@@ -26,10 +26,10 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
     let client = reqwest::Client::new();
 
     loop {
-        if let Some(ServerRequest::Start(messages)) = rx.recv().await {
+        if let Some(ServerRequest::Start(request)) = rx.recv().await {
             let response = client
                 .post(&url)
-                .json(&messages)
+                .json(&request)
                 .send()
                 .await
                 .map_err(|err| err.to_string());
@@ -195,13 +195,15 @@ impl History {
         self.buffer.push(content);
     }
 
-    pub fn push_user(&mut self, content: String) -> Vec<Message> {
+    pub fn push_user(&mut self, content: String) -> GenerationRequest {
         let message = Message {
             role: MessageRole::User,
             content,
         };
         self.message_history.push_back(message);
-        self.message_history.clone().into()
+        GenerationRequest {
+            messages: self.message_history.clone().into(),
+        }
     }
 }
 
@@ -273,8 +275,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(user_request) = user_request_receiver.recv() => {
                 let server_request = match user_request {
                     UserRequest::Prompt(input) => {
-                        let messages = history.push_user(input);
-                        ServerRequest::Start(messages)
+                        let request = history.push_user(input);
+                        ServerRequest::Start(request)
                     }
                     UserRequest::Cancel => ServerRequest::Cancel
                 };
