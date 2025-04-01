@@ -1,6 +1,8 @@
-use std::fs::File;
+use std::{fs::File, ops::DerefMut};
 
+use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -13,6 +15,8 @@ mod models;
 mod routes;
 mod schema;
 mod utils;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 #[derive(Deserialize)]
 struct ToiConfig {
@@ -42,11 +46,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         generation_api_config,
     } = config;
 
+    // Get a connection and manually run migrations at startup just in case
+    // to ensure the database is ready to go.
+    let mut conn = PgConnection::establish(&db_connection_url)?;
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("failed to run migrations");
+
     // Shared state components. A client is used for interacting with supporting
     // API services, while a pool is used for interacting with the database.
     let model_client = client::ModelClient::new(embedding_api_config, generation_api_config)?;
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(manager).await?;
+
     // Build state with empty spec first since only the assistant endpoint uses
     // the OpenAPI spec.
     let mut state = models::state::ToiState {
