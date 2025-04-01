@@ -1,4 +1,4 @@
-use std::{fs::File, ops::DerefMut};
+use std::fs::File;
 
 use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
