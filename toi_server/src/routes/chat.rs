@@ -86,10 +86,7 @@ async fn chat(
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,
-                    response: response
-                        .text()
-                        .await
-                        .unwrap_or_else(detailed_reqwest_error),
+                    response: response.text().await.unwrap_or_else(detailed_reqwest_error),
                 };
                 executed_requests.push(request_response);
             }
@@ -119,10 +116,7 @@ async fn chat(
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,
-                    response: response
-                        .text()
-                        .await
-                        .unwrap_or_else(detailed_reqwest_error),
+                    response: response.text().await.unwrap_or_else(detailed_reqwest_error),
                 };
                 executed_requests.push(request_response);
             }

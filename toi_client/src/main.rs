@@ -85,10 +85,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                     }
                 }
                 Ok(response) => {
-                    let text = response
-                        .text()
-                        .await
-                        .unwrap_or_else(detailed_reqwest_error);
+                    let text = response.text().await.unwrap_or_else(detailed_reqwest_error);
                     let message = ServerResponse::Error(text);
                     tx.send(message)
                         .await
@@ -189,8 +186,10 @@ impl History {
     pub fn prune(&mut self) {
         while self.size > self.limit {
             if let Some(usage) = self.usage_history.pop_front() {
-                self.size = self.size.wrapping_add_signed(-usage.prompt_tokens)
-                    + self.size.wrapping_add_signed(-usage.completion_tokens);
+                self.size = self
+                    .size
+                    .checked_add_signed(-(usage.prompt_tokens + usage.completion_tokens))
+                    .expect("overflow from subbing token usage");
                 self.message_history = self.message_history.split_off(2);
             }
         }
@@ -201,8 +200,10 @@ impl History {
             role: MessageRole::Assistant,
             content: self.buffer.join(""),
         };
-        self.size = self.size.wrapping_add_signed(usage.prompt_tokens)
-            + self.size.wrapping_add_signed(usage.completion_tokens);
+        self.size = self
+            .size
+            .checked_add_signed(usage.prompt_tokens + usage.completion_tokens)
+            .expect("overflow from adding token usage");
         self.message_history.push_back(message);
         self.usage_history.push_back(usage);
         self.buffer.clear();
@@ -320,6 +321,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if history.len() % 2 == 1 {
                             history.pop_back();
                         }
+                        println!();
                         start_repl_sender.send(()).await?
                     },
                     ServerResponse::Error(err) => {
