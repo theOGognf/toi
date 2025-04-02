@@ -186,9 +186,10 @@ impl History {
     pub fn prune(&mut self) {
         while self.size > self.limit {
             if let Some(usage) = self.usage_history.pop_front() {
+                let total_usage = usage.prompt_tokens + usage.completion_tokens;
                 self.size = self
                     .size
-                    .checked_add_signed(-(usage.prompt_tokens + usage.completion_tokens))
+                    .checked_add_signed(-total_usage)
                     .expect("overflow from subbing token usage");
                 self.message_history = self.message_history.split_off(2);
             }
@@ -200,9 +201,10 @@ impl History {
             role: MessageRole::Assistant,
             content: self.buffer.join(""),
         };
+        let total_usage = usage.prompt_tokens + usage.completion_tokens;
         self.size = self
             .size
-            .checked_add_signed(usage.prompt_tokens + usage.completion_tokens)
+            .checked_add_signed(total_usage)
             .expect("overflow from adding token usage");
         self.message_history.push_back(message);
         self.usage_history.push_back(usage);

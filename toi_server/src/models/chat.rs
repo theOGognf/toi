@@ -9,10 +9,7 @@ pub enum ChatResponseKind {
     Unfulfillable,
     FollowUp,
     Answer,
-    AnswerWithDraftHttpRequests,
-    PartiallyAnswerWithHttpRequests,
     AnswerWithHttpRequests,
-    AnswerWithDraftPlan,
     AnswerWithPlan,
 }
 
@@ -28,49 +25,22 @@ impl fmt::Display for ChatResponseKind {
                 before proceeding."
             }
             Self::Answer => {
-                "Answer: the user's message is clear and can be answered directly \
-                without HTTP request(s). Answer concisely."
-            }
-            Self::AnswerWithDraftHttpRequests => {
-                "Answer with draft HTTP request(s): the user's message requires \
-                HTTP request(s), but some details need clarification. Show \
-                draft requests for user input."
-            }
-            Self::PartiallyAnswerWithHttpRequests => {
-                "Partially answer with independent HTTP request(s): the user's message is \
-                clear and can be accurately fulfilled with independent HTTP request(s), \
-                but it's best to only partially fulfill those HTTP request(s) \
-                to make sure the user understands exactly what they're \
-                requesting. This is good for scenarios where the user is \
-                requesting a lot of changes like deleting or adding a lot \
-                of resources, and it's best to retrieve the resources first \
-                so the user can confirm."
+                "Answer: the user's message is clear and is no way related to any \
+                of the API endpoints. Answer directly."
             }
             Self::AnswerWithHttpRequests => {
                 "Answer with independent HTTP request(s): the user's message is \
-                clear and can be accurately fulfilled with independent HTTP request(s). \
-                It's best to make the HTTP request(s) and summarize those \
-                requests and their respective responses to the user. This \
-                is good for scenarios where the user is requesting small \
-                changes like deleting or adding one or two resources."
-            }
-            Self::AnswerWithDraftPlan => {
-                "Answer with a draft of a plan consisting of a bulleted list of \
-                descriptions for dependent HTTP request(s) to make on behalf of the user: \
-                the user's message indicates they want an action to be performed \
-                with a serries of dependent HTTP request(s), but some aspects of \
-                the user's message are unclear and could benefit from additional \
-                user input. It's best to show a plan draft to the user, summarize \
-                it, and then seek the user's input and confirmation."
+                clear and the API has relevant endpoints. Construct HTTP request(s) \
+                to the API. Another software module will send those requests for you. \
+                Then summarize the responses."
             }
             Self::AnswerWithPlan => {
-                "Answer with a plan consisting of an array of descriptions for dependent HTTP \
-                request(s) to make on behalf of the user: the user's message indicates \
-                they want an action to be performed with a series of dependent HTTP \
-                request(s). This is good for scenarios where the user is requesting \
-                small changes like deleting or adding one or two resources, but some \
-                HTTP response(s) are needed to construct request bodies or parameters \
-                for subsequent HTTP request(s)."
+                "Answer with a plan consisting of an array of descriptions for \
+                dependent HTTP request(s) to make on behalf of the user: the user's \
+                message is clear and the API has relevant endpoints. Make a plan \
+                detailing a series of dependent HTTP request(s) to the API. Another 
+                software module will make HTTP request(s) based on that plan. Then \
+                summarize the responses."
             }
         };
         write!(f, "{repr}")
@@ -82,11 +52,8 @@ impl From<u8> for ChatResponseKind {
         match value {
             2 => Self::FollowUp,
             3 => Self::Answer,
-            4 => Self::AnswerWithDraftHttpRequests,
-            5 => Self::PartiallyAnswerWithHttpRequests,
-            6 => Self::AnswerWithHttpRequests,
-            7 => Self::AnswerWithDraftPlan,
-            8 => Self::AnswerWithPlan,
+            4 => Self::AnswerWithHttpRequests,
+            5 => Self::AnswerWithPlan,
             _ => Self::Unfulfillable,
         }
     }

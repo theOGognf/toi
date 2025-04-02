@@ -2217,6 +2217,7 @@ dependencies = [
  "axum",
  "bb8",
  "chrono",
+ "ctrlc",
  "diesel",
  "diesel-async",
  "diesel_migrations",

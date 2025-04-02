@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use ctrlc::set_handler;
 use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
@@ -33,6 +34,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .compact()
         .init();
+
+    // Catching signals for exit.
+    set_handler(|| std::process::exit(0))?;
 
     // All configuration comes from environment variables and a required
     // config file.

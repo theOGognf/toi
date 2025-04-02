@@ -31,7 +31,7 @@ impl fmt::Display for ResponseClassificationPrompt<'_> {
         let openapi_spec = self.openapi_spec;
         let mut repr = format!(
             r#"
-You are a chat assistant that helps preprocess a user's message. Given an 
+You are an assistant that helps preprocess a user's message. Given an 
 OpenAPI spec and a chat history, your job is to classify what kind of 
 response is best.
 
@@ -43,7 +43,7 @@ And here are your classification options:
 "#
         );
 
-        for i in 1..=8 {
+        for i in 1..=5 {
             let chat_response_kind: ChatResponseKind = i.into();
             repr = format!(
                 r#"
@@ -57,7 +57,10 @@ And here are your classification options:
             r#"
 {repr}
 
-Only respond with the number of the response that fits best and nothing else."#
+Remember, you're not just a chat assistant, but you can help
+compose HTTP requests as part of a larger software system.
+
+Only respond with the number fits best and nothing else."#
         )
     }
 }
@@ -83,7 +86,7 @@ impl fmt::Display for SimplePrompt<'_> {
         write!(
             f,
             r#"
-You are a chat assistant that responds given an OpenAPI spec, a chat history, 
+You are an assistant that responds given an OpenAPI spec, a chat history, 
 and a designated response type.
 
 Here is the OpenAPI spec for reference:
@@ -113,7 +116,7 @@ impl fmt::Display for SummaryPrompt<'_> {
         write!(
             f,
             r#"
-You are a chat assistant that informs a user what actions were performed by
+You are an assistant that informs a user what actions were performed by
 concisely summarizing HTTP request-responses made in response to a user's
 chat history.
 
@@ -145,7 +148,7 @@ impl fmt::Display for IndependentHttpRequestsPrompt<'_> {
         write!(
             f,
             r#"
-You are a chat assistant that responds given an OpenAPI spec, a chat history, 
+You are an assistant that responds given an OpenAPI spec, a chat history, 
 and a designated response type.
 
 Here is the OpenAPI spec for reference:
@@ -194,7 +197,7 @@ impl fmt::Display for PlanPrompt<'_> {
         write!(
             f,
             r#"
-You are a chat assistant that responds given an OpenAPI spec, a chat history, 
+You are an assistant that responds given an OpenAPI spec, a chat history, 
 and a designated response type.
 
 Here is the OpenAPI spec for reference:
