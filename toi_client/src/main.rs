@@ -263,20 +263,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let Args { url, context_limit } = args;
 
     // Channels for all the IPC going on.
-    let (start_repl_sender, start_repl_receiver) = tokio::sync::mpsc::channel(2);
+    let (start_repl_sender, start_repl_receiver) = tokio::sync::mpsc::channel(1);
     let (user_request_sender, mut user_request_receiver): (
         Sender<UserRequest>,
         Receiver<UserRequest>,
-    ) = tokio::sync::mpsc::channel(2);
+    ) = tokio::sync::mpsc::channel(1);
     let ctrlc_user_request_sender = user_request_sender.clone();
     let (server_request_sender, server_request_receiver): (
         Sender<ServerRequest>,
         Receiver<ServerRequest>,
-    ) = tokio::sync::mpsc::channel(2);
+    ) = tokio::sync::mpsc::channel(1);
     let (server_response_sender, mut server_response_receiver): (
         Sender<ServerResponse>,
         Receiver<ServerResponse>,
-    ) = tokio::sync::mpsc::channel(2);
+    ) = tokio::sync::mpsc::channel(1);
 
     // Begin background processes.
     thread::spawn(|| repl(start_repl_receiver, user_request_sender));
