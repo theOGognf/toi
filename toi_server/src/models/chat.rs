@@ -6,8 +6,6 @@ use std::{collections::HashMap, fmt};
 use crate::{models::client::ModelClientError, utils};
 
 pub enum ChatResponseKind {
-    Unfulfillable,
-    FollowUp,
     Answer,
     AnswerWithHttpRequests,
     AnswerWithPlan,
@@ -16,23 +14,15 @@ pub enum ChatResponseKind {
 impl fmt::Display for ChatResponseKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = match self {
-            Self::Unfulfillable => {
-                "Unfulfillable: the user's message cannot accurately be answered \
-                or fulfilled."
-            }
-            Self::FollowUp => {
-                "Follow-up: the user's message is unclear and needs clarification \
-                before proceeding."
-            }
             Self::Answer => {
-                "Unrelated to API: the user's message is clearly unrelated to the \
+                "Unrelated to the OpenAPI spec: the user's message is unrelated to the \
                 API. Directly respond to the user like a chat assistant."
             }
             Self::AnswerWithHttpRequests => {
-                "Related to API: the user's message is clearly related to the API."
+                "Related to the OpenAPI spec: the user's message is clearly related to the API."
             }
             Self::AnswerWithPlan => {
-                "Related to API with dependent requests: the user's \
+                "Related to OpenAPI spec with dependent requests: the user's \
                 message is clearly related to the API and requires a series of \
                 dependent HTTP request(s)."
             }
@@ -44,11 +34,9 @@ impl fmt::Display for ChatResponseKind {
 impl From<u8> for ChatResponseKind {
     fn from(value: u8) -> Self {
         match value {
-            2 => Self::FollowUp,
-            3 => Self::Answer,
-            4 => Self::AnswerWithHttpRequests,
-            5 => Self::AnswerWithPlan,
-            _ => Self::Unfulfillable,
+            2 => Self::AnswerWithHttpRequests,
+            3 => Self::AnswerWithPlan,
+            _ => Self::Answer,
         }
     }
 }

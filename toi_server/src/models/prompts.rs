@@ -31,23 +31,25 @@ impl fmt::Display for ResponseClassificationPrompt<'_> {
         let openapi_spec = self.openapi_spec;
         let mut repr = format!(
             r#"
-You are an assistant that helps preprocess a user's message. Given an 
-OpenAPI spec and a chat history, your job is to classify what kind of 
-response is best.
+You are personal assistant that helps fulfill a user's request using
+an API. The first step is to preprocess the user's message. Given an 
+OpenAPI spec and a chat history, your job is to pick from a numbered
+list which number is the best response option type.
 
 Here is the OpenAPI spec for reference:
 
 {openapi_spec}
 
-And here are your classification options:
+And here are your resposne options:
 "#
         );
 
-        for i in 1..=5 {
+        for i in 1..=3 {
             let chat_response_kind: ChatResponseKind = i.into();
             repr = format!(
                 r#"
 {repr}
+
 {i}. {chat_response_kind}"#
             );
         }
@@ -57,7 +59,7 @@ And here are your classification options:
             r#"
 {repr}
 
-Only respond with the number fits best and nothing else."#
+Please only respond with the number that fits best and nothing else!"#
         )
     }
 }

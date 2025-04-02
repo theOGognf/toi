@@ -8,6 +8,7 @@ use serde::Deserialize;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing_subscriber::EnvFilter;
+use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -18,6 +19,13 @@ mod schema;
 mod utils;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
+#[derive(OpenApi)]
+#[openapi(info(
+    title = "Personal Assistant Server",
+    description = "Endpoints to perform actions like a personal assistant would"
+))]
+struct ApiDoc;
 
 #[derive(Deserialize)]
 struct ToiConfig {
@@ -72,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.
-    let openapi_router = OpenApiRouter::new()
+    let openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/datetime", routes::datetime::router())
         .nest("/notes", routes::notes::router(state.clone()));
     let openapi_spec = openapi_router.get_openapi().to_pretty_json()?;
