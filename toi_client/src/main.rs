@@ -33,7 +33,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                 .json(&request)
                 .send()
                 .await
-                .map_err(|err| detailed_reqwest_error(err));
+                .map_err(detailed_reqwest_error);
             match response {
                 Err(err) => {
                     let message = ServerResponse::Error(err);
@@ -88,7 +88,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                     let text = response
                         .text()
                         .await
-                        .unwrap_or_else(|err| detailed_reqwest_error(err));
+                        .unwrap_or_else(detailed_reqwest_error);
                     let message = ServerResponse::Error(text);
                     tx.send(message)
                         .await

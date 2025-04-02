@@ -89,7 +89,7 @@ async fn chat(
                     response: response
                         .text()
                         .await
-                        .unwrap_or_else(|err| detailed_reqwest_error(err)),
+                        .unwrap_or_else(detailed_reqwest_error),
                 };
                 executed_requests.push(request_response);
             }
@@ -122,7 +122,7 @@ async fn chat(
                     response: response
                         .text()
                         .await
-                        .unwrap_or_else(|err| detailed_reqwest_error(err)),
+                        .unwrap_or_else(detailed_reqwest_error),
                 };
                 executed_requests.push(request_response);
             }
