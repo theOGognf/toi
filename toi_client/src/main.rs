@@ -6,8 +6,9 @@ use rustyline::{
     Cmd, ConditionalEventHandler, DefaultEditor, Event, EventContext, EventHandler, KeyEvent,
     error::ReadlineError,
 };
+use std::io::{self, Write};
 use std::{collections::VecDeque, thread};
-use toi::{GenerationRequest, Message, MessageRole};
+use toi::{GenerationRequest, Message, MessageRole, detailed_reqwest_error};
 use tokio::{
     io::AsyncBufReadExt,
     sync::mpsc::{Receiver, Sender},
@@ -32,7 +33,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                 .json(&request)
                 .send()
                 .await
-                .map_err(|err| err.to_string());
+                .map_err(|err| detailed_reqwest_error(err));
             match response {
                 Err(err) => {
                     let message = ServerResponse::Error(err);
@@ -40,7 +41,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                         .await
                         .expect("server response channel full");
                 }
-                Ok(response) => {
+                Ok(response) if response.status() == 200 => {
                     let stream = response
                         .bytes_stream()
                         .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
@@ -59,12 +60,18 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                                         "\n" | "" => {}
                                         data => {
                                             let response = serde_json::from_str::<GenerationResponseChunk>(data);
-                                            let message = match response {
-                                                Ok(chunk) => ServerResponse::Chunk(chunk),
-                                                Err(err) => ServerResponse::Error(err.to_string())
-                                            };
-                                            tx.send(message).await.expect("server response channel full");
-                                            break
+                                            match response {
+                                                Ok(chunk) => {
+                                                    let message = ServerResponse::Chunk(chunk);
+                                                    tx.send(message).await.expect("server response channel full");
+                                                },
+                                                Err(err) => {
+                                                    let message = ServerResponse::Error(err.to_string());
+                                                    tx.send(message).await.expect("server response channel full");
+                                                    break
+                                                }
+                                            }
+
                                         },
                                     }
                                 }
@@ -76,6 +83,16 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                             }
                         }
                     }
+                }
+                Ok(response) => {
+                    let text = response
+                        .text()
+                        .await
+                        .unwrap_or_else(|err| detailed_reqwest_error(err));
+                    let message = ServerResponse::Error(text);
+                    tx.send(message)
+                        .await
+                        .expect("server response channel full");
                 }
             }
         }
@@ -285,13 +302,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(server_response) = server_response_receiver.recv() => {
                 match server_response {
                     ServerResponse::Chunk(chunk) => {
-                        history.push_buffer(chunk.content.clone());
-                        print!("{}", chunk.content);
+                        if let Some(content) = chunk.content.first() {
+                            history.push_buffer(content.clone());
+                            print!("{content}");
+                            io::stdout().flush()?;
+                        }
                         if let Some(usage) = chunk.usage {
                             history.push_assistant(usage);
                         }
                     }
-                    ServerResponse::Done => start_repl_sender.send(()).await?,
+                    ServerResponse::Done => {
+                        // Edge case where the assistance can finish their response,
+                        // but the user cancelled the request just prior. If there's
+                        // an odd number of messages, then we know this edge case
+                        // didn't occur, and that the user's message can be ignored
+                        // from the history. Otherwise, keep the latest message.
+                        if history.len() % 2 == 1 {
+                            history.pop_back();
+                        }
+                        start_repl_sender.send(()).await?
+                    },
                     ServerResponse::Error(err) => {
                         // Edge case where the assistant can finish their response,
                         // but the done signal doesn't come through just yet. If there's

@@ -1,7 +1,7 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use regex::Regex;
 use reqwest::{Client, Request};
-use toi::GenerationRequest;
+use toi::{GenerationRequest, detailed_reqwest_error};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
@@ -82,11 +82,14 @@ async fn chat(
             for auto_request in auto_request_series.requests {
                 let request: Request = auto_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
-                    ModelClientError::ApiConnection.into_response(&err.to_string())
+                    ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,
-                    response: response.text().await.unwrap_or_else(|err| err.to_string()),
+                    response: response
+                        .text()
+                        .await
+                        .unwrap_or_else(|err| detailed_reqwest_error(err)),
                 };
                 executed_requests.push(request_response);
             }
@@ -112,11 +115,14 @@ async fn chat(
                 let auto_request = parse_generated_response::<AutoRequest>(auto_request)?;
                 let request: Request = auto_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
-                    ModelClientError::ApiConnection.into_response(&err.to_string())
+                    ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
                 })?;
                 let request_response = RequestResponse {
                     request: auto_request,
-                    response: response.text().await.unwrap_or_else(|err| err.to_string()),
+                    response: response
+                        .text()
+                        .await
+                        .unwrap_or_else(|err| detailed_reqwest_error(err)),
                 };
                 executed_requests.push(request_response);
             }

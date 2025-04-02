@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_query::DeserializeQuery;
 use utoipa::ToSchema;
 
 #[derive(Clone, Deserialize, PartialEq, Serialize, ToSchema)]
@@ -22,7 +21,7 @@ pub struct GenerationRequest {
     pub messages: Vec<Message>,
 }
 
-#[derive(Deserialize, Serialize, DeserializeQuery)]
+#[derive(Serialize, serde_query::Deserialize)]
 pub struct GenerationResponse {
     #[query(".choices.[0].message.content")]
     pub content: String,

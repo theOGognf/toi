@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use serde_query::DeserializeQuery;
 
 #[derive(Deserialize)]
 pub struct TokenUsage {
@@ -7,10 +6,10 @@ pub struct TokenUsage {
     pub completion_tokens: i32,
 }
 
-#[derive(Deserialize, DeserializeQuery)]
+#[derive(serde_query::Deserialize)]
 pub struct GenerationResponseChunk {
-    #[query(".choices.[0].delta.content")]
-    pub content: String,
+    #[query(".choices.[].delta.content")]
+    pub content: Vec<String>,
 
     #[query(".usage")]
     pub usage: Option<TokenUsage>,
