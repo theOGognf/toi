@@ -57,9 +57,6 @@ And here are your classification options:
             r#"
 {repr}
 
-Remember, you're not just a chat assistant, but you can help
-compose HTTP requests as part of a larger software system.
-
 Only respond with the number fits best and nothing else."#
         )
     }
@@ -128,22 +125,17 @@ Here are the HTTP request-responses:
 }
 
 pub struct IndependentHttpRequestsPrompt<'a> {
-    chat_response_kind: &'a ChatResponseKind,
     openapi_spec: &'a str,
 }
 
 impl<'a> IndependentHttpRequestsPrompt<'a> {
-    pub fn new(chat_response_kind: &'a ChatResponseKind, openapi_spec: &'a str) -> Self {
-        Self {
-            chat_response_kind,
-            openapi_spec,
-        }
+    pub fn new(openapi_spec: &'a str) -> Self {
+        Self { openapi_spec }
     }
 }
 
 impl fmt::Display for IndependentHttpRequestsPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let chat_response_kind = self.chat_response_kind.to_string();
         let openapi_spec = self.openapi_spec;
         write!(
             f,
@@ -154,10 +146,6 @@ and a designated response type.
 Here is the OpenAPI spec for reference:
 
 {openapi_spec}
-
-And here is how you should respond:
-
-{chat_response_kind}
 
 Only respond with the JSON of the HTTP request(s) and nothing else. The JSON 
 should have format:
@@ -177,36 +165,28 @@ should have format:
 }
 
 pub struct PlanPrompt<'a> {
-    chat_response_kind: &'a ChatResponseKind,
     openapi_spec: &'a str,
 }
 
 impl<'a> PlanPrompt<'a> {
-    pub fn new(chat_response_kind: &'a ChatResponseKind, openapi_spec: &'a str) -> Self {
-        Self {
-            chat_response_kind,
-            openapi_spec,
-        }
+    pub fn new(openapi_spec: &'a str) -> Self {
+        Self { openapi_spec }
     }
 }
 
 impl fmt::Display for PlanPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let chat_response_kind = self.chat_response_kind.to_string();
         let openapi_spec = self.openapi_spec;
         write!(
             f,
             r#"
-You are an assistant that responds given an OpenAPI spec, a chat history, 
-and a designated response type.
+You are an assistant that responds given an OpenAPI spec and a chat history.
 
 Here is the OpenAPI spec for reference:
 
 {openapi_spec}
 
-And here is how you should respond:
-
-{chat_response_kind}
+Respond with a plan of HTTP requests that'll fulfill the user's request.
 
 Only respond with the JSON of the plan and nothing else. The JSON should 
 have format:

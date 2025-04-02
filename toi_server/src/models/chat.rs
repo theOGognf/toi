@@ -18,29 +18,23 @@ impl fmt::Display for ChatResponseKind {
         let repr = match self {
             Self::Unfulfillable => {
                 "Unfulfillable: the user's message cannot accurately be answered \
-                or fulfilled. Notify the user."
+                or fulfilled."
             }
             Self::FollowUp => {
                 "Follow-up: the user's message is unclear and needs clarification \
                 before proceeding."
             }
             Self::Answer => {
-                "Answer: the user's message is clear and is no way related to any \
-                of the API endpoints. Answer directly."
+                "Unrelated to API: the user's message is clearly unrelated to the \
+                API. Directly respond to the user like a chat assistant."
             }
             Self::AnswerWithHttpRequests => {
-                "Answer with independent HTTP request(s): the user's message is \
-                clear and the API has relevant endpoints. Construct HTTP request(s) \
-                to the API. Another software module will send those requests for you. \
-                Then summarize the responses."
+                "Related to API: the user's message is clearly related to the API."
             }
             Self::AnswerWithPlan => {
-                "Answer with a plan consisting of an array of descriptions for \
-                dependent HTTP request(s) to make on behalf of the user: the user's \
-                message is clear and the API has relevant endpoints. Make a plan \
-                detailing a series of dependent HTTP request(s) to the API. Another 
-                software module will make HTTP request(s) based on that plan. Then \
-                summarize the responses."
+                "Related to API with dependent requests: the user's \
+                message is clearly related to the API and requires a series of \
+                dependent HTTP request(s)."
             }
         };
         write!(f, "{repr}")

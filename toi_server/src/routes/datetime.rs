@@ -12,8 +12,7 @@ pub fn router() -> OpenApiRouter {
 
 #[utoipa::path(
     get,
-    path = "/now", 
-    request_body = DateTime<Utc>,
+    path = "/now",
     responses(
         (status = 200, description = "Successfully got current date", body = DateTime<Utc>)
     )

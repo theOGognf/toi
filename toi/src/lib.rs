@@ -8,8 +8,5 @@ pub fn detailed_reqwest_error(err: reqwest::Error) -> String {
     if let Some(source) = err.source() {
         repr = format!("{repr} from {source}");
     }
-    if let Some(url) = err.url() {
-        repr = format!("{repr} at {url}");
-    }
     repr
 }

@@ -67,9 +67,8 @@ async fn chat(
         // We can procedurally execute a series of HTTP requests, so make those
         // in a series, and then summarize the results with a stream.
         ChatResponseKind::AnswerWithHttpRequests => {
-            let generation_request =
-                IndependentHttpRequestsPrompt::new(&chat_response_kind, &state.openapi_spec)
-                    .to_generation_request(&request.messages);
+            let generation_request = IndependentHttpRequestsPrompt::new(&state.openapi_spec)
+                .to_generation_request(&request.messages);
             let auto_request_series = state.model_client.generate(generation_request).await?;
             let auto_request_series =
                 parse_generated_response::<AutoRequestSeries>(auto_request_series)?;
@@ -90,8 +89,8 @@ async fn chat(
         // We can procedurally execute a series of dependent HTTP requests, so
         // make those in a series, and then summarize the results with a stream.
         ChatResponseKind::AnswerWithPlan => {
-            let generation_request = PlanPrompt::new(&chat_response_kind, &state.openapi_spec)
-                .to_generation_request(&request.messages);
+            let generation_request =
+                PlanPrompt::new(&state.openapi_spec).to_generation_request(&request.messages);
             let auto_plan = state.model_client.generate(generation_request).await?;
             let auto_plan = parse_generated_response::<AutoPlan>(auto_plan)?;
             let mut executed_requests = ExecutedRequests::new();
