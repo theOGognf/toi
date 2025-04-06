@@ -68,11 +68,6 @@ impl From<AutoRequest> for Request {
     }
 }
 
-#[derive(Deserialize)]
-pub struct AutoRequestSeries {
-    pub requests: Vec<AutoRequest>,
-}
-
 #[derive(Deserialize, Serialize)]
 pub struct AutoPlan {
     pub plan: Vec<AutoRequestDescription>,
