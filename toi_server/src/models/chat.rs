@@ -1,45 +1,10 @@
 use axum::http::StatusCode;
-use reqwest::{Client, Method, Request};
+use reqwest::{Client, Method, Request, Response};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{collections::HashMap, fmt};
+use toi::{Message, MessageRole, detailed_reqwest_error};
 
 use crate::{models::client::ModelClientError, utils};
-
-pub enum ChatResponseKind {
-    Answer,
-    AnswerWithHttpRequests,
-    AnswerWithPlan,
-}
-
-impl fmt::Display for ChatResponseKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = match self {
-            Self::Answer => {
-                "Unrelated to the OpenAPI spec: the user's message is unrelated to the \
-                API. Directly respond to the user like a chat assistant."
-            }
-            Self::AnswerWithHttpRequests => {
-                "Related to the OpenAPI spec: the user's message is clearly related to the API."
-            }
-            Self::AnswerWithPlan => {
-                "Related to OpenAPI spec with dependent requests: the user's \
-                message is clearly related to the API and requires a series of \
-                dependent HTTP request(s)."
-            }
-        };
-        write!(f, "{repr}")
-    }
-}
-
-impl From<u8> for ChatResponseKind {
-    fn from(value: u8) -> Self {
-        match value {
-            2 => Self::AnswerWithHttpRequests,
-            3 => Self::AnswerWithPlan,
-            _ => Self::Answer,
-        }
-    }
-}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -83,6 +48,12 @@ pub struct AutoRequest {
     body: HashMap<String, String>,
 }
 
+impl AutoRequest {
+    pub fn to_assistant_message(self) -> Message {
+        Message{role: MessageRole::Assistant, content: serde_json::to_string_pretty(&self).expect("serializable")}
+    }
+}
+
 impl From<AutoRequest> for Request {
     fn from(val: AutoRequest) -> Self {
         Client::new()
@@ -112,30 +83,37 @@ impl fmt::Display for AutoPlan {
 }
 
 #[derive(Serialize)]
-pub struct RequestResponse {
-    pub request: AutoRequest,
-    pub response: String,
+pub struct ResponseDescriptionPair {
+    pub response: Option<Response>,
+    pub description: AutoRequestDescription,
 }
 
-#[derive(Serialize)]
-pub struct ExecutedRequests {
-    pub results: Vec<RequestResponse>,
-}
+impl ResponseDescriptionPair {
+    pub async fn to_user_message(self) -> Message {
+        let description = serde_json::to_string_pretty(&self.description).expect("serializable");
+        let content = match self.response {
+            None => description,
+            Some(response) => {
+                let response = response
+                    .text()
+                    .await
+                    .unwrap_or_else(detailed_reqwest_error);
+                format!(
+                    r#"
+Here's the response from that request:
 
-impl ExecutedRequests {
-    pub fn new() -> Self {
-        Self { results: vec![] }
-    }
+{response}
 
-    pub fn push(&mut self, result: RequestResponse) {
-        self.results.push(result);
-    }
-}
+And here's the description for the next request:
 
-impl fmt::Display for ExecutedRequests {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("serializable");
-        write!(f, "{repr}")
+{description}"#
+                )
+            }
+        };
+        Message {
+            role: MessageRole::User,
+            content,
+        }
     }
 }
 
