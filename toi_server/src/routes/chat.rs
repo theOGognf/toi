@@ -1,19 +1,12 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
-use regex::Regex;
 use reqwest::{Client, Request};
-use toi::{GenerationRequest, Message, detailed_reqwest_error};
+use toi::{GenerationRequest, detailed_reqwest_error};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
-    chat::{
-        AutoPlan, AutoRequest, AutoRequestSeries, ChatResponseKind, ExecutedRequests,
-        RequestResponse, ResponseDescription, parse_generated_response,
-    },
+    chat::{AutoPlan, AutoRequest, OldResponseNewRequest, parse_generated_response},
     client::ModelClientError,
-    prompts::{
-        HttpRequestPrompt, IndependentHttpRequestsPrompt, PlanPrompt,
-        ResponseClassificationPrompt, SimplePrompt, SummaryPrompt, SystemPrompt,
-    },
+    prompts::{HttpRequestPrompt, PlanPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
     state::ToiState,
 };
 
@@ -40,24 +33,25 @@ async fn chat(
     // Search across OpenAPI spec paths for relevant endpoints. If none are
     // found, respond like a normal chat assistant. Otherwise, execute a
     // series of HTTP requests to fulfill the user's request.
+    let result: Option<String> = None;
     let generation_request = match result {
         None => SimplePrompt {}.to_generation_request(&request.messages),
-        Some(paths) => {
+        Some(spec) => {
             let generation_request = PlanPrompt {
-                openapi_spec: &state.openapi_spec,
+                openapi_spec: &spec,
             }
             .to_generation_request(&request.messages);
             let auto_plan = state.model_client.generate(generation_request).await?;
             let auto_plan = parse_generated_response::<AutoPlan>(auto_plan)?;
             let system_prompt = HttpRequestPrompt {
-                openapi_spec: &state.openapi_spec,
+                openapi_spec: &spec,
             };
-            let mut response = None;
-            let messages = vec![];
+            let mut response_msg = None;
+            let mut messages = vec![];
             for auto_request_description in auto_plan.plan.into_iter() {
-                let user_message = ResponseDescription {
-                    response,
-                    description: auto_request_description,
+                let user_message = OldResponseNewRequest {
+                    response: response_msg,
+                    request: auto_request_description,
                 }
                 .to_user_message();
                 messages.push(user_message);
@@ -65,9 +59,10 @@ async fn chat(
                 let auto_request = state.model_client.generate(generation_request).await?;
                 let auto_request = parse_generated_response::<AutoRequest>(auto_request)?;
                 let request: Request = auto_request.clone().into();
-                response = Some(Client::new().execute(request).await.map_err(|err| {
+                let response = Client::new().execute(request).await.map_err(|err| {
                     ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
-                })?);
+                })?;
+                response_msg = Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
                 let assistant_message = auto_request.to_assistant_message();
                 messages.push(assistant_message);
             }

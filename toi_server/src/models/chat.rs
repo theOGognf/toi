@@ -1,8 +1,8 @@
 use axum::http::StatusCode;
-use reqwest::{Client, Method, Request, Response};
+use reqwest::{Client, Method, Request};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{collections::HashMap, fmt};
-use toi::{Message, MessageRole, detailed_reqwest_error};
+use toi::{Message, MessageRole};
 
 use crate::{models::client::ModelClientError, utils};
 
@@ -50,7 +50,10 @@ pub struct AutoRequest {
 
 impl AutoRequest {
     pub fn to_assistant_message(self) -> Message {
-        Message{role: MessageRole::Assistant, content: serde_json::to_string_pretty(&self).expect("serializable")}
+        Message {
+            role: MessageRole::Assistant,
+            content: serde_json::to_string_pretty(&self).expect("serializable"),
+        }
     }
 }
 
@@ -83,21 +86,17 @@ impl fmt::Display for AutoPlan {
 }
 
 #[derive(Serialize)]
-pub struct ResponseDescriptionPair {
-    pub response: Option<Response>,
-    pub description: AutoRequestDescription,
+pub struct OldResponseNewRequest {
+    pub response: Option<String>,
+    pub request: AutoRequestDescription,
 }
 
-impl ResponseDescriptionPair {
-    pub async fn to_user_message(self) -> Message {
-        let description = serde_json::to_string_pretty(&self.description).expect("serializable");
+impl OldResponseNewRequest {
+    pub fn to_user_message(self) -> Message {
+        let description = serde_json::to_string_pretty(&self.request).expect("serializable");
         let content = match self.response {
             None => description,
             Some(response) => {
-                let response = response
-                    .text()
-                    .await
-                    .unwrap_or_else(detailed_reqwest_error);
                 format!(
                     r#"
 Here's the response from that request:
