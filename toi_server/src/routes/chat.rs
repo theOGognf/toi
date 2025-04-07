@@ -41,29 +41,30 @@ async fn chat(
                 openapi_spec: &spec,
             }
             .to_generation_request(&request.messages);
-            let auto_plan = state.model_client.generate(generation_request).await?;
-            let auto_plan = parse_generated_response::<AutoPlan>(auto_plan)?;
+            let plan = state.model_client.generate(generation_request).await?;
+            let plan = parse_generated_response::<AutoPlan>(plan)?;
             let system_prompt = HttpRequestPrompt {
                 openapi_spec: &spec,
             };
-            let mut response_msg = None;
+            let mut response_message = None;
             let mut messages = vec![];
-            for auto_request_description in auto_plan.plan.into_iter() {
+            for request in plan.requests.into_iter() {
                 let user_message = OldResponseNewRequest {
-                    response: response_msg,
-                    request: auto_request_description,
+                    response: response_message,
+                    request,
                 }
-                .to_user_message();
+                .into_user_message();
                 messages.push(user_message);
                 let generation_request = system_prompt.to_generation_request(&messages);
-                let auto_request = state.model_client.generate(generation_request).await?;
-                let auto_request = parse_generated_response::<AutoRequest>(auto_request)?;
-                let request: Request = auto_request.clone().into();
+                let generated_request = state.model_client.generate(generation_request).await?;
+                let generated_request = parse_generated_response::<AutoRequest>(generated_request)?;
+                let request: Request = generated_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
                     ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
                 })?;
-                response_msg = Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
-                let assistant_message = auto_request.to_assistant_message();
+                response_message =
+                    Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
+                let assistant_message = generated_request.into_assistant_message();
                 messages.push(assistant_message);
             }
             SummaryPrompt {}.to_generation_request(&messages)

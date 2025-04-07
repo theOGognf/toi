@@ -49,7 +49,7 @@ pub struct AutoRequest {
 }
 
 impl AutoRequest {
-    pub fn to_assistant_message(self) -> Message {
+    pub fn into_assistant_message(self) -> Message {
         Message {
             role: MessageRole::Assistant,
             content: serde_json::to_string_pretty(&self).expect("serializable"),
@@ -70,7 +70,7 @@ impl From<AutoRequest> for Request {
 
 #[derive(Deserialize, Serialize)]
 pub struct AutoPlan {
-    pub plan: Vec<AutoRequestDescription>,
+    pub requests: Vec<AutoRequestDescription>,
 }
 
 impl fmt::Display for AutoPlan {
@@ -87,7 +87,7 @@ pub struct OldResponseNewRequest {
 }
 
 impl OldResponseNewRequest {
-    pub fn to_user_message(self) -> Message {
+    pub fn into_user_message(self) -> Message {
         let description = serde_json::to_string_pretty(&self.request).expect("serializable");
         let content = match self.response {
             None => description,
