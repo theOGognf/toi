@@ -8,32 +8,32 @@ use crate::{models::client::ModelClientError, utils};
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
-enum AutoMethod {
+enum GeneratedMethod {
     Delete,
     Get,
     Post,
     Put,
 }
 
-impl From<AutoMethod> for Method {
-    fn from(val: AutoMethod) -> Self {
+impl From<GeneratedMethod> for Method {
+    fn from(val: GeneratedMethod) -> Self {
         match val {
-            AutoMethod::Delete => Method::DELETE,
-            AutoMethod::Get => Method::GET,
-            AutoMethod::Post => Method::POST,
-            AutoMethod::Put => Method::PUT,
+            GeneratedMethod::Delete => Method::DELETE,
+            GeneratedMethod::Get => Method::GET,
+            GeneratedMethod::Post => Method::POST,
+            GeneratedMethod::Put => Method::PUT,
         }
     }
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct AutoRequestDescription {
-    method: AutoMethod,
+pub struct GeneratedRequestInfo {
+    method: GeneratedMethod,
     path: String,
     description: String,
 }
 
-impl fmt::Display for AutoRequestDescription {
+impl fmt::Display for GeneratedRequestInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
@@ -41,14 +41,14 @@ impl fmt::Display for AutoRequestDescription {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct AutoRequest {
-    method: AutoMethod,
+pub struct GeneratedRequest {
+    method: GeneratedMethod,
     path: String,
     params: HashMap<String, String>,
     body: HashMap<String, String>,
 }
 
-impl AutoRequest {
+impl GeneratedRequest {
     pub fn into_assistant_message(self) -> Message {
         Message {
             role: MessageRole::Assistant,
@@ -57,8 +57,8 @@ impl AutoRequest {
     }
 }
 
-impl From<AutoRequest> for Request {
-    fn from(val: AutoRequest) -> Self {
+impl From<GeneratedRequest> for Request {
+    fn from(val: GeneratedRequest) -> Self {
         Client::new()
             .request(val.method.into(), val.path)
             .query(&val.params)
@@ -69,11 +69,11 @@ impl From<AutoRequest> for Request {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct AutoPlan {
-    pub requests: Vec<AutoRequestDescription>,
+pub struct GeneratedPlan {
+    pub requests: Vec<GeneratedRequestInfo>,
 }
 
-impl fmt::Display for AutoPlan {
+impl fmt::Display for GeneratedPlan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = serde_json::to_string_pretty(self).expect("serializable");
         write!(f, "{repr}")
@@ -83,7 +83,7 @@ impl fmt::Display for AutoPlan {
 #[derive(Serialize)]
 pub struct OldResponseNewRequest {
     pub response: Option<String>,
-    pub request: AutoRequestDescription,
+    pub request: GeneratedRequestInfo,
 }
 
 impl OldResponseNewRequest {

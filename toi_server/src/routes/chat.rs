@@ -4,7 +4,7 @@ use toi::{GenerationRequest, detailed_reqwest_error};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
-    chat::{AutoPlan, AutoRequest, OldResponseNewRequest, parse_generated_response},
+    chat::{GeneratedPlan, GeneratedRequest, OldResponseNewRequest, parse_generated_response},
     client::ModelClientError,
     prompts::{HttpRequestPrompt, PlanPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
     state::ToiState,
@@ -41,14 +41,14 @@ async fn chat(
                 openapi_spec: &spec,
             }
             .to_generation_request(&request.messages);
-            let plan = state.model_client.generate(generation_request).await?;
-            let plan = parse_generated_response::<AutoPlan>(plan)?;
+            let generated_plan = state.model_client.generate(generation_request).await?;
+            let generated_plan = parse_generated_response::<GeneratedPlan>(generated_plan)?;
             let system_prompt = HttpRequestPrompt {
                 openapi_spec: &spec,
             };
             let mut response_message = None;
             let mut messages = vec![];
-            for request in plan.requests.into_iter() {
+            for request in generated_plan.requests.into_iter() {
                 let user_message = OldResponseNewRequest {
                     response: response_message,
                     request,
@@ -57,7 +57,8 @@ async fn chat(
                 messages.push(user_message);
                 let generation_request = system_prompt.to_generation_request(&messages);
                 let generated_request = state.model_client.generate(generation_request).await?;
-                let generated_request = parse_generated_response::<AutoRequest>(generated_request)?;
+                let generated_request =
+                    parse_generated_response::<GeneratedRequest>(generated_request)?;
                 let request: Request = generated_request.clone().into();
                 let response = Client::new().execute(request).await.map_err(|err| {
                     ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))

@@ -2,7 +2,7 @@
 name = "toi_server"
 version = "0.1.0"
 edition = "2024"
-description = "A server for private assistants"
+description = "A server for personal assistants"
 repository = "https://github.com/theOGognf/toi"
 readme = "README.md"
 license = "Apache-2.0"

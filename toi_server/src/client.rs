@@ -2,10 +2,10 @@ use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
 use reqwest::{Client, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
-use toi::{GenerationRequest, GenerationResponse, detailed_reqwest_error};
+use toi::{GenerationRequest, detailed_reqwest_error};
 
 use crate::models::client::{
-    EmbeddingRequest, EmbeddingResponse, HttpClientConfig, ModelClientError,
+    EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
 };
 
 #[derive(Clone)]

@@ -14,6 +14,12 @@ pub struct EmbeddingResponse {
     pub embedding: Vec<f32>,
 }
 
+#[derive(Serialize, serde_query::Deserialize)]
+pub struct GenerationResponse {
+    #[query(".choices.[0].message.content")]
+    pub content: String,
+}
+
 pub enum ModelClientError {
     ApiConnection,
     DefaultJson,

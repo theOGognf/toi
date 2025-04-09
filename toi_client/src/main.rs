@@ -23,7 +23,6 @@ use models::{
 };
 
 async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
-    let url = format!("{url}/chat");
     let client = reqwest::Client::new();
 
     loop {
@@ -228,13 +227,13 @@ impl History {
 }
 
 const HELP: &str = "\
-Chat with a private assistant
+Chat with a personal assistant
 
 USAGE:
   toi_client [OPTIONS]
 
 OPTIONS:
-  --url     Server address      [default: 127.0.0.1:6969]
+  --url     Server chat URL     [default: 127.0.0.1:6969/chat]
   --limit   Chat context limit  [default: 8000]
 
 FLAGS:
@@ -259,7 +258,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args {
         url: pargs
             .value_from_str("--url")
-            .unwrap_or("127.0.0.1:6969".into()),
+            .unwrap_or("127.0.0.1:6969/chat".into()),
         context_limit: pargs.value_from_str("--limit").unwrap_or(8000),
     };
     let Args { url, context_limit } = args;
