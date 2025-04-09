@@ -37,37 +37,50 @@ async fn chat(
     let generation_request = match result {
         None => SimplePrompt {}.to_generation_request(&request.messages),
         Some(spec) => {
+            // First, plan out requests in response to the user's message.
             let generation_request = PlanPrompt {
                 openapi_spec: &spec,
             }
             .to_generation_request(&request.messages);
             let generated_plan = state.model_client.generate(generation_request).await?;
             let generated_plan = parse_generated_response::<GeneratedPlan>(generated_plan)?;
+
+            // Then, go through and generate each request, using each response
+            // as context for the next request.
             let system_prompt = HttpRequestPrompt {
                 openapi_spec: &spec,
             };
             let mut response_message = None;
             let mut messages = vec![];
             for request in generated_plan.requests.into_iter() {
+                // Adding user message to the pseudo chat for plan execution.
                 let user_message = OldResponseNewRequest {
                     response: response_message,
                     request,
                 }
                 .into_user_message();
                 messages.push(user_message);
+
+                // Generating the actual request and adding it to the pseudo
+                // chat.
                 let generation_request = system_prompt.to_generation_request(&messages);
                 let generated_request = state.model_client.generate(generation_request).await?;
                 let generated_request =
                     parse_generated_response::<GeneratedRequest>(generated_request)?;
-                let request: Request = generated_request.clone().into();
+                let assistant_message = generated_request.clone().into_assistant_message();
+                messages.push(assistant_message);
+
+                // Executing the request and saving the response text for
+                // future request context.
+                let request: Request = generated_request.into();
                 let response = Client::new().execute(request).await.map_err(|err| {
                     ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
                 })?;
                 response_message =
                     Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
-                let assistant_message = generated_request.into_assistant_message();
-                messages.push(assistant_message);
             }
+            // The streaming response to the user is a summary of the plan
+            // and its execution.
             SummaryPrompt {}.to_generation_request(&messages)
         }
     };
