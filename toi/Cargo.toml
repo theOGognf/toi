@@ -2,7 +2,7 @@
 name = "toi"
 version = "0.1.0"
 edition = "2024"
-description = "A library for self-hosting private assistants"
+description = "A library for personal assistant clients and servers"
 repository = "https://github.com/theOGognf/toi"
 readme = "README.md"
 license = "Apache-2.0"
