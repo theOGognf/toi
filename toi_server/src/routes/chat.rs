@@ -34,7 +34,7 @@ async fn chat(
     // found, respond like a normal chat assistant. Otherwise, execute a
     // series of HTTP requests to fulfill the user's request.
     let result: Option<String> = None;
-    let generation_request = match result {
+    let streaming_generation_request = match result {
         None => SimplePrompt {}.to_streaming_generation_request(&request.messages),
         Some(spec) => {
             // First, plan out requests in response to the user's message.
@@ -90,7 +90,7 @@ async fn chat(
 
     let stream = state
         .model_client
-        .generate_stream(generation_request)
+        .generate_stream(streaming_generation_request)
         .await?;
     Ok(stream)
 }
