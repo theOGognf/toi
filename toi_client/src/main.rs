@@ -220,9 +220,7 @@ impl History {
             content,
         };
         self.message_history.push_back(message);
-        GenerationRequest {
-            messages: self.message_history.clone().into(),
-        }
+        GenerationRequest::new(self.message_history.clone().into())
     }
 }
 

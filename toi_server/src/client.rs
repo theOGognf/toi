@@ -2,7 +2,7 @@ use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
 use reqwest::{Client, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
-use toi::{GenerationRequest, detailed_reqwest_error};
+use toi::{GenerationRequest, StreamingGenerationRequest, detailed_reqwest_error};
 
 use crate::models::client::{
     EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
@@ -62,18 +62,11 @@ impl ModelClient {
 
     pub async fn generate_stream(
         &self,
-        request: GenerationRequest,
+        request: StreamingGenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
         let base_url = self.generation_api_config.base_url.trim_end_matches("/");
         let url = format!("{base_url}/v1/chat/completions");
-        let mut request = Self::build_request_json(&self.generation_api_config, request)?;
-        request.insert("stream".to_string(), serde_json::Value::Bool(true));
-        let mut stream_options = serde_json::Map::new();
-        stream_options.insert("include_usage".to_string(), serde_json::Value::Bool(true));
-        request.insert(
-            "stream_options".to_string(),
-            serde_json::Value::Object(stream_options),
-        );
+        let request = Self::build_request_json(&self.generation_api_config, request)?;
         let response = self
             .generation_client
             .post(&url)

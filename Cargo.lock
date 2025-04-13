@@ -2189,6 +2189,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde-query",
+ "serde_json",
  "utoipa",
  "utoipa-axum",
 ]

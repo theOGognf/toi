@@ -35,13 +35,14 @@ async fn chat(
     // series of HTTP requests to fulfill the user's request.
     let result: Option<String> = None;
     let generation_request = match result {
-        None => SimplePrompt {}.to_generation_request(&request.messages),
+        None => SimplePrompt {}.to_streaming_generation_request(&request.messages),
         Some(spec) => {
             // First, plan out requests in response to the user's message.
             let generation_request = PlanPrompt {
                 openapi_spec: &spec,
             }
-            .to_generation_request(&request.messages);
+            .to_generation_request(&request.messages)
+            .with_response_format(PlanPrompt::response_format());
             let generated_plan = state.model_client.generate(generation_request).await?;
             let generated_plan = parse_generated_response::<GeneratedPlan>(generated_plan)?;
 
@@ -63,7 +64,9 @@ async fn chat(
 
                 // Generating the actual request and adding it to the pseudo
                 // chat.
-                let generation_request = system_prompt.to_generation_request(&messages);
+                let generation_request = system_prompt
+                    .to_generation_request(&messages)
+                    .with_response_format(HttpRequestPrompt::response_format());
                 let generated_request = state.model_client.generate(generation_request).await?;
                 let generated_request =
                     parse_generated_response::<GeneratedRequest>(generated_request)?;
@@ -81,7 +84,7 @@ async fn chat(
             }
             // The streaming response to the user is a summary of the plan
             // and its execution.
-            SummaryPrompt {}.to_generation_request(&messages)
+            SummaryPrompt {}.to_streaming_generation_request(&messages)
         }
     };
 

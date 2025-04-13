@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::error::Error;
 use utoipa::ToSchema;
 
@@ -20,6 +21,46 @@ pub struct Message {
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct GenerationRequest {
     pub messages: Vec<Message>,
+    #[serde(skip_deserializing)]
+    response_format: Option<Value>,
+}
+
+impl GenerationRequest {
+    pub fn new(messages: Vec<Message>) -> Self {
+        Self {
+            messages,
+            response_format: None,
+        }
+    }
+
+    pub fn with_response_format(mut self, value: Value) -> Self {
+        self.response_format = Some(value);
+        self
+    }
+}
+
+#[derive(Serialize)]
+pub struct StreamOptions {
+    stream: bool,
+    include_usage: bool,
+}
+
+#[derive(Serialize)]
+pub struct StreamingGenerationRequest {
+    pub messages: Vec<Message>,
+    stream_options: StreamOptions,
+}
+
+impl StreamingGenerationRequest {
+    pub fn new(messages: Vec<Message>) -> Self {
+        Self {
+            messages,
+            stream_options: StreamOptions {
+                stream: true,
+                include_usage: true,
+            },
+        }
+    }
 }
 
 pub fn detailed_reqwest_error(err: reqwest::Error) -> String {

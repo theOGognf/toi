@@ -1,5 +1,6 @@
+use serde_json::{Value, json};
 use std::fmt;
-use toi::{GenerationRequest, Message, MessageRole};
+use toi::{GenerationRequest, Message, MessageRole, StreamingGenerationRequest};
 
 pub trait SystemPrompt: fmt::Display {
     fn to_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
@@ -8,7 +9,19 @@ pub trait SystemPrompt: fmt::Display {
             content: self.to_string(),
         }];
         messages.extend_from_slice(history);
-        GenerationRequest { messages }
+        GenerationRequest::new(messages)
+    }
+
+    fn to_streaming_generation_request(
+        &self,
+        history: &[toi::Message],
+    ) -> StreamingGenerationRequest {
+        let mut messages = vec![Message {
+            role: MessageRole::System,
+            content: self.to_string(),
+        }];
+        messages.extend_from_slice(history);
+        StreamingGenerationRequest::new(messages)
     }
 }
 
@@ -28,8 +41,7 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "You are an intelligent assistant that informs a user what \
-            actions were performed by concisely summarizing the chat history."
+            "You are an intelligent assistant that informs a user what actions were performed by concisely summarizing the chat history."
         )
     }
 }
@@ -38,31 +50,60 @@ pub struct PlanPrompt<'a> {
     pub openapi_spec: &'a str,
 }
 
+impl PlanPrompt<'_> {
+    pub fn response_format() -> Value {
+        json!(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "http_request",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "requests": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "path": {
+                                            "type": "string",
+                                            "description": "The endpoint path beginning with a forward slash"
+                                        },
+                                        "method": {
+                                            "type": "string",
+                                            "description": "The HTTP method to use for the endpoint path",
+                                            "enum": ["DELETE", "GET", "POST", "PUT"]
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "description": "A description of what this HTTP request is for and how it uses previous HTTP responses (if at all)"
+                                        },
+                                    },
+                                    "additionalProperties": false,
+                                    "required": ["path", "method", "description"]
+                                }
+                            }
+                        },
+                        "additionalProperties": false,
+                        "required": ["requests"]
+                    }
+                }
+            }
+        )
+    }
+}
+
 impl fmt::Display for PlanPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
         write!(
             f,
             r#"
-You are an intelligent assistant that plans a series of HTTP request(s)
-given an OpenAPI spec and a chat history.
+You are an intelligent assistant that plans a series of HTTP request(s) given an OpenAPI spec and a chat history.
 
 Here is the OpenAPI spec for reference:
 
-{openapi_spec}
-
-Only respond with the JSON of the plan and nothing else. The JSON should
-have the following format:
-
-{{
-    "plan": [
-        {{
-            "method": DELETE/GET/POST/PUT,
-            "path": API path beginning with a forward slash,
-            "description": Description of the purpose of this request,
-        }}
-    ]
-}}"#
+{openapi_spec}"#
         )
     }
 }
@@ -71,29 +112,56 @@ pub struct HttpRequestPrompt<'a> {
     pub openapi_spec: &'a str,
 }
 
+impl HttpRequestPrompt<'_> {
+    pub fn response_format() -> Value {
+        json!(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "http_request",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "path": {
+                                "type": "string",
+                                "description": "The endpoint path beginning with a forward slash"
+                            },
+                            "method": {
+                                "type": "string",
+                                "description": "The HTTP method to use for the endpoint path",
+                                "enum": ["DELETE", "GET", "POST", "PUT"]
+                            },
+                            "params": {
+                                "type": "object",
+                                "description": "Mapping of query parameter names to their values",
+                                "additionalProperties": true
+                            },
+                            "body": {
+                                "type": "object",
+                                "description": "Mapping of JSON body parameter names to their values",
+                                "additionalProperties": true
+                            }
+                        },
+                        "additionalProperties": false,
+                        "required": ["path", "method"]
+                    }
+                }
+            }
+        )
+    }
+}
+
 impl fmt::Display for HttpRequestPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
         write!(
             f,
             r#"
-You are an intelligent assistant that constructs an HTTP request given an
-OpenAPI spec, a chat history, and a JSON description of the HTTP request
-to make.
+You are an intelligent assistant that constructs an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make.
 
 Here is the OpenAPI spec:
 
-{openapi_spec}
-
-Only respond with the JSON of the HTTP request and nothing else. The JSON 
-should have the following format:
-
-{{
-    "method": DELETE/GET/POST/PUT,
-    "path": The endpoint path beginning with a forward slash,
-    "params": Mapping of query parameter names to their values,
-    "body": Mapping of JSON body parameter names to their values,
-}}"#
+{openapi_spec}"#
         )
     }
 }
