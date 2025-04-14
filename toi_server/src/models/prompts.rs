@@ -58,7 +58,7 @@ impl PlanPrompt<'_> {
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "http_request",
+                    "name": "plan",
                     "schema": {
                         "type": "object",
                         "properties": {
@@ -73,7 +73,7 @@ impl PlanPrompt<'_> {
                                         },
                                         "method": {
                                             "type": "string",
-                                            "description": "The HTTP method to use for the endpoint path",
+                                            "description": "The HTTP method to use for the request",
                                             "enum": ["DELETE", "GET", "POST", "PUT"]
                                         },
                                         "description": {
@@ -120,7 +120,7 @@ impl HttpRequestPrompt<'_> {
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "http_request",
+                    "name": "request",
                     "schema": {
                         "type": "object",
                         "properties": {
@@ -130,7 +130,7 @@ impl HttpRequestPrompt<'_> {
                             },
                             "method": {
                                 "type": "string",
-                                "description": "The HTTP method to use for the endpoint path",
+                                "description": "The HTTP method to use for the request",
                                 "enum": ["DELETE", "GET", "POST", "PUT"]
                             },
                             "params": {
