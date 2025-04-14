@@ -235,7 +235,7 @@ OPTIONS:
   --limit   Chat context limit  [default: 8000]
 
 FLAGS:
-  -h, --help            Print help information
+  -h, --help    Print help information
 ";
 
 struct Args {
