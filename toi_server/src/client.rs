@@ -2,10 +2,11 @@ use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
 use reqwest::{Client, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
-use toi::{GenerationRequest, StreamingGenerationRequest, detailed_reqwest_error};
+use toi::{GenerationRequest, detailed_reqwest_error};
 
 use crate::models::client::{
     EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
+    StreamingGenerationRequest,
 };
 
 #[derive(Clone)]
@@ -36,28 +37,28 @@ impl ModelClient {
     }
 
     pub async fn embed(self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
-        let resp: EmbeddingResponse = Self::post(
+        let response: EmbeddingResponse = Self::post(
             &self.embedding_api_config,
             "/v1/embeddings".to_string(),
             &self.embedding_client,
             request,
         )
         .await?;
-        Ok(Vector::from(resp.embedding))
+        Ok(Vector::from(response.embedding))
     }
 
     pub async fn generate(
         &self,
         request: GenerationRequest,
     ) -> Result<String, (StatusCode, String)> {
-        let resp: GenerationResponse = Self::post(
+        let response: GenerationResponse = Self::post(
             &self.generation_api_config,
             "/v1/chat/completions".to_string(),
             &self.generation_client,
             request,
         )
         .await?;
-        Ok(resp.content)
+        Ok(response.content)
     }
 
     pub async fn generate_stream(

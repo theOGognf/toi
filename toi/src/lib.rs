@@ -39,30 +39,6 @@ impl GenerationRequest {
     }
 }
 
-#[derive(Serialize)]
-pub struct StreamOptions {
-    stream: bool,
-    include_usage: bool,
-}
-
-#[derive(Serialize)]
-pub struct StreamingGenerationRequest {
-    pub messages: Vec<Message>,
-    stream_options: StreamOptions,
-}
-
-impl StreamingGenerationRequest {
-    pub fn new(messages: Vec<Message>) -> Self {
-        Self {
-            messages,
-            stream_options: StreamOptions {
-                stream: true,
-                include_usage: true,
-            },
-        }
-    }
-}
-
 pub fn detailed_reqwest_error(err: reqwest::Error) -> String {
     let mut repr = err.to_string();
     if let Some(source) = err.source() {

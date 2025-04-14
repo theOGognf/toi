@@ -1,6 +1,8 @@
 use serde_json::{Value, json};
 use std::fmt;
-use toi::{GenerationRequest, Message, MessageRole, StreamingGenerationRequest};
+use toi::{GenerationRequest, Message, MessageRole};
+
+use crate::models::client::StreamingGenerationRequest;
 
 pub trait SystemPrompt: fmt::Display {
     fn to_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
