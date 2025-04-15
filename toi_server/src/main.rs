@@ -86,11 +86,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/notes", routes::notes::router(state.clone()));
     let openapi = openapi_router.get_openapi();
 
-    // Go through and embed all OpenAPI path specs so they can be used to
-    // generate HTTP requests used by the /chat endpoint.
+    // Go through and embed all OpenAPI path specs so they can be used as
+    // context for generating HTTP requests within the "/chat" endpoint.
     let mut conn = state.pool.get().await?;
     for (path, item) in openapi.paths.paths.iter() {
-        // Make a pretty JSON for embedding and storage.
+        // Make a pretty JSON for embedding and storing the spec.
         let item = serde_json::to_value(item)?;
         let spec = json!(
             {
@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         );
 
-        // Embed and store.
+        // Embed and store the spec.
         let embedding_request = models::client::EmbeddingRequest {
             input: serde_json::to_string_pretty(&spec)?,
         };
