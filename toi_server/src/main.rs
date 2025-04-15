@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build state with empty spec first since only the assistant endpoint uses
     // the OpenAPI spec.
     let mut state = models::state::ToiState {
-        openapi: "".to_string(),
+        openapi_spec: "".to_string(),
         model_client,
         pool,
     };
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
-    state.openapi = openapi.to_pretty_json()?;
+    state.openapi_spec = openapi.to_pretty_json()?;
     let openapi_router = openapi_router.nest("/chat", routes::chat::router(state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router

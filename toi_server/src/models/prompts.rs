@@ -49,7 +49,7 @@ impl fmt::Display for SummaryPrompt {
 }
 
 pub struct PlanPrompt<'a> {
-    pub openapi: &'a str,
+    pub openapi_spec: &'a str,
 }
 
 impl PlanPrompt<'_> {
@@ -97,7 +97,7 @@ impl PlanPrompt<'_> {
 
 impl fmt::Display for PlanPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let openapi = self.openapi;
+        let openapi_spec = self.openapi_spec;
         write!(
             f,
             r#"
@@ -105,13 +105,13 @@ You are an intelligent assistant that plans a series of HTTP request(s) given an
 
 Here is the OpenAPI spec for reference:
 
-{openapi}"#
+{openapi_spec}"#
         )
     }
 }
 
 pub struct HttpRequestPrompt<'a> {
-    pub openapi: &'a str,
+    pub openapi_spec: &'a str,
 }
 
 impl HttpRequestPrompt<'_> {
@@ -155,7 +155,7 @@ impl HttpRequestPrompt<'_> {
 
 impl fmt::Display for HttpRequestPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let openapi = self.openapi;
+        let openapi_spec = self.openapi_spec;
         write!(
             f,
             r#"
@@ -163,7 +163,7 @@ You are an intelligent assistant that constructs an HTTP request given an OpenAP
 
 Here is the OpenAPI spec:
 
-{openapi}"#
+{openapi_spec}"#
         )
     }
 }

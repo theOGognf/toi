@@ -38,15 +38,19 @@ async fn chat(
         None => SimplePrompt {}.to_streaming_generation_request(&request.messages),
         Some(spec) => {
             // First, plan out requests in response to the user's message.
-            let generation_request = PlanPrompt { openapi: &spec }
-                .to_generation_request(&request.messages)
-                .with_response_format(PlanPrompt::response_format());
+            let generation_request = PlanPrompt {
+                openapi_spec: &spec,
+            }
+            .to_generation_request(&request.messages)
+            .with_response_format(PlanPrompt::response_format());
             let generated_plan = state.model_client.generate(generation_request).await?;
             let generated_plan = parse_generated_response::<GeneratedPlan>(generated_plan)?;
 
             // Then, go through and generate each request, using each response
             // as context for the next request.
-            let system_prompt = HttpRequestPrompt { openapi: &spec };
+            let system_prompt = HttpRequestPrompt {
+                openapi_spec: &spec,
+            };
             let mut response_message = None;
             let mut messages = vec![];
             for request in generated_plan.requests.into_iter() {
