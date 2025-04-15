@@ -1,4 +1,2 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE notes;
-
-DROP EXTENSION vector;
+DROP TABLE openapi;

@@ -5,6 +5,7 @@ use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
+use serde_json::{Map, Value};
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing_subscriber::EnvFilter;
@@ -73,8 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build state with empty spec first since only the assistant endpoint uses
     // the OpenAPI spec.
     let mut state = models::state::ToiState {
-        openapi_spec: "".to_string(),
-        model_client,
+        openapi: "".to_string(),
+        model_client: model_client.clone(),
         pool,
     };
 
@@ -83,12 +84,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/datetime", routes::datetime::router())
         .nest("/notes", routes::notes::router(state.clone()));
-    let openapi_spec = openapi_router.get_openapi().to_pretty_json()?;
+    let openapi = openapi_router.get_openapi();
+
+    // Go through and embed all OpenAPI path specs so they can be used to
+    // generate HTTP requests used by the /chat endpoint.
+    for (path, item) in openapi.paths.paths.iter() {
+        let value = serde_json::to_value(item)?;
+        let mut map = Map::with_capacity(1);
+        map.insert((*path).clone(), value);
+        let spec = serde_json::to_string_pretty(&map)?;
+    }
 
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
-    state.openapi_spec = openapi_spec;
+    state.openapi = openapi.to_pretty_json()?;
     let openapi_router = openapi_router.nest("/chat", routes::chat::router(state));
     let (router, api) = openapi_router.split_for_parts();
     let router = router
