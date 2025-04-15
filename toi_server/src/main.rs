@@ -5,7 +5,7 @@ use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
-use serde_json::{Map, Value};
+use serde_json::Map;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing_subscriber::EnvFilter;
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the OpenAPI spec.
     let mut state = models::state::ToiState {
         openapi: "".to_string(),
-        model_client: model_client.clone(),
+        model_client,
         pool,
     };
 
@@ -88,11 +88,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Go through and embed all OpenAPI path specs so they can be used to
     // generate HTTP requests used by the /chat endpoint.
+    let mut conn = state.pool.get().await?;
     for (path, item) in openapi.paths.paths.iter() {
+        // Make a pretty JSON for embedding and storage.
         let value = serde_json::to_value(item)?;
         let mut map = Map::with_capacity(1);
         map.insert((*path).clone(), value);
-        let spec = serde_json::to_string_pretty(&map)?;
+        let spec = serde_json::to_value(&map)?;
+
+        // Embed and store.
+        let embedding_request = models::client::EmbeddingRequest {
+            input: serde_json::to_string_pretty(&spec)?,
+        };
+        let embedding = state
+            .model_client
+            .embed(embedding_request)
+            .await
+            .map_err(|(_, err)| err)?;
+        let new_openapi_path = models::openapi::NewOpenApiPath { spec, embedding };
+        diesel::insert_into(schema::openapi::table)
+            .values(new_openapi_path)
+            .get_result(&mut conn)
+            .await?;
     }
 
     // Add the main assistant endpoint to the router so it can be included in
