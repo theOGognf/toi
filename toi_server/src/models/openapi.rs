@@ -1,9 +1,8 @@
-use chrono::{DateTime, Utc};
 use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::openapi)]

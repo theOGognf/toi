@@ -5,7 +5,7 @@ use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
-use serde_json::Map;
+use serde_json::json;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing_subscriber::EnvFilter;
@@ -91,10 +91,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = state.pool.get().await?;
     for (path, item) in openapi.paths.paths.iter() {
         // Make a pretty JSON for embedding and storage.
-        let value = serde_json::to_value(item)?;
-        let mut map = Map::with_capacity(1);
-        map.insert((*path).clone(), value);
-        let spec = serde_json::to_value(&map)?;
+        let item = serde_json::to_value(item)?;
+        let spec = json!(
+            {
+                path: item
+            }
+        );
 
         // Embed and store.
         let embedding_request = models::client::EmbeddingRequest {
