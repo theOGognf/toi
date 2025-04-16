@@ -12,7 +12,7 @@ axum = { version = "0.8.1", features = ["macros"] }
 bb8 = "0.8"
 chrono = { version = "0.4.40", features = ["serde"] }
 ctrlc = { version = "3.4.5", features = ["termination"] }
-diesel = { version = "2.2.8", features = ["chrono", "postgres"] }
+diesel = { version = "2.2.8", features = ["chrono", "postgres", "serde_json"] }
 diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 diesel_migrations = "2.2.0"
 dotenvy = "0.15.7"

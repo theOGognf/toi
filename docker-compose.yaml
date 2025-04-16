@@ -19,6 +19,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-self}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hosted}
       - POSTGRES_DB=${POSTGRES_DB:-toi}
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER:-self} -d ${POSTGRES_DB:-toi}'"]
       interval: 10s

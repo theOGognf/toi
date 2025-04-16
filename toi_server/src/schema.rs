@@ -11,3 +11,16 @@ diesel::table! {
         created_at -> Timestamptz,
     }
 }
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
+    openapi (id) {
+        id -> Int4,
+        spec -> Jsonb,
+        embedding -> Vector,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(notes, openapi,);

@@ -36,7 +36,7 @@ impl ModelClient {
         Ok(request.clone())
     }
 
-    pub async fn embed(self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
+    pub async fn embed(&self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
         let response: EmbeddingResponse = Self::post(
             &self.embedding_api_config,
             "/v1/embeddings".to_string(),

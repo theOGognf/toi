@@ -2,7 +2,9 @@ use std::fs::File;
 
 use ctrlc::set_handler;
 use diesel::{Connection, PgConnection};
-use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use diesel_async::{
+    AsyncPgConnection, RunQueryDsl, pooled_connection::AsyncDieselConnectionManager,
+};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
 use serde_json::json;
@@ -88,7 +90,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Go through and embed all OpenAPI path specs so they can be used as
     // context for generating HTTP requests within the "/chat" endpoint.
-    let mut conn = state.pool.get().await?;
+    let pool = state.pool.clone();
+    let mut conn = pool.get().await?;
     for (path, item) in openapi.paths.paths.iter() {
         // Make a pretty JSON for embedding and storing the spec.
         let item = serde_json::to_value(item)?;
@@ -110,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let new_openapi_path = models::openapi::NewOpenApiPath { spec, embedding };
         diesel::insert_into(schema::openapi::table)
             .values(new_openapi_path)
-            .get_result(&mut conn)
+            .execute(&mut conn)
             .await?;
     }
 

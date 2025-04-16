@@ -2,9 +2,8 @@ use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
 use serde::Serialize;
 use serde_json::Value;
-use utoipa::ToSchema;
 
-#[derive(Queryable, Selectable, Serialize, ToSchema)]
+#[derive(Queryable, Selectable, Serialize)]
 #[diesel(table_name = crate::schema::openapi)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct OpenApiPath {
