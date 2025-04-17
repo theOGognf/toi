@@ -62,7 +62,9 @@ async fn chat(
                     .await
                     .map_err(utils::internal_error)?
             };
-            if !result.is_empty() {
+            if result.is_empty() {
+                SimplePrompt {}.to_streaming_generation_request(&request.messages)
+            } else {
                 // Create an OpenAPI spec from the relevant paths retrieved.
                 let paths = serde_json::to_value(result).expect("OpenAPI paths not serializable");
                 let spec = json!(
@@ -93,7 +95,7 @@ async fn chat(
                     // Adding user message to the pseudo chat for plan execution.
                     let user_message = OldResponseNewRequest {
                         response: response_message,
-                        request,
+                        request: Some(request),
                     }
                     .into_user_message();
                     messages.push(user_message);
@@ -118,11 +120,17 @@ async fn chat(
                     response_message =
                         Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
                 }
+                // Add the final response for context.
+                let user_message = OldResponseNewRequest {
+                    response: response_message,
+                    request: None,
+                }
+                .into_user_message();
+                messages.push(user_message);
+
                 // The streaming response to the user is a summary of the plan
                 // and its execution.
                 SummaryPrompt {}.to_streaming_generation_request(&messages)
-            } else {
-                SimplePrompt {}.to_streaming_generation_request(&request.messages)
             }
         }
         None => SimplePrompt {}.to_streaming_generation_request(&request.messages),

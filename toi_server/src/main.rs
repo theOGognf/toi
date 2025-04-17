@@ -118,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .into_iter()
                     .flatten()
                     .collect::<Vec<String>>()
-                    .join("\n");
+                    .join("\n\n");
 
                 // Embed the endpoint's description.
                 let embedding_request = models::client::EmbeddingRequest {

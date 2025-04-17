@@ -83,26 +83,40 @@ impl fmt::Display for GeneratedPlan {
 #[derive(Serialize)]
 pub struct OldResponseNewRequest {
     pub response: Option<String>,
-    pub request: GeneratedRequestInfo,
+    pub request: Option<GeneratedRequestInfo>,
 }
 
 impl OldResponseNewRequest {
     pub fn into_user_message(self) -> Message {
-        let description = serde_json::to_string_pretty(&self.request).expect("serializable");
-        let content = match self.response {
-            None => description,
-            Some(response) => {
-                format!(
-                    r#"
+        let content = match (&self.response, &self.request) {
+            (response, Some(request)) => {
+                let description =
+                    serde_json::to_string_pretty(&self.request).expect("serializable");
+                match response {
+                    None => description,
+                    Some(response) => {
+                        format!(
+                            r#"
 Here's the response from that request:
 
 {response}
 
 And here's the description for the next request:
 
-{description}"#
+{request}"#
+                        )
+                    }
+                }
+            }
+            (Some(response), None) => {
+                format!(
+                    r#"
+Here's the response from that request:
+
+{response}"#
                 )
             }
+            (None, None) => unreachable!("response or request are always something"),
         };
         Message {
             role: MessageRole::User,
