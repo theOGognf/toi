@@ -90,8 +90,8 @@ impl OldResponseNewRequest {
     pub fn into_user_message(self) -> Message {
         let content = match (&self.response, &self.request) {
             (response, Some(request)) => {
-                let description =
-                    serde_json::to_string_pretty(&self.request).expect("request description is not serializable");
+                let description = serde_json::to_string_pretty(&self.request)
+                    .expect("request description is not serializable");
                 match response {
                     None => description,
                     Some(response) => {

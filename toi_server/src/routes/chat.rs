@@ -1,6 +1,6 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::{Client, Request};
-use serde_json::json;
+use serde_json::{Value, json};
 use toi::{GenerationRequest, detailed_reqwest_error};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -66,7 +66,8 @@ async fn chat(
                 SimplePrompt {}.to_streaming_generation_request(&request.messages)
             } else {
                 // Create an OpenAPI spec from the relevant paths retrieved.
-                let paths = serde_json::to_value(result).expect("OpenAPI paths not serializable");
+                let paths = result.into_iter().map(|p| p.spec).collect::<Vec<Value>>();
+                let paths = serde_json::to_value(paths).expect("OpenAPI paths not serializable");
                 let spec = json!(
                     {
                         "paths": paths
