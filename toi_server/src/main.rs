@@ -93,28 +93,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = state.pool.clone();
     let mut conn = pool.get().await?;
     for (path, item) in openapi.paths.paths.iter() {
-        // Make a pretty JSON for embedding and storing the spec.
-        let item = serde_json::to_value(item)?;
-        let spec = json!(
-            {
-                path: item
-            }
-        );
+        for (method, op) in [
+            ("delete", &item.delete),
+            ("get", &item.get),
+            ("post", &item.post),
+            ("put", &item.put),
+        ] {
+            if let Some(op) = op {
+                // Make a pretty JSON for storing the spec.
+                let method = method.to_string();
+                let item = serde_json::to_value(item)?;
+                let spec = json!(
+                    {
+                        path: {
+                            method: item
+                        }
+                    }
+                );
 
-        // Embed and store the spec.
-        let embedding_request = models::client::EmbeddingRequest {
-            input: serde_json::to_string_pretty(&spec)?,
-        };
-        let embedding = state
-            .model_client
-            .embed(embedding_request)
-            .await
-            .map_err(|(_, err)| err)?;
-        let new_openapi_path = models::openapi::NewOpenApiPath { spec, embedding };
-        diesel::insert_into(schema::openapi::table)
-            .values(new_openapi_path)
-            .execute(&mut conn)
-            .await?;
+                // Make the description from the operation's summary and description.
+                // This is what is used for semantic search rather than the spec
+                // itself so it's more likely to match with user queries.
+                let description = [op.summary.clone(), op.description.clone()]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>()
+                    .join("\n");
+
+                // Embed the endpoint's description.
+                let embedding_request = models::client::EmbeddingRequest {
+                    input: serde_json::to_string_pretty(&description)?,
+                };
+                let embedding = state
+                    .model_client
+                    .embed(embedding_request)
+                    .await
+                    .map_err(|(_, err)| err)?;
+
+                // Store all the details.
+                let new_openapi_path = models::openapi::NewOpenApiPath { spec, embedding };
+                diesel::insert_into(schema::openapi::table)
+                    .values(new_openapi_path)
+                    .execute(&mut conn)
+                    .await?;
+            }
+        }
     }
 
     // Add the main assistant endpoint to the router so it can be included in

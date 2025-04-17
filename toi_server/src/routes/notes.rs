@@ -27,6 +27,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
         .with_state(state)
 }
 
+/// Add a note.
 #[utoipa::path(
     post,
     path = "",
@@ -61,6 +62,7 @@ pub async fn add_note(
     Ok(Json(res))
 }
 
+/// Delete a note by its database-generated ID.
 #[utoipa::path(
     delete,
     path = "/{id}",
@@ -87,6 +89,9 @@ pub async fn delete_note(
     Ok(Json(res))
 }
 
+/// Delete notes that match search criteria.
+///
+/// Useful for deleting notes in bulk.
 #[utoipa::path(
     delete,
     path = "/search",
@@ -153,6 +158,7 @@ pub async fn delete_matching_notes(
     Ok(Json(res))
 }
 
+/// Get a note by its database-generated ID.
 #[utoipa::path(
     get,
     path = "/{id}",
@@ -179,6 +185,9 @@ pub async fn get_note(
     Ok(Json(res))
 }
 
+/// Get notes that match search criteria.
+///
+/// Useful for getting notes in bulk.
 #[utoipa::path(
     get,
     path = "/search",

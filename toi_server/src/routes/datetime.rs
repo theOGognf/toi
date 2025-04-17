@@ -10,6 +10,7 @@ pub fn router() -> OpenApiRouter {
         .routes(routes!(weekday))
 }
 
+/// Get the current time in ISO format.
 #[utoipa::path(
     get,
     path = "/now",
@@ -23,6 +24,9 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     Ok(Json(res))
 }
 
+/// Shift the given ISO datetime by seconds, minutes, hours, etc.
+///
+/// Shift the given ISO datetime with the date defaulting to today's date.
 #[utoipa::path(
     post,
     path = "/shift", 
@@ -44,6 +48,9 @@ pub async fn shift(
     Ok(Json(res))
 }
 
+/// Get the weekday of an ISO datetime.
+///
+/// Get the weekday of an ISO datetime with the date defaulting to today's date.
 #[utoipa::path(
     get,
     path = "/weekday",
