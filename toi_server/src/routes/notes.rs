@@ -3,10 +3,7 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use diesel::{
-    ExpressionMethods,
-    prelude::{QueryDsl, SelectableHelper},
-};
+use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use utoipa_axum::{router::OpenApiRouter, routes};
