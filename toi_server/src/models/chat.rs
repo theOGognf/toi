@@ -35,7 +35,7 @@ pub struct GeneratedRequestInfo {
 
 impl fmt::Display for GeneratedRequestInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        let repr = serde_json::to_string_pretty(self).expect("request info is not serializable");
         write!(f, "{repr}")
     }
 }
@@ -52,7 +52,7 @@ impl GeneratedRequest {
     pub fn into_assistant_message(self) -> Message {
         Message {
             role: MessageRole::Assistant,
-            content: serde_json::to_string_pretty(&self).expect("serializable"),
+            content: serde_json::to_string_pretty(&self).expect("request is not serializable"),
         }
     }
 }
@@ -75,7 +75,7 @@ pub struct GeneratedPlan {
 
 impl fmt::Display for GeneratedPlan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("serializable");
+        let repr = serde_json::to_string_pretty(self).expect("plan is not serializable");
         write!(f, "{repr}")
     }
 }
@@ -91,7 +91,7 @@ impl OldResponseNewRequest {
         let content = match (&self.response, &self.request) {
             (response, Some(request)) => {
                 let description =
-                    serde_json::to_string_pretty(&self.request).expect("serializable");
+                    serde_json::to_string_pretty(&self.request).expect("request description is not serializable");
                 match response {
                     None => description,
                     Some(response) => {
