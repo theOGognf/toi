@@ -182,19 +182,6 @@ impl History {
         self.message_history.pop_back();
     }
 
-    pub fn prune(&mut self) {
-        while self.size > self.limit {
-            if let Some(usage) = self.usage_history.pop_front() {
-                let total_usage = usage.prompt_tokens + usage.completion_tokens;
-                self.size = self
-                    .size
-                    .checked_add_signed(-total_usage)
-                    .expect("overflow from subbing token usage");
-                self.message_history = self.message_history.split_off(2);
-            }
-        }
-    }
-
     pub fn push_assistant(&mut self, usage: TokenUsage) {
         let message = Message {
             role: MessageRole::Assistant,
@@ -208,6 +195,17 @@ impl History {
         self.message_history.push_back(message);
         self.usage_history.push_back(usage);
         self.buffer.clear();
+
+        while self.size > self.limit {
+            if let Some(usage) = self.usage_history.pop_front() {
+                let total_usage = usage.prompt_tokens + usage.completion_tokens;
+                self.size = self
+                    .size
+                    .checked_add_signed(-total_usage)
+                    .expect("overflow from subbing token usage");
+                self.message_history = self.message_history.split_off(2);
+            }
+        }
     }
 
     pub fn push_buffer(&mut self, content: String) {
@@ -338,8 +336,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+    }
+}
 
-        // Shorten message history to fit context limit.
-        history.prune();
+#[cfg(test)]
+mod tests {
+    use super::History;
+    use super::models::client::TokenUsage;
+
+    #[test]
+    fn pruning_history() {
+        let mut history = History::new(10);
+
+        // Add a user message and verify that nothing can be pruned yet since
+        // there are no token usage metrics.
+        history.push_user("Hello! What's your name?".to_string());
+        assert_eq!(history.len(), 1);
+
+        // Simulate an assistant response in chunks. Verify the history is still
+        // the same length before and after attempting to prune yet again.
+        for s in ["I", " have", " no", " name"].into_iter() {
+            history.push_buffer(s.to_string());
+        }
+        assert_eq!(history.len(), 1);
+
+        // Simulate the assistant given a token usage response, signaling the
+        // end of the response, but with still not enough tokens to warrant
+        // pruning.
+        history.push_assistant(TokenUsage {
+            prompt_tokens: 5,
+            completion_tokens: 4,
+        });
+        assert_eq!(history.len(), 2);
+        assert_eq!(history.size, 9);
+
+        // Finally, push one more user and assistant interaction that results
+        // in pruning of the original exchange.
+        history.push_user("oh...".to_string());
+        history.push_buffer(":(".to_string());
+        history.push_assistant(TokenUsage {
+            prompt_tokens: 2,
+            completion_tokens: 1,
+        });
+        assert_eq!(history.len(), 2);
+        assert_eq!(history.size, 3);
     }
 }
