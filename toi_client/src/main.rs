@@ -182,7 +182,7 @@ impl History {
         self.message_history.pop_back();
     }
 
-    pub fn push_assistant(&mut self, usage: TokenUsage) {
+    pub fn push_assistant_and_token_usage(&mut self, usage: TokenUsage) {
         let message = Message {
             role: MessageRole::Assistant,
             content: self.buffer.join(""),
@@ -208,7 +208,7 @@ impl History {
         }
     }
 
-    pub fn push_buffer(&mut self, content: String) {
+    pub fn push_assistant_chunk(&mut self, content: String) {
         self.buffer.push(content);
     }
 
@@ -301,12 +301,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match server_response {
                     ServerResponse::Chunk(chunk) => {
                         if let Some(content) = chunk.content.first() {
-                            history.push_buffer(content.clone());
+                            history.push_assistant_chunk(content.clone());
                             print!("{content}");
                             io::stdout().flush()?;
                         }
                         if let Some(usage) = chunk.usage {
-                            history.push_assistant(usage);
+                            history.push_assistant_and_token_usage(usage);
                         }
                     }
                     ServerResponse::Done => {
@@ -356,14 +356,14 @@ mod tests {
         // Simulate an assistant response in chunks. Verify the history is still
         // the same length before and after attempting to prune yet again.
         for s in ["I", " have", " no", " name"].into_iter() {
-            history.push_buffer(s.to_string());
+            history.push_assistant_chunk(s.to_string());
         }
         assert_eq!(history.len(), 1);
 
         // Simulate the assistant given a token usage response, signaling the
         // end of the response, but with still not enough tokens to warrant
         // pruning.
-        history.push_assistant(TokenUsage {
+        history.push_assistant_and_token_usage(TokenUsage {
             prompt_tokens: 5,
             completion_tokens: 4,
         });
@@ -373,8 +373,8 @@ mod tests {
         // Finally, push one more user and assistant interaction that results
         // in pruning of the original exchange.
         history.push_user("oh...".to_string());
-        history.push_buffer(":(".to_string());
-        history.push_assistant(TokenUsage {
+        history.push_assistant_chunk(":(".to_string());
+        history.push_assistant_and_token_usage(TokenUsage {
             prompt_tokens: 2,
             completion_tokens: 1,
         });
