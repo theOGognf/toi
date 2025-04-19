@@ -1,10 +1,4 @@
-use std::fs::File;
-
-use ctrlc::set_handler;
-use diesel::{Connection, PgConnection};
-use diesel_async::{
-    AsyncPgConnection, RunQueryDsl, pooled_connection::AsyncDieselConnectionManager,
-};
+use diesel_async::RunQueryDsl;
 use serde_json::json;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
