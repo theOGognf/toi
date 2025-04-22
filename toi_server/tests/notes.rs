@@ -1,4 +1,3 @@
-use reqwest::StatusCode;
 use serde_json::json;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
@@ -13,8 +12,8 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let (router, _) = openapi_router.split_for_parts();
     let listener = TcpListener::bind(binding_addr.clone()).await?;
 
+    // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
-
     let client = reqwest::Client::new();
 
     // Make a note and get its database-generated ID back.
@@ -40,25 +39,26 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<Note>()
         .await?;
-    assert_eq!(note1.content, note2.content);
+    assert_eq!(note2.content, content);
 
     // Delete the note using its ID.
-    let status = client
+    let note3 = client
         .delete(format!("{binding_addr}/notes/{}", note1.id))
         .send()
         .await?
-        .status();
-    assert_eq!(status, StatusCode::OK);
+        .json::<Note>()
+        .await?;
+    assert_eq!(note3.content, content);
 
     // Make the note again.
-    let note3 = client
+    let note4 = client
         .post(format!("{binding_addr}/notes"))
         .json(&body)
         .send()
         .await?
         .json::<Note>()
         .await?;
-    assert_eq!(note3.content, content);
+    assert_eq!(note4.content, content);
 
     // Retrieve the note using search.
     let query = NoteQueryParams::builder()
