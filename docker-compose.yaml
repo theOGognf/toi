@@ -3,7 +3,7 @@ services:
     build:
       context: .
     environment:
-      - DB_URL=${DB_URL:-postgres://self:hosted@db:5432/toi}
+      - DATABASE_URL=${DATABASE_URL:-postgres://self:hosted@db:5432/toi}
       - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}
     ports:
       - "6969:6969"
@@ -26,8 +26,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    profiles:
-      - db
 
   embed:
     image: ghcr.io/huggingface/text-embeddings-inference:${EMBED_IMAGE_VERSION:-latest}

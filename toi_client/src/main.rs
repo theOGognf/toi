@@ -22,6 +22,9 @@ use models::{
     repl::{ServerRequest, ServerResponse, UserRequest},
 };
 
+/// Loop for interacting with the server. Waits for a new message request,
+/// and, when one is received, attempts to stream the response in chunks
+/// until it finishes or an interrupt signal is caught.
 async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
     let client = reqwest::Client::new();
 
@@ -113,6 +116,10 @@ impl ConditionalEventHandler for InterruptEventHandler {
     }
 }
 
+/// User REPL loop. The user can enter chat messages or clear their input
+/// using this loop. If a message is sent, a response is streamed from
+/// the server and this REPL is inactive until the response finishes or
+/// the stream is interrupted through the other CTRL+C handler.
 fn repl(mut rx: Receiver<()>, tx: Sender<UserRequest>) -> Result<(), ReadlineError> {
     let mut rl = DefaultEditor::new()?;
     let interrupt_event_handler = Box::new(InterruptEventHandler);
@@ -143,6 +150,9 @@ fn repl(mut rx: Receiver<()>, tx: Sender<UserRequest>) -> Result<(), ReadlineErr
     Ok(())
 }
 
+/// For catching user interrupts during a response stream. If a response
+/// stream is not active, then the interrupt handler from the REPL takes
+/// precedence and this doesn't catch the signal.
 fn ctrlc_handler(tx: Sender<UserRequest>) -> Result<(), ctrlc::Error> {
     set_handler(move || {
         let message = UserRequest::Cancel;
@@ -155,6 +165,8 @@ fn ctrlc_handler(tx: Sender<UserRequest>) -> Result<(), ctrlc::Error> {
     Ok(())
 }
 
+/// History is used for maintaining a context limit. Context limit is
+/// set as a CLI option.
 struct History {
     limit: u32,
     size: u32,

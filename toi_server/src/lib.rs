@@ -38,7 +38,7 @@ pub async fn init() -> Result<(BindingAddress, models::state::ToiState), Box<dyn
 
     // All configuration comes from environment variables and a required
     // config file.
-    let db_connection_url = dotenvy::var("DB_URL")?;
+    let db_connection_url = dotenvy::var("DATABASE_URL")?;
     let config_path = dotenvy::var("TOI_CONFIG_PATH")?;
     let config_file = File::open(config_path)?;
     let config: ToiConfig = serde_json::from_reader(config_file)?;
