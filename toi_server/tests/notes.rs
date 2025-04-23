@@ -14,7 +14,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
     assert!(db_connection_url.ends_with("/test"));
 
-    // Reset the test database for the test.
+    // Reset the test database.
     Command::new("diesel")
         .args(["database", "reset"])
         .output()

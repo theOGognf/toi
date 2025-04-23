@@ -68,7 +68,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                                                         Ok(chunk) => {
                                                             let message = ServerResponse::Chunk(chunk);
                                                             tx.send(message).await.expect("server response channel full");
-                                                        },
+                                                        }
                                                         Err(err) => {
                                                             let message = ServerResponse::Error(err.to_string());
                                                             tx.send(message).await.expect("server response channel full");
@@ -78,6 +78,11 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                                                 }
                                             }
                                         }
+                                    }
+                                    Ok(None) => {
+                                        let message = ServerResponse::Done;
+                                        tx.send(message).await.expect("server response channel full");
+                                        break
                                     }
                                     Err(err) => {
                                         let message = ServerResponse::Error(err.to_string());
