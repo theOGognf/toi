@@ -1,10 +1,14 @@
+use diesel::{Connection, PgConnection};
 use diesel_async::RunQueryDsl;
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -15,8 +19,17 @@ struct ApiDoc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // An explicit database URL is required for setup.
+    let db_connection_url = dotenvy::var("DATABASE_URL")?;
+
+    // Get a connection and manually run migrations at startup just in case
+    // to ensure the database is ready to go.
+    let mut conn = PgConnection::establish(&db_connection_url)?;
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("failed to run migrations");
+
     // Initialize the server state and extract the server binding address.
-    let (binding_addr, mut state) = toi_server::init().await?;
+    let (binding_addr, mut state) = toi_server::init(db_connection_url).await?;
 
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.

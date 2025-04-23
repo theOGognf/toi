@@ -1,9 +1,7 @@
 use std::fs::File;
 
 use ctrlc::set_handler;
-use diesel::{Connection, PgConnection};
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
-use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use serde::Deserialize;
 use tracing_subscriber::EnvFilter;
 
@@ -12,8 +10,6 @@ pub mod models;
 pub mod routes;
 pub mod schema;
 mod utils;
-
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 #[derive(Deserialize)]
 pub struct ToiConfig {
@@ -25,8 +21,9 @@ pub struct ToiConfig {
 
 type BindingAddress = String;
 
-pub async fn init() -> Result<(BindingAddress, models::state::ToiState), Box<dyn std::error::Error>>
-{
+pub async fn init(
+    db_connection_url: String,
+) -> Result<(BindingAddress, models::state::ToiState), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_target(false)
@@ -36,9 +33,7 @@ pub async fn init() -> Result<(BindingAddress, models::state::ToiState), Box<dyn
     // Catching signals for exit.
     set_handler(|| std::process::exit(0))?;
 
-    // All configuration comes from environment variables and a required
-    // config file.
-    let db_connection_url = dotenvy::var("DATABASE_URL")?;
+    // All configuration comes from a required config file.
     let config_path = dotenvy::var("TOI_CONFIG_PATH")?;
     let config_file = File::open(config_path)?;
     let config: ToiConfig = serde_json::from_reader(config_file)?;
@@ -47,12 +42,6 @@ pub async fn init() -> Result<(BindingAddress, models::state::ToiState), Box<dyn
         embedding_api_config,
         generation_api_config,
     } = config;
-
-    // Get a connection and manually run migrations at startup just in case
-    // to ensure the database is ready to go.
-    let mut conn = PgConnection::establish(&db_connection_url)?;
-    conn.run_pending_migrations(MIGRATIONS)
-        .expect("failed to run migrations");
 
     // Shared state components. A client is used for interacting with supporting
     // API services, while a pool is used for interacting with the database.

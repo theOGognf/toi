@@ -1,12 +1,27 @@
 use serde_json::json;
+use serial_test::serial;
+use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::notes::{Note, NoteQueryParams, NoteSimilaritySearchParams};
 
 #[tokio::test]
+#[serial]
 async fn route() -> Result<(), Box<dyn std::error::Error>> {
-    let (binding_addr, state) = toi_server::init().await?;
+    // Make sure there's a database URL and it points to a test database so
+    // prod isn't goofed during testing.
+    let db_connection_url = dotenvy::var("DATABASE_URL")?;
+    assert!(db_connection_url.ends_with("/test"));
+
+    // Reset the test database for the test.
+    Command::new("diesel")
+        .args(["database", "reset"])
+        .output()
+        .expect("failed to reset test database");
+
+    // Initialize the server state.
+    let (binding_addr, state) = toi_server::init(db_connection_url).await?;
     let openapi_router =
         OpenApiRouter::new().nest("/notes", toi_server::routes::notes::router(state));
     let (router, _) = openapi_router.split_for_parts();

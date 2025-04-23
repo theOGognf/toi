@@ -51,30 +51,38 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                     let mut lines = reader.lines();
                     loop {
                         tokio::select! {
-                            Ok(Some(line)) = lines.next_line() => {
-                                if let Some(data) = line.strip_prefix("data: ") {
-                                    match data {
-                                        "[DONE]" => {
-                                            let message = ServerResponse::Done;
-                                            tx.send(message).await.expect("server response channel full");
-                                            break
-                                        }
-                                        "\n" | "" => {}
-                                        data => {
-                                            let response = serde_json::from_str::<GenerationResponseChunk>(data);
-                                            match response {
-                                                Ok(chunk) => {
-                                                    let message = ServerResponse::Chunk(chunk);
-                                                    tx.send(message).await.expect("server response channel full");
-                                                },
-                                                Err(err) => {
-                                                    let message = ServerResponse::Error(err.to_string());
+                            result = lines.next_line() => {
+                                match result {
+                                    Ok(Some(line)) => {
+                                        if let Some(data) = line.strip_prefix("data: ") {
+                                            match data {
+                                                "[DONE]" => {
+                                                    let message = ServerResponse::Done;
                                                     tx.send(message).await.expect("server response channel full");
                                                     break
                                                 }
+                                                "\n" | "" => {}
+                                                data => {
+                                                    let response = serde_json::from_str::<GenerationResponseChunk>(data);
+                                                    match response {
+                                                        Ok(chunk) => {
+                                                            let message = ServerResponse::Chunk(chunk);
+                                                            tx.send(message).await.expect("server response channel full");
+                                                        },
+                                                        Err(err) => {
+                                                            let message = ServerResponse::Error(err.to_string());
+                                                            tx.send(message).await.expect("server response channel full");
+                                                            break
+                                                        }
+                                                    }
+                                                }
                                             }
-
-                                        },
+                                        }
+                                    }
+                                    Err(err) => {
+                                        let message = ServerResponse::Error(err.to_string());
+                                        tx.send(message).await.expect("server response channel full");
+                                        break
                                     }
                                 }
                             }
