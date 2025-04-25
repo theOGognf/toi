@@ -84,7 +84,8 @@ pub async fn complete_todo(
     let res = diesel::update(schema::todos::table)
         .set(schema::todos::completed_at.eq(params.completed_at))
         .filter(schema::todos::id.eq(id))
-        .first(&mut conn)
+        .returning(Todo::as_returning())
+        .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     Ok(Json(res))
