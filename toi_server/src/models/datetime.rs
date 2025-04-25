@@ -1,3 +1,4 @@
+use bon::Builder;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
@@ -9,7 +10,7 @@ pub struct DateTimeQueryParams {
     pub datetime: DateTime<Utc>,
 }
 
-#[derive(Default, Deserialize, ToSchema)]
+#[derive(Builder, Default, Deserialize, ToSchema)]
 #[serde(default)]
 pub struct DateTimeShiftRequest {
     /// Datetime to shift from in ISO format. Defaults to now.
