@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS todos (
     item TEXT NOT NULL,
     embedding VECTOR NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    due_at TIMESTAMPTZ
+    due_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
 );

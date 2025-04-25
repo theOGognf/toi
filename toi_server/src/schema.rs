@@ -18,6 +18,7 @@ diesel::table! {
 
     openapi (id) {
         id -> Int4,
+        description -> Text,
         spec -> Jsonb,
         embedding -> Vector,
     }
@@ -33,6 +34,7 @@ diesel::table! {
         embedding -> Vector,
         created_at -> Timestamptz,
         due_at -> Nullable<Timestamptz>,
+        completed_at -> Nullable<Timestamptz>,
     }
 }
 

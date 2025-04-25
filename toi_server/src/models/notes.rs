@@ -38,9 +38,9 @@ pub struct NoteQueryParams {
     /// Parameters for performing similarity search against notes.
     pub similarity_search_params: Option<NoteSimilaritySearchParams>,
     /// Filter on notes created after this ISO formatted datetime.
-    pub from: Option<DateTime<Utc>>,
+    pub created_from: Option<DateTime<Utc>>,
     /// Filter on notes created before this ISO formatted datetime.
-    pub to: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved notes.
     pub order_by: Option<utils::OrderBy>,
     /// Max number of notes to return from the search.

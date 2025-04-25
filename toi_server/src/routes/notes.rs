@@ -127,13 +127,13 @@ pub async fn delete_matching_notes(
     }
 
     // Filter notes created on or after date.
-    if let Some(from) = params.from {
-        query = query.filter(schema::notes::created_at.ge(from));
+    if let Some(created_from) = params.created_from {
+        query = query.filter(schema::notes::created_at.ge(created_from));
     }
 
     // Filter notes created on or before date.
-    if let Some(to) = params.to {
-        query = query.filter(schema::notes::created_at.le(to));
+    if let Some(created_to) = params.created_to {
+        query = query.filter(schema::notes::created_at.le(created_to));
     }
 
     match params.order_by {
@@ -223,13 +223,13 @@ pub async fn get_matching_notes(
     }
 
     // Filter notes created on or after date.
-    if let Some(from) = params.from {
-        query = query.filter(schema::notes::created_at.ge(from));
+    if let Some(created_from) = params.created_from {
+        query = query.filter(schema::notes::created_at.ge(created_from));
     }
 
     // Filter notes created on or before date.
-    if let Some(to) = params.to {
-        query = query.filter(schema::notes::created_at.le(to));
+    if let Some(created_to) = params.created_to {
+        query = query.filter(schema::notes::created_at.le(created_to));
     }
 
     match params.order_by {

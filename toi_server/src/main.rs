@@ -35,7 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // for the main assistant endpoint.
     let openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/datetime", toi_server::routes::datetime::router())
-        .nest("/notes", toi_server::routes::notes::router(state.clone()));
+        .nest("/notes", toi_server::routes::notes::router(state.clone()))
+        .nest("/todos", toi_server::routes::todos::router(state.clone()));
     let openapi = openapi_router.get_openapi();
 
     // Go through and embed all OpenAPI path specs so they can be used as
