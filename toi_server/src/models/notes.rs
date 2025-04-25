@@ -5,7 +5,7 @@ use pgvector::Vector;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::utils;
+use crate::{models::search::SimilaritySearchParams, utils};
 
 #[derive(Deserialize, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::notes)]
@@ -36,7 +36,7 @@ pub struct NewNoteRequest {
 #[derive(Builder, Deserialize, Serialize, IntoParams)]
 pub struct NoteQueryParams {
     /// Parameters for performing similarity search against notes.
-    pub similarity_search_params: Option<NoteSimilaritySearchParams>,
+    pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on notes created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on notes created before this ISO formatted datetime.
@@ -46,16 +46,4 @@ pub struct NoteQueryParams {
     /// Max number of notes to return from the search.
     #[param(minimum = 1)]
     pub limit: Option<i64>,
-}
-
-#[derive(Builder, Deserialize, Serialize, ToSchema)]
-pub struct NoteSimilaritySearchParams {
-    /// Query string to compare notes to.
-    pub query: String,
-    /// Measure of difference between the query and notes it's being
-    /// compared to. Only return notes whose distance is less than
-    /// or equal this value.
-    #[serde(default = "utils::default_distance_threshold")]
-    #[schema(minimum = 0.1, maximum = 0.5)]
-    pub distance_threshold: f64,
 }

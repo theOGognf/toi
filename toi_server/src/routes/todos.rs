@@ -12,7 +12,7 @@ use crate::{
     models::{
         client::EmbeddingRequest,
         state::ToiState,
-        todos::{NewTodo, NewTodoRequest, Todo, TodoQueryParams},
+        todos::{CompleteTodoRequest, NewTodo, NewTodoRequest, Todo, TodoQueryParams},
     },
     schema, utils,
 };
@@ -56,6 +56,35 @@ pub async fn add_todo(
         .values(new_todo)
         .returning(Todo::as_returning())
         .get_result(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    Ok(Json(res))
+}
+
+/// Complete a todo by its database-generated ID.
+#[utoipa::path(
+    put,
+    path = "/{id}",
+    params(
+        ("id" = i32, Path, description = "Database ID of todo to complete"),
+        CompleteTodoRequest,
+    ),
+    responses(
+        (status = 200, description = "Successfully updated todo", body = Todo),
+        (status = 404, description = "Todo not found")
+    )
+)]
+#[axum::debug_handler]
+pub async fn complete_todo(
+    State(pool): State<utils::Pool>,
+    Path(id): Path<i32>,
+    Query(params): Query<CompleteTodoRequest>,
+) -> Result<Json<Todo>, (StatusCode, String)> {
+    let mut conn = pool.get().await.map_err(utils::internal_error)?;
+    let res = diesel::update(schema::todos::table)
+        .set(schema::todos::completed_at.eq(params.completed_at))
+        .filter(schema::todos::id.eq(id))
+        .first(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     Ok(Json(res))
@@ -245,13 +274,13 @@ pub async fn get_matching_todos(
     }
 
     // Filter todos created on or after date.
-    if let Some(from) = params.from {
-        query = query.filter(schema::todos::created_at.ge(from));
+    if let Some(created_from) = params.created_from {
+        query = query.filter(schema::todos::created_at.ge(created_from));
     }
 
     // Filter todos created on or before date.
-    if let Some(to) = params.to {
-        query = query.filter(schema::todos::created_at.le(to));
+    if let Some(created_to) = params.created_to {
+        query = query.filter(schema::todos::created_at.le(created_to));
     }
 
     // Filter todos due on or after date.

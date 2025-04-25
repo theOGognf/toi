@@ -4,7 +4,7 @@ use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::notes::{Note, NoteQueryParams, NoteSimilaritySearchParams};
+use toi_server::models::notes::{Note, NoteQueryParams, SimilaritySearchParams};
 
 #[tokio::test]
 #[serial]
@@ -78,7 +78,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     // Retrieve the note using search.
     let query = NoteQueryParams::builder()
         .similarity_search_params(
-            NoteSimilaritySearchParams::builder()
+            SimilaritySearchParams::builder()
                 .query("what's my car's oil type?".to_string())
                 .distance_threshold(0.5)
                 .build(),

@@ -4,5 +4,6 @@ pub mod datetime;
 pub mod notes;
 pub mod openapi;
 pub mod prompts;
+pub mod search;
 pub mod state;
 pub mod todos;
