@@ -23,4 +23,17 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(notes, openapi,);
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
+    todos (id) {
+        id -> Int4,
+        item -> Text,
+        embedding -> Vector,
+        created_at -> Timestamptz,
+        due_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(notes, openapi, todos,);
