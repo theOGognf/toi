@@ -16,13 +16,13 @@ pub struct EmbeddingResponse {
 
 #[derive(Serialize)]
 pub struct StreamOptions {
-    stream: bool,
     include_usage: bool,
 }
 
 #[derive(Serialize)]
 pub struct StreamingGenerationRequest {
     pub messages: Vec<Message>,
+    stream: bool,
     stream_options: StreamOptions,
 }
 
@@ -30,8 +30,8 @@ impl StreamingGenerationRequest {
     pub fn new(messages: Vec<Message>) -> Self {
         Self {
             messages,
+            stream: true,
             stream_options: StreamOptions {
-                stream: true,
                 include_usage: true,
             },
         }

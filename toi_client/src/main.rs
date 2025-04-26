@@ -79,11 +79,9 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                                             }
                                         }
                                     }
-                                    Ok(None) => {
-                                        let message = ServerResponse::Done;
-                                        tx.send(message).await.expect("server response channel full");
-                                        break
-                                    }
+                                    // This shouldn't get hit in a streaming response because streaming responses
+                                    // end with the '[DONE]' string before returning no lines.
+                                    Ok(None) => unreachable!("streaming response didn't end on [DONE]"),
                                     Err(err) => {
                                         let message = ServerResponse::Error(err.to_string());
                                         tx.send(message).await.expect("server response channel full");
@@ -100,7 +98,12 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                     }
                 }
                 Ok(response) => {
-                    let text = response.text().await.unwrap_or_else(detailed_reqwest_error);
+                    let text = match response.error_for_status() {
+                        Ok(response) => {
+                            response.text().await.unwrap_or_else(detailed_reqwest_error)
+                        }
+                        Err(err) => err.to_string(),
+                    };
                     let message = ServerResponse::Error(text);
                     tx.send(message)
                         .await
