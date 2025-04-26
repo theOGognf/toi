@@ -18,7 +18,6 @@ diesel::table! {
 
     openapi (id) {
         id -> Int4,
-        description -> Text,
         spec -> Jsonb,
         embedding -> Vector,
     }
