@@ -1,6 +1,5 @@
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_query::DeserializeQuery;
 use std::collections::HashMap;
 use toi::Message;
 
@@ -9,7 +8,7 @@ pub struct EmbeddingRequest {
     pub input: String,
 }
 
-#[derive(Deserialize, DeserializeQuery)]
+#[derive(serde_query::Deserialize)]
 pub struct EmbeddingResponse {
     #[query(".data.[0].embedding")]
     pub embedding: Vec<f32>,
