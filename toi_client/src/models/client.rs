@@ -6,11 +6,18 @@ pub struct TokenUsage {
     pub completion_tokens: i32,
 }
 
-#[derive(serde_query::Deserialize)]
-pub struct GenerationResponseChunk {
-    #[query(".choices.[].delta.content")]
-    pub content: Vec<String>,
+#[derive(Deserialize)]
+pub struct Delta {
+    pub content: String,
+}
 
-    #[query(".usage")]
+#[derive(Deserialize)]
+pub struct Choice {
+    pub delta: Delta,
+}
+
+#[derive(Deserialize)]
+pub struct GenerationResponseChunk {
+    pub choices: Vec<Choice>,
     pub usage: Option<TokenUsage>,
 }

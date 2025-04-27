@@ -333,9 +333,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(server_response) = server_response_receiver.recv() => {
                 match server_response {
                     ServerResponse::Chunk(chunk) => {
-                        if let Some(content) = chunk.content.first() {
-                            history.push_assistant_chunk(content.clone());
-                            print!("{content}");
+                        if let Some(choice) = chunk.choices.first() {
+                            history.push_assistant_chunk(choice.delta.content.clone());
+                            print!("{}", choice.delta.content);
                             io::stdout().flush()?;
                         }
                         if let Some(usage) = chunk.usage {
