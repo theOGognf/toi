@@ -2559,7 +2559,6 @@ dependencies = [
  "regex",
  "reqwest",
  "serde",
- "serde-query",
  "serde_json",
  "serial_test",
  "toi",

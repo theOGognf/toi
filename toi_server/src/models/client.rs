@@ -8,10 +8,14 @@ pub struct EmbeddingRequest {
     pub input: String,
 }
 
-#[derive(serde_query::Deserialize)]
-pub struct EmbeddingResponse {
-    #[query(".data.[0].embedding")]
+#[derive(Deserialize)]
+pub struct EmbeddingData {
     pub embedding: Vec<f32>,
+}
+
+#[derive(Deserialize)]
+pub struct EmbeddingResponse {
+    pub data: Vec<EmbeddingData>,
 }
 
 #[derive(Serialize)]
@@ -38,10 +42,14 @@ impl StreamingGenerationRequest {
     }
 }
 
-#[derive(Serialize, serde_query::Deserialize)]
+#[derive(Serialize, Deserialize)]
+pub struct Choice {
+    pub message: Message,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct GenerationResponse {
-    #[query(".choices.[0].message.content")]
-    pub content: String,
+    pub choices: Vec<Choice>,
 }
 
 pub enum ModelClientError {

@@ -44,7 +44,10 @@ impl ModelClient {
             request,
         )
         .await?;
-        Ok(Vector::from(response.embedding))
+        match response.data.into_iter().next() {
+            Some(data) => Ok(Vector::from(data.embedding)),
+            None => Err(ModelClientError::ResponseJson.into_response("invalid embedding response")),
+        }
     }
 
     pub async fn generate(
@@ -58,7 +61,12 @@ impl ModelClient {
             request,
         )
         .await?;
-        Ok(response.content)
+        match response.choices.into_iter().next() {
+            Some(choice) => Ok(choice.message.content),
+            None => {
+                Err(ModelClientError::ResponseJson.into_response("invalid generation response"))
+            }
+        }
     }
 
     pub async fn generate_stream(

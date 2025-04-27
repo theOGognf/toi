@@ -7,17 +7,17 @@ pub struct TokenUsage {
 }
 
 #[derive(Deserialize)]
-pub struct Delta {
+pub struct StreamingDelta {
     pub content: String,
 }
 
 #[derive(Deserialize)]
-pub struct Choice {
-    pub delta: Delta,
+pub struct StreamingChoice {
+    pub delta: StreamingDelta,
 }
 
 #[derive(Deserialize)]
 pub struct GenerationResponseChunk {
-    pub choices: Vec<Choice>,
+    pub choices: Vec<StreamingChoice>,
     pub usage: Option<TokenUsage>,
 }
