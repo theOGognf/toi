@@ -27,22 +27,22 @@ services:
       timeout: 5s
       retries: 5
 
-  embed:
-    image: ghcr.io/huggingface/text-embeddings-inference:${EMBED_IMAGE_VERSION:-latest}
-    command: --model-id ${EMBED_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0}
+  embedding:
+    image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
+    command: --model ${EMBEDDING_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: ${EMBED_NUM_GPUS:-all}
+              count: ${EMBEDDING_NUM_GPUS:-all}
               capabilities: [gpu]
     profiles:
       - models
 
   generation:
-    image: ghcr.io/huggingface/text-generation-inference:${GENERATION_IMAGE_VERSION:-latest}
-    command: --model-id ${GENERATION_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}
+    image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
+    command: --model ${GENERATION_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}
     deploy:
       resources:
         reservations:

@@ -82,7 +82,7 @@ impl fmt::Display for UserQueryPrompt {
         let repr = format!(
             "{}",
             concat!(
-                "You are an intelligent assistant that takes an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint.",
+                "You are an intelligent assistant that takes an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
                 "\n",
                 "\n",
                 "Here's an example:",

@@ -115,7 +115,7 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
             .json::<ResponseModel>()
             .await
             .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))
