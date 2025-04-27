@@ -79,9 +79,7 @@ impl UserQueryPrompt {
 
 impl fmt::Display for UserQueryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = format!(
-            "{}",
-            concat!(
+        let repr = concat!(
                 "You are an intelligent assistant that takes an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
                 "\n",
                 "\n",
@@ -94,8 +92,7 @@ impl fmt::Display for UserQueryPrompt {
                 "\n",
                 "\n",
                 "Respond in JSON format."
-            ),
-        );
+            ).to_string();
         write!(f, "{repr}")
     }
 }
