@@ -6,6 +6,11 @@ use toi::{Message, MessageRole};
 
 use crate::{models::client::ModelClientError, utils};
 
+#[derive(Deserialize)]
+pub struct GeneratedUserQueries {
+    pub queries: Vec<String>,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum GeneratedMethod {

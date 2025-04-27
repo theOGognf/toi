@@ -1,7 +1,8 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::{Client, Request};
 use serde_json::{Value, json};
-use toi::{GenerationRequest, detailed_reqwest_error};
+use toi::GenerationRequest;
+use tracing::info;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -44,6 +45,7 @@ async fn chat(
             let embedding_request = EmbeddingRequest {
                 input: message.content.clone(),
             };
+            info!("embedding request");
             let embedding = state.model_client.embed(embedding_request).await?;
             let result = {
                 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
@@ -57,14 +59,16 @@ async fn chat(
                             .cosine_distance(embedding.clone())
                             .le(0.5),
                     )
-                    .order(schema::openapi::embedding.l2_distance(embedding))
+                    .distinct_on((schema::openapi::path, schema::openapi::method))
                     .load(&mut conn)
                     .await
                     .map_err(utils::internal_error)?
             };
             if result.is_empty() {
+                info!("no relevant APIs found");
                 SimplePrompt {}.to_streaming_generation_request(&request.messages)
             } else {
+                info!("found relevant APIs");
                 // Create an OpenAPI spec from the relevant paths retrieved.
                 let paths = result.into_iter().map(|p| p.spec).collect::<Vec<Value>>();
                 let paths = serde_json::to_value(paths).expect("OpenAPI paths not serializable");
@@ -73,10 +77,10 @@ async fn chat(
                         "paths": paths
                     }
                 );
-                let spec =
-                    serde_json::to_string_pretty(&spec).expect("OpenAPI spec not serializable");
+                let spec = serde_json::to_string(&spec).expect("OpenAPI spec not serializable");
 
                 // First, plan out requests in response to the user's message.
+                info!("making plan from request and relevant APIs");
                 let generation_request = PlanPrompt {
                     openapi_spec: &spec,
                 }
@@ -87,6 +91,7 @@ async fn chat(
 
                 // Then, go through and generate each request, using each response
                 // as context for the next request.
+                info!("executing plan");
                 let system_prompt = HttpRequestPrompt {
                     openapi_spec: &spec,
                 };
@@ -116,10 +121,14 @@ async fn chat(
                     // future request context.
                     let request: Request = generated_request.into();
                     let response = Client::new().execute(request).await.map_err(|err| {
-                        ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
+                        ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
                     })?;
-                    response_message =
-                        Some(response.text().await.unwrap_or_else(detailed_reqwest_error));
+                    response_message = Some(
+                        response
+                            .text()
+                            .await
+                            .unwrap_or_else(|err| format!("{err:?}")),
+                    );
                 }
                 // Add the final response for context.
                 let user_message = OldResponseNewRequest {
@@ -131,12 +140,17 @@ async fn chat(
 
                 // The streaming response to the user is a summary of the plan
                 // and its execution.
+                info!("finalizing plan and summarizing results");
                 SummaryPrompt {}.to_streaming_generation_request(&messages)
             }
         }
-        None => SimplePrompt {}.to_streaming_generation_request(&request.messages),
+        None => {
+            info!("no messages in request");
+            SimplePrompt {}.to_streaming_generation_request(&request.messages)
+        }
     };
 
+    info!("begin response stream");
     let stream = state
         .model_client
         .generate_stream(streaming_generation_request)

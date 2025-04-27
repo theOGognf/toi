@@ -48,6 +48,58 @@ impl fmt::Display for SummaryPrompt {
     }
 }
 
+pub struct UserQueryPrompt {}
+
+impl UserQueryPrompt {
+    pub fn response_format() -> Value {
+        json!(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "rewordings",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "queries": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "description": "User query that would result in using the given API based on its description"
+                                }
+                            }
+                        },
+                        "additionalProperties": false,
+                        "required": ["queries"]
+                    }
+                }
+            }
+        )
+    }
+}
+
+impl fmt::Display for UserQueryPrompt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = format!(
+            "{}",
+            concat!(
+                "You are an intelligent assistant that takes an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint.",
+                "\n",
+                "\n",
+                "Here's an example:",
+                "\n",
+                "\n",
+                "Description: Get the current day in ISO format.",
+                "\n",
+                "Example generated command: What day is today?",
+                "\n",
+                "\n",
+                "Respond in JSON format."
+            ),
+        );
+        write!(f, "{repr}")
+    }
+}
+
 pub struct PlanPrompt<'a> {
     pub openapi_spec: &'a str,
 }
@@ -79,7 +131,7 @@ impl PlanPrompt<'_> {
                                         "description": {
                                             "type": "string",
                                             "description": "A description of what this HTTP request is for and how it uses previous HTTP responses (if at all)"
-                                        },
+                                        }
                                     },
                                     "additionalProperties": false,
                                     "required": ["path", "method", "description"]
@@ -98,15 +150,18 @@ impl PlanPrompt<'_> {
 impl fmt::Display for PlanPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
-        write!(
-            f,
-            r#"
-You are an intelligent assistant that plans a series of HTTP request(s) given an OpenAPI spec and a chat history.
-
-Here is the OpenAPI spec for reference:
-
-{openapi_spec}"#
-        )
+        let repr = format!(
+            "{}{}",
+            concat!(
+                "You are an intelligent assistant that plans a series of HTTP request(s) given an OpenAPI spec and a chat history. Respond in JSON format.",
+                "\n",
+                "\n",
+                "Here is the OpenAPI spec:",
+                "\n"
+            ),
+            openapi_spec
+        );
+        write!(f, "{repr}")
     }
 }
 
@@ -156,14 +211,17 @@ impl HttpRequestPrompt<'_> {
 impl fmt::Display for HttpRequestPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
-        write!(
-            f,
-            r#"
-You are an intelligent assistant that constructs an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make.
-
-Here is the OpenAPI spec:
-
-{openapi_spec}"#
-        )
+        let repr = format!(
+            "{}{}",
+            concat!(
+                "You are an intelligent assistant that constructs an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make. Respond in JSON format.",
+                "\n",
+                "\n",
+                "Here is the OpenAPI spec:",
+                "\n"
+            ),
+            openapi_spec
+        );
+        write!(f, "{repr}")
     }
 }

@@ -2,7 +2,7 @@ use axum::{body::Body, http::StatusCode};
 use pgvector::Vector;
 use reqwest::{Client, header::HeaderMap};
 use serde::{Serialize, de::DeserializeOwned};
-use toi::{GenerationRequest, detailed_reqwest_error};
+use toi::GenerationRequest;
 
 use crate::models::client::{
     EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
@@ -75,9 +75,7 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| {
-                ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
-            })?;
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }
@@ -117,13 +115,9 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| {
-                ModelClientError::ApiConnection.into_response(&detailed_reqwest_error(err))
-            })?
+            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))
             .json::<ResponseModel>()
             .await
-            .map_err(|err| {
-                ModelClientError::ResponseJson.into_response(&detailed_reqwest_error(err))
-            })
+            .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))
     }
 }

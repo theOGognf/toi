@@ -8,7 +8,7 @@ use rustyline::{
 };
 use std::io::{self, Write};
 use std::{collections::VecDeque, thread};
-use toi::{GenerationRequest, Message, MessageRole, detailed_reqwest_error};
+use toi::{GenerationRequest, Message, MessageRole};
 use tokio::{
     io::AsyncBufReadExt,
     sync::mpsc::{Receiver, Sender},
@@ -35,7 +35,7 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                 .json(&request)
                 .send()
                 .await
-                .map_err(detailed_reqwest_error);
+                .map_err(|err| format!("{err:?}"));
             match response {
                 Err(err) => {
                     let message = ServerResponse::Error(err);
@@ -100,9 +100,14 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
                 Ok(response) => {
                     let text = match response.error_for_status() {
                         Ok(response) => {
-                            response.text().await.unwrap_or_else(detailed_reqwest_error)
+                            let repr = format!("{response:?}");
+                            let content = response
+                                .text()
+                                .await
+                                .unwrap_or_else(|err| format!("{repr} with error {err:?}"));
+                            format!("{repr} with content {content}")
                         }
-                        Err(err) => err.to_string(),
+                        Err(err) => format!("{err:?}"),
                     };
                     let message = ServerResponse::Error(text);
                     tx.send(message)

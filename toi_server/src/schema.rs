@@ -16,8 +16,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
-    openapi (id) {
-        id -> Int4,
+    openapi (path, method) {
+        path -> Text,
+        method -> Text,
         spec -> Jsonb,
         embedding -> Vector,
     }

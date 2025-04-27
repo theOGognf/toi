@@ -1,4 +1,4 @@
-use diesel::{Queryable, Selectable, prelude::Insertable};
+use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use serde::Serialize;
 use serde_json::Value;
@@ -13,10 +13,12 @@ pub struct OpenApiPath {
     pub spec: Value,
 }
 
-#[derive(Insertable)]
+#[derive(AsChangeset, Insertable)]
 #[diesel(table_name = crate::schema::openapi)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewOpenApiPath {
+    pub path: String,
+    pub method: String,
     pub spec: Value,
     pub embedding: Vector,
 }

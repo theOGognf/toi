@@ -1,14 +1,12 @@
-use diesel::{Connection, PgConnection};
-use diesel_async::RunQueryDsl;
-use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use diesel::{Connection, PgConnection, RunQueryDsl};
 use serde_json::json;
+use toi_server::models::prompts::SystemPrompt;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
-
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 #[derive(OpenApi)]
 #[openapi(info(
@@ -22,13 +20,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // An explicit database URL is required for setup.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
 
-    // Get a connection and manually run migrations at startup just in case
-    // to ensure the database is ready to go.
-    let mut conn = PgConnection::establish(&db_connection_url)?;
-    conn.run_pending_migrations(MIGRATIONS)
-        .expect("failed to run migrations");
-
     // Initialize the server state and extract the server binding address.
+    let mut conn = PgConnection::establish(&db_connection_url)?;
     let (binding_addr, mut state) = toi_server::init(db_connection_url).await?;
 
     // Define base router and OpenAPI spec used for building the system prompt
@@ -41,8 +34,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Go through and embed all OpenAPI path specs so they can be used as
     // context for generating HTTP requests within the "/chat" endpoint.
-    let pool = state.pool.clone();
-    let mut conn = pool.get().await?;
+    // Start by deleting all the pre-existing OpenAPI path specs just in
+    // case.
+    diesel::delete(toi_server::schema::openapi::table).execute(&mut conn)?;
     for (path, item) in openapi.paths.paths.iter() {
         for (method, op) in [
             ("delete", &item.delete),
@@ -53,11 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(op) = op {
                 // Make a pretty JSON for storing the spec.
                 let method = method.to_string();
-                let item = serde_json::to_value(item)?;
                 let spec = json!(
                     {
-                        path: {
-                            method: item
+                        path.clone(): {
+                            method.clone(): op
                         }
                     }
                 );
@@ -71,23 +64,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect::<Vec<String>>()
                     .join("\n\n");
 
-                // Embed the endpoint's description.
-                let embedding_request = toi_server::models::client::EmbeddingRequest {
-                    input: serde_json::to_string_pretty(&description)?,
-                };
-                let embedding = state
+                // Generate some user queries that are related to this API spec.
+                // These user queries are then embedding individually and used for
+                // API search later. This helps improve odds that a specific user
+                // request matches up to the API endpoint.
+                let mut messages = vec![toi::Message {
+                    role: toi::MessageRole::User,
+                    content: description,
+                }];
+                let generation_request = toi_server::models::prompts::UserQueryPrompt {}
+                    .to_generation_request(&messages)
+                    .with_response_format(
+                        toi_server::models::prompts::UserQueryPrompt::response_format(),
+                    );
+                let generated_user_queries = state
                     .model_client
-                    .embed(embedding_request)
+                    .generate(generation_request)
                     .await
                     .map_err(|(_, err)| err)?;
+                let generated_user_queries = toi_server::models::chat::parse_generated_response::<
+                    toi_server::models::chat::GeneratedUserQueries,
+                >(generated_user_queries)
+                .map_err(|(_, err)| err)?;
+                for input in generated_user_queries.queries {
+                    // Embed the endpoint's query.
+                    let embedding_request = toi_server::models::client::EmbeddingRequest { input };
+                    let embedding = state
+                        .model_client
+                        .embed(embedding_request)
+                        .await
+                        .map_err(|(_, err)| err)?;
 
-                // Store all the details.
-                let new_openapi_path =
-                    toi_server::models::openapi::NewOpenApiPath { spec, embedding };
-                diesel::insert_into(toi_server::schema::openapi::table)
-                    .values(new_openapi_path)
-                    .execute(&mut conn)
-                    .await?;
+                    // Store all the details.
+                    let new_openapi_path = toi_server::models::openapi::NewOpenApiPath {
+                        path: path.to_string(),
+                        method: method.clone(),
+                        spec: spec.clone(),
+                        embedding,
+                    };
+                    diesel::insert_into(toi_server::schema::openapi::table)
+                        .values(&new_openapi_path)
+                        .execute(&mut conn)?;
+                }
             }
         }
     }
@@ -102,7 +120,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new())
+                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
+                    let request_id = uuid::Uuid::new_v4();
+                    tracing::span!(
+                        Level::DEBUG,
+                        "request",
+                        id = tracing::field::display(request_id),
+                        method = tracing::field::display(request.method()),
+                        uri = tracing::field::display(request.uri())
+                    )
+                })
                 .on_response(DefaultOnResponse::new()),
         );
 

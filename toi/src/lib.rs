@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::error::Error;
 use utoipa::ToSchema;
 
 #[derive(Clone, Deserialize, PartialEq, Serialize, ToSchema)]
@@ -37,12 +36,4 @@ impl GenerationRequest {
         self.response_format = Some(value);
         self
     }
-}
-
-pub fn detailed_reqwest_error(err: reqwest::Error) -> String {
-    let mut repr = err.to_string();
-    if let Some(source) = err.source() {
-        repr = format!("{repr} from {source}");
-    }
-    repr
 }
