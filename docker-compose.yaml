@@ -29,7 +29,9 @@ services:
 
   embedding:
     image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
-    command: --model ${EMBEDDING_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0}
+    command: --model ${EMBEDDING_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0} --dtype ${GENERATION_DTYPE:-auto} --gpu-memory-utilization ${GENERATION_MEM:-0.2}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
     deploy:
       resources:
         reservations:
@@ -42,7 +44,9 @@ services:
 
   generation:
     image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
-    command: --model ${GENERATION_MODEL_ID:-Qwen/Qwen2.5-3B-Instruct}
+    command: --model ${GENERATION_MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct} --dtype ${GENERATION_DTYPE:-half} --gpu-memory-utilization ${GENERATION_MEM:-0.7} --max-model-len ${GENERATION_LEN:-16000}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
     deploy:
       resources:
         reservations:
