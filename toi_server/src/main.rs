@@ -2,7 +2,7 @@ use diesel::{Connection, PgConnection, RunQueryDsl};
 use serde_json::json;
 use toi_server::models::prompts::SystemPrompt;
 use tokio::net::TcpListener;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tower_http::trace::{DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // These user queries are then embedding individually and used for
                 // API search later. This helps improve odds that a specific user
                 // request matches up to the API endpoint.
-                let mut messages = vec![toi::Message {
+                let messages = vec![toi::Message {
                     role: toi::MessageRole::User,
                     content: description,
                 }];
