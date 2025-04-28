@@ -1,5 +1,4 @@
 use diesel::{Connection, PgConnection, RunQueryDsl};
-use serde_json::json;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use utoipa::OpenApi;
@@ -24,35 +23,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.
-    let openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
+    let mut openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest("/datetime", toi_server::routes::datetime::router())
         .nest("/notes", toi_server::routes::notes::router(state.clone()))
         .nest("/todos", toi_server::routes::todos::router(state.clone()));
-    let openapi = openapi_router.get_openapi();
+    let openapi = openapi_router.get_openapi_mut();
 
     // Go through and embed all OpenAPI path specs so they can be used as
     // context for generating HTTP requests within the "/chat" endpoint.
     // Start by deleting all the pre-existing OpenAPI path specs just in
     // case.
     diesel::delete(toi_server::schema::openapi::table).execute(&mut conn)?;
-    for (path, item) in openapi.paths.paths.iter() {
+    for (path, item) in openapi.paths.paths.iter_mut() {
         for (method, op) in [
-            ("delete", &item.delete),
-            ("get", &item.get),
-            ("post", &item.post),
-            ("put", &item.put),
+            ("delete", &mut item.delete),
+            ("get", &mut item.get),
+            ("post", &mut item.post),
+            ("put", &mut item.put),
         ] {
             if let Some(op) = op {
-                // Make a pretty JSON for storing the spec.
-                let method = method.to_string();
-                let spec = json!(
-                    {
-                        path: {
-                            method: op
-                        }
-                    }
-                );
-
                 // Make the description from the operation's summary and description.
                 // This is what is used for semantic search rather than the spec
                 // itself so it's more likely to match with user queries.
@@ -71,9 +60,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .await
                     .map_err(|(_, err)| err)?;
 
+                // Get params and body from OpenAPI extensions.
+                let (params, body) = match op.extensions {
+                    Some(ref mut extensions) => (
+                        extensions.remove("x-json-schema-params"),
+                        extensions.remove("x-json-schema-body"),
+                    ),
+                    None => (None, None),
+                };
+
                 // Store all the details.
-                let new_openapi_path =
-                    toi_server::models::openapi::NewOpenApiPath { spec, embedding };
+                let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
+                    path: path.to_string(),
+                    method: method.to_uppercase(),
+                    params,
+                    body,
+                    embedding,
+                };
                 diesel::insert_into(toi_server::schema::openapi::table)
                     .values(&new_openapi_path)
                     .execute(&mut conn)?;

@@ -4,6 +4,8 @@ use toi::{GenerationRequest, Message, MessageRole};
 
 use crate::models::client::StreamingGenerationRequest;
 
+use super::openapi::OpenApiPathItem;
+
 pub trait SystemPrompt: fmt::Display {
     fn to_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
         let mut messages = vec![Message {
@@ -35,7 +37,7 @@ impl fmt::Display for SimplePrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "You are a helpful assistant, but don't ever mention you're a language model or that you have limitations. If you don't know the answer to something, say so."
+            "You are a helpful assistant, but don't ever mention you're an AI language model or that you have limitations. If you don't know the answer to something, say so."
         )
     }
 }
@@ -46,7 +48,7 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again."
+            "Your job is to concisely summarize the HTTP response the user provides based on the chat history. If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again."
         )
     }
 }
@@ -54,13 +56,25 @@ impl fmt::Display for SummaryPrompt {
 pub struct HttpRequestPrompt {
     pub path: String,
     pub method: String,
-    pub params: String,
-    pub body: String,
+    pub params: Option<Value>,
+    pub body: Option<Value>,
+}
+
+impl From<OpenApiPathItem> for HttpRequestPrompt {
+    fn from(value: OpenApiPathItem) -> Self {
+        Self {
+            path: value.path,
+            method: value.method,
+            params: value.params,
+            body: value.body,
+        }
+    }
 }
 
 impl HttpRequestPrompt {
     pub fn response_format(&self) -> Value {
-        json!(
+        // The base response format is just the path and method.
+        let mut response_format = json!(
             {
                 "type": "json_schema",
                 "json_schema": {
@@ -77,16 +91,40 @@ impl HttpRequestPrompt {
                                 "type": "string",
                                 "description": "The HTTP method to use for the request",
                                 "enum": [self.method]
-                            },
-                            "params": self.params,
-                            "body": self.body
+                            }
                         },
                         "additionalProperties": false,
-                        "required": ["path", "method", "params", "body"]
+                        "required": ["path", "method"]
                     }
                 }
             }
-        )
+        );
+
+        // Use JSON schema to determine if params are required.
+        if let Some(params) = &self.params {
+            response_format["json_schema"]["schema"]["properties"]["params"] = params.clone();
+            let mut required: Vec<String> = serde_json::from_value(
+                response_format["json_schema"]["schema"]["required"].clone(),
+            )
+            .expect("couldn't deserialize required fields");
+            required.push("params".to_string());
+            response_format["json_schema"]["schema"]["required"] =
+                serde_json::to_value(required).expect("couldn't serialize required fields");
+        }
+
+        // Use JSON schema to determine if a body is required.
+        if let Some(body) = &self.body {
+            response_format["json_schema"]["schema"]["properties"]["body"] = body.clone();
+            let mut required: Vec<String> = serde_json::from_value(
+                response_format["json_schema"]["schema"]["required"].clone(),
+            )
+            .expect("couldn't deserialize required fields");
+            required.push("body".to_string());
+            response_format["json_schema"]["schema"]["required"] =
+                serde_json::to_value(required).expect("couldn't serialize required fields");
+        }
+
+        response_format
     }
 }
 

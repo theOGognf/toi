@@ -7,7 +7,7 @@ use crate::{
     models::{
         chat::{GeneratedRequest, parse_generated_response},
         client::{EmbeddingRequest, ModelClientError},
-        openapi::OpenApiPath,
+        openapi::OpenApiPathItem,
         prompts::{HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
         state::ToiState,
     },
@@ -49,8 +49,8 @@ async fn chat(
                 use diesel_async::RunQueryDsl;
                 use pgvector::VectorExpressionMethods;
 
-                schema::openapi::table
-                    .select(OpenApiPath::as_select())
+                let result: Result<OpenApiPathItem, _> = schema::openapi::table
+                    .select(OpenApiPathItem::as_select())
                     .filter(
                         schema::openapi::embedding
                             .cosine_distance(embedding.clone())
@@ -58,20 +58,18 @@ async fn chat(
                     )
                     .order(schema::openapi::embedding.cosine_distance(embedding))
                     .first(&mut conn)
-                    .await
+                    .await;
+
+                result
             };
             match result {
                 Ok(item) => {
                     // Convert user request into HTTP request.
-                    let spec =
-                        serde_json::to_string(&item.spec).expect("OpenAPI spec not serializable");
-                    let system_prompt = HttpRequestPrompt {
-                        openapi_spec: &spec,
-                        path: item.path.clone(),
-                    };
+                    let system_prompt: HttpRequestPrompt = item.into();
+                    let response_format = system_prompt.response_format();
                     let generation_request = system_prompt
                         .to_generation_request(&request.messages)
-                        .with_response_format(system_prompt.response_format());
+                        .with_response_format(response_format);
                     let generated_request = state.model_client.generate(generation_request).await?;
                     let generated_request =
                         parse_generated_response::<GeneratedRequest>(generated_request)?;

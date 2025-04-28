@@ -1,13 +1,50 @@
 use axum::{extract::Query, http::StatusCode, response::Json};
 use chrono::{DateTime, Datelike, Duration, Utc};
+use schemars::schema_for;
+use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::datetime::{DateTimeQueryParams, DateTimeShiftRequest};
 
 pub fn router() -> OpenApiRouter {
-    OpenApiRouter::new()
+    let mut router = OpenApiRouter::new()
         .routes(routes!(now, shift))
-        .routes(routes!(weekday))
+        .routes(routes!(weekday));
+
+    let openapi = router.get_openapi_mut();
+    let paths = &mut openapi.paths.paths;
+
+    // Update "/shift" extensions
+    let datetime_shift_request_json_schema =
+        serde_json::to_value(schema_for!(DateTimeShiftRequest)).expect("schema unserializable");
+    let shift_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", datetime_shift_request_json_schema)
+        .build();
+    paths
+        .get_mut("/shift")
+        .expect("/shift doesn't exist")
+        .post
+        .as_mut()
+        .expect("POST doesn't exist")
+        .extensions
+        .get_or_insert(shift_extensions);
+
+    // Update "/weekday" extensions
+    let datetime_query_params_json_schema =
+        serde_json::to_value(schema_for!(DateTimeQueryParams)).expect("schema unserializable");
+    let weekday_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", datetime_query_params_json_schema)
+        .build();
+    paths
+        .get_mut("/weekday")
+        .expect("/weekday doesn't exist")
+        .get
+        .as_mut()
+        .expect("GET doesn't exist")
+        .extensions
+        .get_or_insert(weekday_extensions);
+
+    router
 }
 
 /// Get the current time in ISO format.
@@ -59,7 +96,7 @@ pub async fn shift(
     ),
     responses(
         (status = 200, description = "Successfully got weekday of given date", body = String)
-    )
+    ),
 )]
 #[axum::debug_handler]
 pub async fn weekday(

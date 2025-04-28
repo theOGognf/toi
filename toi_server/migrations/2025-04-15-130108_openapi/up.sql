@@ -1,6 +1,9 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS openapi (
-    id SERIAL PRIMARY KEY,
-    spec JSONB NOT NULL,
-    embedding VECTOR NOT NULL
+    path TEXT,
+    method TEXT,
+    params JSONB,
+    body JSONB,
+    embedding VECTOR NOT NULL,
+    PRIMARY KEY(path, method)
 );
