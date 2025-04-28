@@ -1,6 +1,6 @@
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use pgvector::Vector;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 
 /// We only care about retrieving the actual spec for request generation.
