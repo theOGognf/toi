@@ -35,8 +35,8 @@ async fn chat(
     Json(mut request): Json<GenerationRequest>,
 ) -> Result<Body, (StatusCode, String)> {
     // Search across OpenAPI spec paths for relevant endpoints. If none are
-    // found, respond like a normal chat assistant. Otherwise, execute a
-    // series of HTTP requests to fulfill the user's request.
+    // found, respond like a normal chat assistant. Otherwise, execute an
+    // HTTP request to fulfill the user's request.
     let streaming_generation_request = match request.messages.last() {
         Some(message) => {
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
@@ -54,9 +54,9 @@ async fn chat(
                     .filter(
                         schema::openapi::embedding
                             .cosine_distance(embedding.clone())
-                            .le(0.5),
+                            .le(0.75),
                     )
-                    .order(schema::openapi::embedding.cosine_distance(embedding))
+                    .order(schema::openapi::embedding.cosine_distance(embedding).asc())
                     .first(&mut conn)
                     .await
             };
@@ -84,7 +84,7 @@ async fn chat(
                     let response = Client::new().execute(http_request).await.map_err(|err| {
                         ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
                     })?;
-                    let response = response
+                    let content = response
                         .text()
                         .await
                         .unwrap_or_else(|err| format!("{err:?}"));
@@ -92,7 +92,7 @@ async fn chat(
                     // Add the HTTP response as a pseudo user response.
                     request.messages.push(Message {
                         role: MessageRole::User,
-                        content: response,
+                        content,
                     });
                     SummaryPrompt {}.to_streaming_generation_request(&request.messages)
                 }

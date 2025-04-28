@@ -2,8 +2,7 @@ use diesel::{Connection, PgConnection, RunQueryDsl};
 use serde_json::json;
 use toi_server::models::prompts::SystemPrompt;
 use tokio::net::TcpListener;
-use tower_http::trace::{DefaultOnResponse, TraceLayer};
-use tracing::Level;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
@@ -120,16 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
-                    let request_id = uuid::Uuid::new_v4();
-                    tracing::span!(
-                        Level::INFO,
-                        "request",
-                        id = tracing::field::display(request_id),
-                        method = tracing::field::display(request.method()),
-                        uri = tracing::field::display(request.uri())
-                    )
-                })
+                .make_span_with(DefaultMakeSpan::new())
                 .on_response(DefaultOnResponse::new()),
         );
 
