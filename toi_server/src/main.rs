@@ -47,8 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let method = method.to_string();
                 let spec = json!(
                     {
-                        path.clone(): {
-                            method.clone(): op
+                        path: {
+                            method: op
                         }
                     }
                 );
@@ -72,12 +72,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .map_err(|(_, err)| err)?;
 
                 // Store all the details.
-                let new_openapi_path = toi_server::models::openapi::NewOpenApiPath {
-                    path: path.to_string(),
-                    method,
-                    spec,
-                    embedding,
-                };
+                let new_openapi_path =
+                    toi_server::models::openapi::NewOpenApiPath { spec, embedding };
                 diesel::insert_into(toi_server::schema::openapi::table)
                     .values(&new_openapi_path)
                     .execute(&mut conn)?;

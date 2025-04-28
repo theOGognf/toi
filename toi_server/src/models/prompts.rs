@@ -35,7 +35,7 @@ impl fmt::Display for SimplePrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "You are a helpful assistant, but don't ever mention you're a language model or that you have limitations."
+            "You are a helpful assistant, but don't ever mention you're a language model or that you have limitations. If you don't know the answer to something, say so."
         )
     }
 }
@@ -46,17 +46,19 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error describe the error, apologize, and then ask the user to try again."
+            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again."
         )
     }
 }
 
-pub struct HttpRequestPrompt<'a> {
-    pub openapi_spec: &'a str,
+pub struct HttpRequestPrompt {
     pub path: String,
+    pub method: String,
+    pub params: String,
+    pub body: String,
 }
 
-impl HttpRequestPrompt<'_> {
+impl HttpRequestPrompt {
     pub fn response_format(&self) -> Value {
         json!(
             {
@@ -74,21 +76,13 @@ impl HttpRequestPrompt<'_> {
                             "method": {
                                 "type": "string",
                                 "description": "The HTTP method to use for the request",
-                                "enum": ["DELETE", "GET", "POST", "PUT"]
+                                "enum": [self.method]
                             },
-                            "params": {
-                                "type": "object",
-                                "description": "Mapping of query parameter names to their values",
-                                "additionalProperties": true
-                            },
-                            "body": {
-                                "type": "object",
-                                "description": "Mapping of JSON body parameter names to their values",
-                                "additionalProperties": true
-                            }
+                            "params": self.params,
+                            "body": self.body
                         },
                         "additionalProperties": false,
-                        "required": ["path", "method"]
+                        "required": ["path", "method", "params", "body"]
                     }
                 }
             }
@@ -96,27 +90,11 @@ impl HttpRequestPrompt<'_> {
     }
 }
 
-impl fmt::Display for HttpRequestPrompt<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let openapi_spec = self.openapi_spec;
-        let repr = format!(
-            "{}{}{}{}",
-            concat!(
-                "Your job is to construct an HTTP request given an OpenAPI spec and a chat history.",
-                "\n",
-                "\n",
-                "Here is the OpenAPI spec:",
-                "\n",
-            ),
-            openapi_spec,
-            concat!(
-                "\n",
-                "\n",
-                "Respond concisely using the following JSON schema:",
-                "\n"
-            ),
-            self.response_format().to_string()
-        );
-        write!(f, "{repr}")
+impl fmt::Display for HttpRequestPrompt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Your job is to construct an HTTP request. Respond concisely in JSON format."
+        )
     }
 }
