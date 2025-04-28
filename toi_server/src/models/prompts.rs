@@ -33,7 +33,10 @@ pub struct SimplePrompt {}
 
 impl fmt::Display for SimplePrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "You are a helpful assistant.")
+        write!(
+            f,
+            "You are a helpful assistant, but don't ever mention you're a language model or that you have limitations."
+        )
     }
 }
 
@@ -43,7 +46,7 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to concisely summarizes the HTTP response the user provides."
+            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error, concisely apologize and ask the user to try again."
         )
     }
 }
@@ -80,7 +83,7 @@ impl UserQueryPrompt {
 impl fmt::Display for UserQueryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = concat!(
-                "Your job is to take an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
+                "Your job is to take an OpenAPI endpoint description and generate 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
                 "\n",
                 "\n",
                 "Here's an example:",
@@ -147,7 +150,7 @@ impl fmt::Display for HttpRequestPrompt<'_> {
         let repr = format!(
             "{}{}",
             concat!(
-                "Your job is to construct an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make. Respond concisely in JSON format.",
+                "Your job is to construct an HTTP request given an OpenAPI spec and a chat history. Respond concisely in JSON format.",
                 "\n",
                 "\n",
                 "Here is the OpenAPI spec:",
