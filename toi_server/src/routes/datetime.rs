@@ -15,10 +15,10 @@ pub fn router() -> OpenApiRouter {
     let paths = &mut openapi.paths.paths;
 
     // Update "/shift" extensions
-    let datetime_shift_request_json_schema =
-        serde_json::to_value(schema_for!(DateTimeShiftRequest)).expect("schema unserializable");
+    let json_schema = schema_for!(DateTimeShiftRequest);
+    let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
     let shift_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", datetime_shift_request_json_schema)
+        .add("x-json-schema-body", json_schema)
         .build();
     paths
         .get_mut("/shift")
@@ -30,10 +30,10 @@ pub fn router() -> OpenApiRouter {
         .get_or_insert(shift_extensions);
 
     // Update "/weekday" extensions
-    let datetime_query_params_json_schema =
-        serde_json::to_value(schema_for!(DateTimeQueryParams)).expect("schema unserializable");
+    let json_schema = schema_for!(DateTimeQueryParams);
+    let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
     let weekday_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", datetime_query_params_json_schema)
+        .add("x-json-schema-params", json_schema)
         .build();
     paths
         .get_mut("/weekday")
@@ -47,7 +47,9 @@ pub fn router() -> OpenApiRouter {
     router
 }
 
-/// Get the current time in ISO format.
+/// Get the current time.
+///
+/// Returns current time in ISO format.
 #[utoipa::path(
     get,
     path = "/now",
@@ -85,7 +87,7 @@ pub async fn shift(
     Ok(Json(res))
 }
 
-/// Get the weekday of an ISO datetime.
+/// Get the weekday of a date.
 ///
 /// Get the weekday of an ISO datetime with the date defaulting to today's date.
 #[utoipa::path(

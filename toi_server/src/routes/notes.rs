@@ -59,12 +59,12 @@ pub async fn add_note(
     Ok(Json(res))
 }
 
-/// Delete notes that match search criteria.
+/// Delete notes.
 ///
-/// Useful for deleting notes in bulk.
+/// Delete notes that match a search criteria. Useful for deleting notes in bulk.
 #[utoipa::path(
     delete,
-    path = "/search",
+    path = "",
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully deleted notes", body = [Note]),
@@ -128,12 +128,12 @@ pub async fn delete_matching_notes(
     Ok(Json(res))
 }
 
-/// Get notes that match search criteria.
+/// Get notes.
 ///
-/// Useful for getting notes in bulk.
+/// Get notes that match a search criteria. Useful for getting notes in bulk.
 #[utoipa::path(
     get,
-    path = "/search",
+    path = "",
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully got notes", body = [Note]),

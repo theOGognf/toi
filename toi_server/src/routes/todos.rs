@@ -91,12 +91,12 @@ pub async fn complete_todo(
     Ok(Json(res))
 }
 
-/// Delete todos that match search criteria.
+/// Delete todos.
 ///
-/// Useful for deleting todos in bulk.
+/// Delete todos that match a search criteria. Useful for deleting todos in bulk.
 #[utoipa::path(
     delete,
-    path = "/search",
+    path = "",
     params(TodoQueryParams),
     responses(
         (status = 200, description = "Successfully deleted todos", body = [Todo]),
@@ -180,12 +180,12 @@ pub async fn delete_matching_todos(
     Ok(Json(res))
 }
 
-/// Get todos that match search criteria.
+/// Get todos.
 ///
-/// Useful for getting todos in bulk.
+/// Get todos that match a search criteria. Useful for getting todos in bulk.
 #[utoipa::path(
     get,
-    path = "/search",
+    path = "",
     params(TodoQueryParams),
     responses(
         (status = 200, description = "Successfully got todos", body = [Todo]),

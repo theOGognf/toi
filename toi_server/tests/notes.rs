@@ -86,7 +86,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_notes1 = client
-        .post(format!("{binding_addr}/notes/search"))
+        .post(format!("{binding_addr}/notes/bulk"))
         .query(&query)
         .send()
         .await?
@@ -97,7 +97,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the note using search.
     let vec_notes2 = client
-        .delete(format!("{binding_addr}/notes/search"))
+        .delete(format!("{binding_addr}/notes/bulk"))
         .query(&query)
         .send()
         .await?
