@@ -1,6 +1,5 @@
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use serde_json::json;
-use toi_server::models::prompts::SystemPrompt;
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use utoipa::OpenApi;
@@ -63,48 +62,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect::<Vec<String>>()
                     .join("\n\n");
 
-                // Generate some user queries that are related to this API spec.
-                // These user queries are then embedding individually and used for
-                // API search later. This helps improve odds that a specific user
-                // request matches up to the API endpoint.
-                let messages = vec![toi::Message {
-                    role: toi::MessageRole::User,
-                    content: description,
-                }];
-                let generation_request = toi_server::models::prompts::UserQueryPrompt {}
-                    .to_generation_request(&messages)
-                    .with_response_format(
-                        toi_server::models::prompts::UserQueryPrompt::response_format(),
-                    );
-                let generated_user_queries = state
+                // Embed the endpoint's query.
+                let embedding_request =
+                    toi_server::models::client::EmbeddingRequest { input: description };
+                let embedding = state
                     .model_client
-                    .generate(generation_request)
+                    .embed(embedding_request)
                     .await
                     .map_err(|(_, err)| err)?;
-                let generated_user_queries = toi_server::models::chat::parse_generated_response::<
-                    toi_server::models::chat::GeneratedUserQueries,
-                >(generated_user_queries)
-                .map_err(|(_, err)| err)?;
-                for input in generated_user_queries.queries {
-                    // Embed the endpoint's query.
-                    let embedding_request = toi_server::models::client::EmbeddingRequest { input };
-                    let embedding = state
-                        .model_client
-                        .embed(embedding_request)
-                        .await
-                        .map_err(|(_, err)| err)?;
 
-                    // Store all the details.
-                    let new_openapi_path = toi_server::models::openapi::NewOpenApiPath {
-                        path: path.to_string(),
-                        method: method.clone(),
-                        spec: spec.clone(),
-                        embedding,
-                    };
-                    diesel::insert_into(toi_server::schema::openapi::table)
-                        .values(&new_openapi_path)
-                        .execute(&mut conn)?;
-                }
+                // Store all the details.
+                let new_openapi_path = toi_server::models::openapi::NewOpenApiPath {
+                    path: path.to_string(),
+                    method,
+                    spec,
+                    embedding,
+                };
+                diesel::insert_into(toi_server::schema::openapi::table)
+                    .values(&new_openapi_path)
+                    .execute(&mut conn)?;
             }
         }
     }

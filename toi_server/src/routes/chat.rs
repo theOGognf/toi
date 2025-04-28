@@ -41,7 +41,7 @@ async fn chat(
         Some(message) => {
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
             let embedding_request = EmbeddingRequest {
-                input: message.content.clone(),
+                input: format!("query: {}", message.content),
             };
             let embedding = state.model_client.embed(embedding_request).await?;
             let result = {
@@ -54,7 +54,7 @@ async fn chat(
                     .filter(
                         schema::openapi::embedding
                             .cosine_distance(embedding.clone())
-                            .le(0.5),
+                            .le(0.9),
                     )
                     .order(schema::openapi::embedding.cosine_distance(embedding))
                     .first(&mut conn)
@@ -67,10 +67,11 @@ async fn chat(
                         serde_json::to_string(&item.spec).expect("OpenAPI spec not serializable");
                     let system_prompt = HttpRequestPrompt {
                         openapi_spec: &spec,
+                        path: item.path.clone(),
                     };
                     let generation_request = system_prompt
                         .to_generation_request(&request.messages)
-                        .with_response_format(HttpRequestPrompt::response_format(&item.path));
+                        .with_response_format(system_prompt.response_format());
                     let generated_request = state.model_client.generate(generation_request).await?;
                     let generated_request =
                         parse_generated_response::<GeneratedRequest>(generated_request)?;

@@ -46,66 +46,18 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error, concisely apologize and ask the user to try again."
+            "Your job is to concisely summarizes the HTTP response the user provides. If the response indicates an error describe the error, apologize, and then ask the user to try again."
         )
-    }
-}
-
-pub struct UserQueryPrompt {}
-
-impl UserQueryPrompt {
-    pub fn response_format() -> Value {
-        json!(
-            {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "rewordings",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "queries": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string",
-                                    "description": "User query that would result in using the given API based on its description"
-                                }
-                            }
-                        },
-                        "additionalProperties": false,
-                        "required": ["queries"]
-                    }
-                }
-            }
-        )
-    }
-}
-
-impl fmt::Display for UserQueryPrompt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = concat!(
-                "Your job is to take an OpenAPI endpoint description and generate 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
-                "\n",
-                "\n",
-                "Here's an example:",
-                "\n",
-                "\n",
-                "Description: Get the current day in ISO format.",
-                "\n",
-                "Example generated command: What day is today?",
-                "\n",
-                "\n",
-                "Respond concisely in JSON format."
-            ).to_string();
-        write!(f, "{repr}")
     }
 }
 
 pub struct HttpRequestPrompt<'a> {
     pub openapi_spec: &'a str,
+    pub path: String,
 }
 
 impl HttpRequestPrompt<'_> {
-    pub fn response_format(path: &String) -> Value {
+    pub fn response_format(&self) -> Value {
         json!(
             {
                 "type": "json_schema",
@@ -117,7 +69,7 @@ impl HttpRequestPrompt<'_> {
                             "path": {
                                 "type": "string",
                                 "description": "The endpoint path beginning with a forward slash",
-                                "enum": [path]
+                                "enum": [self.path]
                             },
                             "method": {
                                 "type": "string",
@@ -148,15 +100,22 @@ impl fmt::Display for HttpRequestPrompt<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let openapi_spec = self.openapi_spec;
         let repr = format!(
-            "{}{}",
+            "{}{}{}{}",
             concat!(
-                "Your job is to construct an HTTP request given an OpenAPI spec and a chat history. Respond concisely in JSON format.",
+                "Your job is to construct an HTTP request given an OpenAPI spec and a chat history.",
                 "\n",
                 "\n",
                 "Here is the OpenAPI spec:",
+                "\n",
+            ),
+            openapi_spec,
+            concat!(
+                "\n",
+                "\n",
+                "Respond concisely using the following JSON schema:",
                 "\n"
             ),
-            openapi_spec
+            self.response_format().to_string()
         );
         write!(f, "{repr}")
     }
