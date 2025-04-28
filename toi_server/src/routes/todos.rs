@@ -19,7 +19,7 @@ use crate::{
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_todo, delete_todo, get_todo))
+        .routes(routes!(add_todo))
         .routes(routes!(delete_matching_todos, get_matching_todos))
         .with_state(state)
 }
@@ -83,33 +83,6 @@ pub async fn complete_todo(
     let mut conn = pool.get().await.map_err(utils::internal_error)?;
     let res = diesel::update(schema::todos::table)
         .set(schema::todos::completed_at.eq(params.completed_at))
-        .filter(schema::todos::id.eq(id))
-        .returning(Todo::as_returning())
-        .get_result(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    Ok(Json(res))
-}
-
-/// Delete a todo by its database-generated ID.
-#[utoipa::path(
-    delete,
-    path = "/{id}",
-    params(
-        ("id" = i32, Path, description = "Database ID of todo to delete"),
-    ),
-    responses(
-        (status = 200, description = "Successfully deleted todo"),
-        (status = 404, description = "Todo not found")
-    )
-)]
-#[axum::debug_handler]
-pub async fn delete_todo(
-    State(pool): State<utils::Pool>,
-    Path(id): Path<i32>,
-) -> Result<Json<Todo>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    let res = diesel::delete(schema::todos::table)
         .filter(schema::todos::id.eq(id))
         .returning(Todo::as_returning())
         .get_result(&mut conn)
@@ -204,33 +177,6 @@ pub async fn delete_matching_todos(
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
-    Ok(Json(res))
-}
-
-/// Get a todo by its database-generated ID.
-#[utoipa::path(
-    get,
-    path = "/{id}",
-    params(
-        ("id" = i32, Path, description = "Database ID of todo to get"),
-    ),
-    responses(
-        (status = 200, description = "Successfully got todo", body = Todo),
-        (status = 404, description = "Todo not found")
-    )
-)]
-#[axum::debug_handler]
-pub async fn get_todo(
-    State(pool): State<utils::Pool>,
-    Path(id): Path<i32>,
-) -> Result<Json<Todo>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    let res = schema::todos::table
-        .select(Todo::as_select())
-        .filter(schema::todos::id.eq(id))
-        .first(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
     Ok(Json(res))
 }
 

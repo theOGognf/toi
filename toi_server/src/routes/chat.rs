@@ -53,10 +53,10 @@ async fn chat(
                     .select(OpenApiPath::as_select())
                     .filter(
                         schema::openapi::embedding
-                            .l2_distance(embedding.clone())
-                            .le(0.2),
+                            .cosine_distance(embedding.clone())
+                            .le(0.5),
                     )
-                    .order(schema::openapi::embedding.l2_distance(embedding))
+                    .order(schema::openapi::embedding.cosine_distance(embedding))
                     .first(&mut conn)
                     .await
             };

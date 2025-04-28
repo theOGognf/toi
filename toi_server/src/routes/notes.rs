@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
@@ -19,7 +19,7 @@ use crate::{
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_note, delete_note, get_note))
+        .routes(routes!(add_note))
         .routes(routes!(delete_matching_notes, get_matching_notes))
         .with_state(state)
 }
@@ -52,33 +52,6 @@ pub async fn add_note(
     };
     let res = diesel::insert_into(schema::notes::table)
         .values(new_note)
-        .returning(Note::as_returning())
-        .get_result(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    Ok(Json(res))
-}
-
-/// Delete a note by its database-generated ID.
-#[utoipa::path(
-    delete,
-    path = "/{id}",
-    params(
-        ("id" = i32, Path, description = "Database ID of note to delete"),
-    ),
-    responses(
-        (status = 200, description = "Successfully deleted note"),
-        (status = 404, description = "Note not found")
-    )
-)]
-#[axum::debug_handler]
-pub async fn delete_note(
-    State(pool): State<utils::Pool>,
-    Path(id): Path<i32>,
-) -> Result<Json<Note>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    let res = diesel::delete(schema::notes::table)
-        .filter(schema::notes::id.eq(id))
         .returning(Note::as_returning())
         .get_result(&mut conn)
         .await
@@ -152,33 +125,6 @@ pub async fn delete_matching_notes(
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
-    Ok(Json(res))
-}
-
-/// Get a note by its database-generated ID.
-#[utoipa::path(
-    get,
-    path = "/{id}",
-    params(
-        ("id" = i32, Path, description = "Database ID of note to get"),
-    ),
-    responses(
-        (status = 200, description = "Successfully got note", body = Note),
-        (status = 404, description = "Note not found")
-    )
-)]
-#[axum::debug_handler]
-pub async fn get_note(
-    State(pool): State<utils::Pool>,
-    Path(id): Path<i32>,
-) -> Result<Json<Note>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    let res = schema::notes::table
-        .select(Note::as_select())
-        .filter(schema::notes::id.eq(id))
-        .first(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
     Ok(Json(res))
 }
 
