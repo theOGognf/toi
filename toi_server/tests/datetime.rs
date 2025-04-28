@@ -1,7 +1,5 @@
 use chrono::{DateTime, Datelike, Duration, Utc};
-use serde_json::json;
 use serial_test::serial;
-use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
@@ -14,7 +12,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
 
     // Initialize the server state.
-    let (binding_addr, state) = toi_server::init(db_connection_url).await?;
+    let (binding_addr, _) = toi_server::init(db_connection_url).await?;
     let openapi_router =
         OpenApiRouter::new().nest("/datetime", toi_server::routes::datetime::router());
     let (router, _) = openapi_router.split_for_parts();

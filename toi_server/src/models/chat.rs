@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use reqwest::{Client, Method, Request};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
 use toi::{Message, MessageRole};
 
 use crate::{models::client::ModelClientError, utils};

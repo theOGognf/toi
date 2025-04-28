@@ -1,8 +1,6 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::{Client, Request};
-use serde_json::{Value, json};
 use toi::{GenerationRequest, Message, MessageRole};
-use tracing::info;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{

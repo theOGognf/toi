@@ -4,7 +4,8 @@ use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::notes::{Note, NoteQueryParams, SimilaritySearchParams};
+use toi_server::models::notes::{Note, NoteQueryParams};
+use toi_server::models::search::SimilaritySearchParams;
 
 #[tokio::test]
 #[serial]
