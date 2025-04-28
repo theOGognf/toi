@@ -9,6 +9,8 @@ use serde_json::Value;
 #[diesel(table_name = crate::schema::openapi)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct OpenApiPath {
+    pub path: String,
+    pub method: String,
     /// OpenAPI spec content.
     pub spec: Value,
 }

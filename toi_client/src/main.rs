@@ -30,89 +30,91 @@ async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerR
 
     loop {
         if let Some(ServerRequest::Start(request)) = rx.recv().await {
-            let response = client
-                .post(&url)
-                .json(&request)
-                .send()
-                .await
-                .map_err(|err| format!("{err:?}"));
-            match response {
-                Err(err) => {
-                    let message = ServerResponse::Error(err);
-                    tx.send(message)
-                        .await
-                        .expect("server response channel full");
-                }
-                Ok(response) if response.status() == 200 => {
-                    let stream = response
-                        .bytes_stream()
-                        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
-                    let reader = StreamReader::new(stream);
-                    let mut lines = reader.lines();
-                    loop {
-                        tokio::select! {
-                            result = lines.next_line() => {
-                                match result {
-                                    Ok(Some(line)) => {
-                                        if let Some(data) = line.strip_prefix("data: ") {
-                                            match data {
-                                                "[DONE]" => {
-                                                    let message = ServerResponse::Done;
-                                                    tx.send(message).await.expect("server response channel full");
-                                                    break
-                                                }
-                                                "\n" | "" => {}
-                                                data => {
-                                                    let response = serde_json::from_str::<GenerationResponseChunk>(data);
-                                                    match response {
-                                                        Ok(chunk) => {
-                                                            let message = ServerResponse::Chunk(chunk);
-                                                            tx.send(message).await.expect("server response channel full");
-                                                        }
-                                                        Err(err) => {
-                                                            let message = ServerResponse::Error(err.to_string());
+            tokio::select! {
+                response = client.post(&url).json(&request).send() => {
+                    match response.map_err(|err| format!("{err:?}")) {
+                        Err(err) => {
+                            let message = ServerResponse::Error(err);
+                            tx.send(message)
+                                .await
+                                .expect("server response channel full");
+                        }
+                        Ok(response) if response.status() == 200 => {
+                            let stream = response
+                                .bytes_stream()
+                                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
+                            let reader = StreamReader::new(stream);
+                            let mut lines = reader.lines();
+                            loop {
+                                tokio::select! {
+                                    result = lines.next_line() => {
+                                        match result {
+                                            Ok(Some(line)) => {
+                                                if let Some(data) = line.strip_prefix("data: ") {
+                                                    match data {
+                                                        "[DONE]" => {
+                                                            let message = ServerResponse::Done;
                                                             tx.send(message).await.expect("server response channel full");
                                                             break
+                                                        }
+                                                        "\n" | "" => {}
+                                                        data => {
+                                                            let response = serde_json::from_str::<GenerationResponseChunk>(data);
+                                                            match response {
+                                                                Ok(chunk) => {
+                                                                    let message = ServerResponse::Chunk(chunk);
+                                                                    tx.send(message).await.expect("server response channel full");
+                                                                }
+                                                                Err(err) => {
+                                                                    let message = ServerResponse::Error(err.to_string());
+                                                                    tx.send(message).await.expect("server response channel full");
+                                                                    break
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
+                                            // This shouldn't get hit in a streaming response because streaming responses
+                                            // end with the '[DONE]' string before returning no lines.
+                                            Ok(None) => unreachable!("streaming response didn't end on [DONE]"),
+                                            Err(err) => {
+                                                let message = ServerResponse::Error(err.to_string());
+                                                tx.send(message).await.expect("server response channel full");
+                                                break
+                                            }
                                         }
                                     }
-                                    // This shouldn't get hit in a streaming response because streaming responses
-                                    // end with the '[DONE]' string before returning no lines.
-                                    Ok(None) => unreachable!("streaming response didn't end on [DONE]"),
-                                    Err(err) => {
-                                        let message = ServerResponse::Error(err.to_string());
+                                    Some(ServerRequest::Cancel) = rx.recv() => {
+                                        let message = ServerResponse::Done;
                                         tx.send(message).await.expect("server response channel full");
                                         break
                                     }
                                 }
                             }
-                            Some(ServerRequest::Cancel) = rx.recv() => {
-                                let message = ServerResponse::Done;
-                                tx.send(message).await.expect("server response channel full");
-                                break
-                            }
+                        }
+                        Ok(response) => {
+                            let text = match response.error_for_status() {
+                                Ok(response) => {
+                                    let repr = format!("{response:?}");
+                                    let content = response
+                                        .text()
+                                        .await
+                                        .unwrap_or_else(|err| format!("{repr} with error {err:?}"));
+                                    format!("{repr} with content {content}")
+                                }
+                                Err(err) => format!("{err:?}"),
+                            };
+                            let message = ServerResponse::Error(text);
+                            tx.send(message)
+                                .await
+                                .expect("server response channel full");
                         }
                     }
                 }
-                Ok(response) => {
-                    let text = match response.error_for_status() {
-                        Ok(response) => {
-                            let repr = format!("{response:?}");
-                            let content = response
-                                .text()
-                                .await
-                                .unwrap_or_else(|err| format!("{repr} with error {err:?}"));
-                            format!("{repr} with content {content}")
-                        }
-                        Err(err) => format!("{err:?}"),
-                    };
-                    let message = ServerResponse::Error(text);
-                    tx.send(message)
-                        .await
-                        .expect("server response channel full");
+                Some(ServerRequest::Cancel) = rx.recv() => {
+                    let message = ServerResponse::Done;
+                    tx.send(message).await.expect("server response channel full");
                 }
             }
         }

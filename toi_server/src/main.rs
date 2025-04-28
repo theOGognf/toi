@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .make_span_with(|request: &axum::http::Request<axum::body::Body>| {
                     let request_id = uuid::Uuid::new_v4();
                     tracing::span!(
-                        Level::DEBUG,
+                        Level::INFO,
                         "request",
                         id = tracing::field::display(request_id),
                         method = tracing::field::display(request.method()),

@@ -43,7 +43,7 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "You are an intelligent assistant that informs a user what actions were performed by concisely summarizing the chat history."
+            "Your job is to concisely summarizes the HTTP response the user provides."
         )
     }
 }
@@ -80,7 +80,7 @@ impl UserQueryPrompt {
 impl fmt::Display for UserQueryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repr = concat!(
-                "You are an intelligent assistant that takes an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
+                "Your job is to take an OpenAPI endpoint description and generates 10 unique user chat questions/commands that would result in using this OpenAPI endpoint based on its description.",
                 "\n",
                 "\n",
                 "Here's an example:",
@@ -91,73 +91,8 @@ impl fmt::Display for UserQueryPrompt {
                 "Example generated command: What day is today?",
                 "\n",
                 "\n",
-                "Respond in JSON format."
+                "Respond concisely in JSON format."
             ).to_string();
-        write!(f, "{repr}")
-    }
-}
-
-pub struct PlanPrompt<'a> {
-    pub openapi_spec: &'a str,
-}
-
-impl PlanPrompt<'_> {
-    pub fn response_format() -> Value {
-        json!(
-            {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "plan",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "requests": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "path": {
-                                            "type": "string",
-                                            "description": "The endpoint path beginning with a forward slash"
-                                        },
-                                        "method": {
-                                            "type": "string",
-                                            "description": "The HTTP method to use for the request",
-                                            "enum": ["DELETE", "GET", "POST", "PUT"]
-                                        },
-                                        "description": {
-                                            "type": "string",
-                                            "description": "A description of what this HTTP request is for and how it uses previous HTTP responses (if at all)"
-                                        }
-                                    },
-                                    "additionalProperties": false,
-                                    "required": ["path", "method", "description"]
-                                }
-                            }
-                        },
-                        "additionalProperties": false,
-                        "required": ["requests"]
-                    }
-                }
-            }
-        )
-    }
-}
-
-impl fmt::Display for PlanPrompt<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let openapi_spec = self.openapi_spec;
-        let repr = format!(
-            "{}{}",
-            concat!(
-                "You are an intelligent assistant that plans a series of HTTP request(s) given an OpenAPI spec and a chat history. Respond in JSON format.",
-                "\n",
-                "\n",
-                "Here is the OpenAPI spec:",
-                "\n"
-            ),
-            openapi_spec
-        );
         write!(f, "{repr}")
     }
 }
@@ -167,7 +102,7 @@ pub struct HttpRequestPrompt<'a> {
 }
 
 impl HttpRequestPrompt<'_> {
-    pub fn response_format() -> Value {
+    pub fn response_format(path: &String) -> Value {
         json!(
             {
                 "type": "json_schema",
@@ -178,7 +113,8 @@ impl HttpRequestPrompt<'_> {
                         "properties": {
                             "path": {
                                 "type": "string",
-                                "description": "The endpoint path beginning with a forward slash"
+                                "description": "The endpoint path beginning with a forward slash",
+                                "enum": [path]
                             },
                             "method": {
                                 "type": "string",
@@ -211,7 +147,7 @@ impl fmt::Display for HttpRequestPrompt<'_> {
         let repr = format!(
             "{}{}",
             concat!(
-                "You are an intelligent assistant that constructs an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make. Respond in JSON format.",
+                "Your job is to construct an HTTP request given an OpenAPI spec, a chat history, and a JSON description of the HTTP request to make. Respond concisely in JSON format.",
                 "\n",
                 "\n",
                 "Here is the OpenAPI spec:",

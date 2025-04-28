@@ -31,25 +31,13 @@ impl From<GeneratedMethod> for Method {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct GeneratedRequestInfo {
-    method: GeneratedMethod,
-    path: String,
-    description: String,
-}
-
-impl fmt::Display for GeneratedRequestInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("request info is not serializable");
-        write!(f, "{repr}")
-    }
-}
-
 #[derive(Clone, Deserialize, Serialize)]
 pub struct GeneratedRequest {
     method: GeneratedMethod,
     path: String,
+    #[serde(default)]
     params: HashMap<String, String>,
+    #[serde(default)]
     body: HashMap<String, String>,
 }
 
@@ -65,68 +53,14 @@ impl GeneratedRequest {
 impl From<GeneratedRequest> for Request {
     fn from(val: GeneratedRequest) -> Self {
         Client::new()
-            .request(val.method.into(), val.path)
+            .request(
+                val.method.into(),
+                format!("http://localhost:6969{}", val.path),
+            )
             .query(&val.params)
             .json(&val.body)
             .build()
             .expect("valid request")
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct GeneratedPlan {
-    pub requests: Vec<GeneratedRequestInfo>,
-}
-
-impl fmt::Display for GeneratedPlan {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = serde_json::to_string_pretty(self).expect("plan is not serializable");
-        write!(f, "{repr}")
-    }
-}
-
-#[derive(Serialize)]
-pub struct OldResponseNewRequest {
-    pub response: Option<String>,
-    pub request: Option<GeneratedRequestInfo>,
-}
-
-impl OldResponseNewRequest {
-    pub fn into_user_message(self) -> Message {
-        let content = match (&self.response, &self.request) {
-            (response, Some(request)) => {
-                let description = serde_json::to_string_pretty(&self.request)
-                    .expect("request description is not serializable");
-                match response {
-                    None => description,
-                    Some(response) => {
-                        format!(
-                            r#"
-Here's the response from that request:
-
-{response}
-
-And here's the description for the next request:
-
-{request}"#
-                        )
-                    }
-                }
-            }
-            (Some(response), None) => {
-                format!(
-                    r#"
-Here's the response from that request:
-
-{response}"#
-                )
-            }
-            (None, None) => unreachable!("response or request are always something"),
-        };
-        Message {
-            role: MessageRole::User,
-            content,
-        }
     }
 }
 
