@@ -42,7 +42,7 @@ async fn chat(
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
             let input = EmbeddingPromptTemplate::builder()
                 .instruction_prefix(
-                    "Instruction: Given a user query, retrieve relevant API descriptions for APIs that might be used to answer the user's query"
+                    "Instruction: Given a user query, retrieve API descriptions based on the verb/command within the user's query"
                         .to_string(),
                 )
                 .query_prefix("Query: ".to_string())
@@ -58,7 +58,11 @@ async fn chat(
 
                 let result: Result<OpenApiPathItem, _> = schema::openapi::table
                     .select(OpenApiPathItem::as_select())
-                    .filter(schema::openapi::embedding.l2_distance(embedding).le(0.7))
+                    .filter(
+                        schema::openapi::embedding
+                            .cosine_distance(embedding)
+                            .le(0.95),
+                    )
                     .first(&mut conn)
                     .await;
 

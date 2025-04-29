@@ -78,12 +78,15 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 pub async fn shift(
     Json(body): Json<DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
-    let res = body.datetime
+    let time_delta = Duration::days(body.days)
         + Duration::weeks(body.weeks)
-        + Duration::days(body.days)
         + Duration::hours(body.hours)
         + Duration::minutes(body.minutes)
         + Duration::seconds(body.seconds);
+    let res = body
+        .datetime
+        .checked_add_signed(time_delta)
+        .ok_or((StatusCode::BAD_REQUEST, "duration overflow".to_string()))?;
     Ok(Json(res))
 }
 

@@ -143,7 +143,7 @@ pub async fn complete_matching_todos(
     if let Some(todo_similarity_search_params) = body.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(
-                "Instruction: Given a todo item, find similar todo items".to_string(),
+                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
             )
             .query_prefix("Query: ".to_string())
             .build()
@@ -228,7 +228,7 @@ pub async fn delete_matching_todos(
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(
-                "Instruction: Given a todo item, find similar todo items".to_string(),
+                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
             )
             .query_prefix("Query: ".to_string())
             .build()
@@ -322,7 +322,7 @@ pub async fn get_matching_todos(
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(
-                "Instruction: Given a todo item, find similar todo items".to_string(),
+                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
             )
             .query_prefix("Query: ".to_string())
             .build()

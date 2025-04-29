@@ -45,16 +45,7 @@ impl ModelClient {
         )
         .await?;
         match response.data.into_iter().next() {
-            Some(data) => {
-                let square_sum: f32 = data.embedding.iter().map(|e| e.powi(2)).sum();
-                let norm = square_sum.sqrt();
-                let normalized_embedding = if norm > 0f32 {
-                    data.embedding.into_iter().map(|e| e / norm).collect()
-                } else {
-                    data.embedding
-                };
-                Ok(Vector::from(normalized_embedding))
-            }
+            Some(data) => Ok(Vector::from(data.embedding)),
             None => Err(ModelClientError::ResponseJson.into_response("invalid embedding response")),
         }
     }

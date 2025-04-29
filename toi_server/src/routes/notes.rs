@@ -124,7 +124,10 @@ pub async fn delete_matching_notes(
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix("Instruction: Given a note, find similar notes".to_string())
+            .instruction_prefix(
+                "Instruction: Given a user query, find similar notes to the one the user mentions"
+                    .to_string(),
+            )
             .query_prefix("Query: ".to_string())
             .build()
             .apply(note_similarity_search_params.query);
@@ -196,7 +199,10 @@ pub async fn get_matching_notes(
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix("Instruction: Given a note, find similar notes".to_string())
+            .instruction_prefix(
+                "Instruction: Given a user query, find similar notes to the one the user mentions"
+                    .to_string(),
+            )
             .query_prefix("Query: ".to_string())
             .build()
             .apply(note_similarity_search_params.query);
