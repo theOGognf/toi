@@ -6,6 +6,8 @@ use axum::{
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
+use schemars::schema_for;
+use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -18,10 +20,48 @@ use crate::{
 };
 
 pub fn router(state: ToiState) -> OpenApiRouter {
-    OpenApiRouter::new()
+    let mut router = OpenApiRouter::new()
         .routes(routes!(add_note))
         .routes(routes!(delete_matching_notes, get_matching_notes))
-        .with_state(state)
+        .with_state(state);
+
+    let openapi = router.get_openapi_mut();
+    let paths = &mut openapi.paths.paths.get_mut("").expect("doesn't exist");
+
+    // Update POST /notes extensions
+    let add_note_json_schema = schema_for!(NewNoteRequest);
+    let add_note_json_schema =
+        serde_json::to_value(add_note_json_schema).expect("schema unserializable");
+    let add_note_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", add_note_json_schema)
+        .build();
+    paths
+        .post
+        .as_mut()
+        .expect("POST doesn't exist")
+        .extensions
+        .get_or_insert(add_note_extensions);
+
+    // Update DELETE and GET /notes extensions
+    let notes_json_schema = schema_for!(NoteQueryParams);
+    let notes_json_schema = serde_json::to_value(notes_json_schema).expect("schema unserializable");
+    let notes_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", notes_json_schema)
+        .build();
+    paths
+        .delete
+        .as_mut()
+        .expect("DELETE doesn't exist")
+        .extensions
+        .get_or_insert(notes_extensions.clone());
+    paths
+        .get
+        .as_mut()
+        .expect("GET doesn't exist")
+        .extensions
+        .get_or_insert(notes_extensions);
+
+    router
 }
 
 /// Add a note.
@@ -39,15 +79,15 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 #[axum::debug_handler]
 pub async fn add_note(
     State(state): State<ToiState>,
-    Json(new_note_request): Json<NewNoteRequest>,
+    Json(body): Json<NewNoteRequest>,
 ) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let embedding_request = EmbeddingRequest {
-        input: new_note_request.content.clone(),
+        input: body.content.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
     let new_note = NewNote {
-        content: new_note_request.content,
+        content: body.content,
         embedding,
     };
     let res = diesel::insert_into(schema::notes::table)

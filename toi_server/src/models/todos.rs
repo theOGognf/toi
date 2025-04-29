@@ -2,6 +2,7 @@ use bon::Builder;
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -33,7 +34,7 @@ pub struct NewTodo {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, JsonSchema, ToSchema)]
 pub struct NewTodoRequest {
     /// Todo item to add.
     pub item: String,
@@ -43,17 +44,13 @@ pub struct NewTodoRequest {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Default, Deserialize, Serialize, IntoParams)]
-#[serde(default)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct CompleteTodoRequest {
     /// Optional datetime the todo was completed in ISO format.
     ///
     /// Defaults to current datetime.
+    #[serde(default)]
     pub completed_at: DateTime<Utc>,
-}
-
-#[derive(Builder, Deserialize, Serialize, IntoParams)]
-pub struct CompleteTodoQueryParams {
     /// Parameters for performing similarity search against todos.
     pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on todos created after this ISO formatted datetime.
@@ -67,11 +64,10 @@ pub struct CompleteTodoQueryParams {
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
     /// Max number of todos to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, Serialize, IntoParams)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct TodoQueryParams {
     /// Parameters for performing similarity search against todos.
     pub similarity_search_params: Option<SimilaritySearchParams>,

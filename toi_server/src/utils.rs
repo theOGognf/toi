@@ -1,11 +1,12 @@
 use axum::http::StatusCode;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 pub type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
-#[derive(PartialEq, Deserialize, Serialize, ToSchema)]
+#[derive(PartialEq, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub enum OrderBy {
     Oldest,
     Newest,

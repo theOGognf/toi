@@ -1,11 +1,13 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
+use schemars::schema_for;
+use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -18,10 +20,65 @@ use crate::{
 };
 
 pub fn router(state: ToiState) -> OpenApiRouter {
-    OpenApiRouter::new()
-        .routes(routes!(add_todo))
-        .routes(routes!(delete_matching_todos, get_matching_todos))
-        .with_state(state)
+    let mut router = OpenApiRouter::new()
+        .routes(routes!(
+            complete_matching_todos,
+            delete_matching_todos,
+            get_matching_todos
+        ))
+        .with_state(state);
+
+    let openapi = router.get_openapi_mut();
+    let paths = &mut openapi.paths.paths.get_mut("").expect("doesn't exist");
+
+    // Update POST /todos extensions
+    let add_todo_json_schema = schema_for!(NewTodoRequest);
+    let add_todo_json_schema =
+        serde_json::to_value(add_todo_json_schema).expect("schema unserializable");
+    let add_todo_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", add_todo_json_schema)
+        .build();
+    paths
+        .post
+        .as_mut()
+        .expect("POST doesn't exist")
+        .extensions
+        .get_or_insert(add_todo_extensions);
+
+    // Update PUT /todos extensions
+    let complete_todo_json_schema = schema_for!(CompleteTodoRequest);
+    let complete_todo_json_schema =
+        serde_json::to_value(complete_todo_json_schema).expect("schema unserializable");
+    let complete_todo_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", complete_todo_json_schema)
+        .build();
+    paths
+        .put
+        .as_mut()
+        .expect("PUT doesn't exist")
+        .extensions
+        .get_or_insert(complete_todo_extensions);
+
+    // Update DELETE and GET /todos extensions
+    let todos_json_schema = schema_for!(TodoQueryParams);
+    let todos_json_schema = serde_json::to_value(todos_json_schema).expect("schema unserializable");
+    let todos_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", todos_json_schema)
+        .build();
+    paths
+        .delete
+        .as_mut()
+        .expect("DELETE doesn't exist")
+        .extensions
+        .get_or_insert(todos_extensions.clone());
+    paths
+        .get
+        .as_mut()
+        .expect("GET doesn't exist")
+        .extensions
+        .get_or_insert(todos_extensions);
+
+    router
 }
 
 /// Add a todo.
@@ -39,18 +96,18 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 #[axum::debug_handler]
 pub async fn add_todo(
     State(state): State<ToiState>,
-    Json(new_todo_request): Json<NewTodoRequest>,
+    Json(body): Json<NewTodoRequest>,
 ) -> Result<Json<Todo>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let embedding_request = EmbeddingRequest {
-        input: new_todo_request.item.clone(),
+        input: body.item.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
     let new_todo = NewTodo {
-        item: new_todo_request.item,
+        item: body.item,
         embedding,
-        due_at: new_todo_request.due_at,
-        completed_at: new_todo_request.completed_at,
+        due_at: body.due_at,
+        completed_at: body.completed_at,
     };
     let res = diesel::insert_into(schema::todos::table)
         .values(new_todo)
@@ -61,33 +118,81 @@ pub async fn add_todo(
     Ok(Json(res))
 }
 
-/// Complete a todo by its database-generated ID.
+/// Complete todos.
+///
+/// Complete todos that match a search criteria. Useful for completing todos in bulk.
 #[utoipa::path(
     put,
-    path = "/{id}",
-    params(
-        ("id" = i32, Path, description = "Database ID of todo to complete"),
-        CompleteTodoRequest,
-    ),
+    path = "",
+    request_body = CompleteTodoRequest,
     responses(
-        (status = 200, description = "Successfully updated todo", body = Todo),
-        (status = 404, description = "Todo not found")
+        (status = 200, description = "Successfully updated todos", body = Todo),
+        (status = 404, description = "Todos not found")
     )
 )]
 #[axum::debug_handler]
-pub async fn complete_todo(
-    State(pool): State<utils::Pool>,
-    Path(id): Path<i32>,
-    Query(params): Query<CompleteTodoRequest>,
-) -> Result<Json<Todo>, (StatusCode, String)> {
-    let mut conn = pool.get().await.map_err(utils::internal_error)?;
-    let res = diesel::update(schema::todos::table)
-        .set(schema::todos::completed_at.eq(params.completed_at))
-        .filter(schema::todos::id.eq(id))
+pub async fn complete_matching_todos(
+    State(state): State<ToiState>,
+    Json(body): Json<CompleteTodoRequest>,
+) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let mut query = schema::todos::table.select(schema::todos::id).into_boxed();
+
+    // Filter todos similar to a query.
+    if let Some(todo_similarity_search_params) = body.similarity_search_params {
+        let embedding_request = EmbeddingRequest {
+            input: todo_similarity_search_params.query,
+        };
+        let embedding = state.model_client.embed(embedding_request).await?;
+        query = query.filter(
+            schema::todos::embedding
+                .cosine_distance(embedding.clone())
+                .le(todo_similarity_search_params.distance_threshold),
+        );
+
+        // Sort by relevance.
+        if body.order_by == Some(utils::OrderBy::Relevance) {
+            query = query.order(schema::todos::embedding.l2_distance(embedding));
+        }
+    }
+
+    // Filter todos created on or after date.
+    if let Some(created_from) = body.created_from {
+        query = query.filter(schema::todos::created_at.ge(created_from));
+    }
+
+    // Filter todos created on or before date.
+    if let Some(created_to) = body.created_to {
+        query = query.filter(schema::todos::created_at.le(created_to));
+    }
+
+    // Filter todos due on or after date.
+    if let Some(due_from) = body.due_from {
+        query = query.filter(schema::todos::due_at.ge(due_from));
+    }
+
+    // Filter todos due on or before date.
+    if let Some(due_to) = body.due_to {
+        query = query.filter(schema::todos::due_at.le(due_to));
+    }
+
+    match body.order_by {
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
+        Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
+        _ => {}
+    }
+
+    // Limit number of todos deleted.
+    if let Some(limit) = body.limit {
+        query = query.limit(limit);
+    }
+
+    let res = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(query)))
+        .set(schema::todos::completed_at.eq(body.completed_at))
         .returning(Todo::as_returning())
-        .get_result(&mut conn)
+        .load(&mut conn)
         .await
-        .map_err(utils::diesel_error)?;
+        .map_err(utils::internal_error)?;
     Ok(Json(res))
 }
 

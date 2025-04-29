@@ -14,7 +14,7 @@ pub fn router() -> OpenApiRouter {
     let openapi = router.get_openapi_mut();
     let paths = &mut openapi.paths.paths;
 
-    // Update "/shift" extensions
+    // Update POST /shift extensions
     let json_schema = schema_for!(DateTimeShiftRequest);
     let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
     let shift_extensions = ExtensionsBuilder::new()
@@ -29,7 +29,7 @@ pub fn router() -> OpenApiRouter {
         .extensions
         .get_or_insert(shift_extensions);
 
-    // Update "/weekday" extensions
+    // Update GET /weekday extensions
     let json_schema = schema_for!(DateTimeQueryParams);
     let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
     let weekday_extensions = ExtensionsBuilder::new()
@@ -76,14 +76,14 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 )]
 #[axum::debug_handler]
 pub async fn shift(
-    Json(datetime_shift_request): Json<DateTimeShiftRequest>,
+    Json(body): Json<DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
-    let res = datetime_shift_request.datetime
-        + Duration::weeks(datetime_shift_request.weeks)
-        + Duration::days(datetime_shift_request.days)
-        + Duration::hours(datetime_shift_request.hours)
-        + Duration::minutes(datetime_shift_request.minutes)
-        + Duration::seconds(datetime_shift_request.seconds);
+    let res = body.datetime
+        + Duration::weeks(body.weeks)
+        + Duration::days(body.days)
+        + Duration::hours(body.hours)
+        + Duration::minutes(body.minutes)
+        + Duration::seconds(body.seconds);
     Ok(Json(res))
 }
 

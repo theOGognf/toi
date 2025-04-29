@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let openapi = openapi_router.get_openapi_mut();
 
     // Go through and embed all OpenAPI path specs so they can be used as
-    // context for generating HTTP requests within the "/chat" endpoint.
+    // context for generating HTTP requests within the /chat endpoint.
     // Start by deleting all the pre-existing OpenAPI path specs just in
     // case.
     info!("preparing OpenAPI endpoints for automation");

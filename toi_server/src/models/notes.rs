@@ -2,6 +2,7 @@ use bon::Builder;
 use chrono::{DateTime, Utc};
 use diesel::{Queryable, Selectable, prelude::Insertable};
 use pgvector::Vector;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -27,13 +28,13 @@ pub struct NewNote {
     pub embedding: Vector,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, JsonSchema, ToSchema)]
 pub struct NewNoteRequest {
     /// Note content to add.
     pub content: String,
 }
 
-#[derive(Builder, Deserialize, Serialize, IntoParams)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct NoteQueryParams {
     /// Parameters for performing similarity search against notes.
     pub similarity_search_params: Option<SimilaritySearchParams>,

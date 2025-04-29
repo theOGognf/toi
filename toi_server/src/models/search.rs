@@ -1,10 +1,11 @@
 use bon::Builder;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::utils;
 
-#[derive(Builder, Deserialize, Serialize, ToSchema)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct SimilaritySearchParams {
     /// Query string to compare to.
     pub query: String,
