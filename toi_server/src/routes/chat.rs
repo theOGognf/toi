@@ -61,7 +61,7 @@ async fn chat(
                     .filter(
                         schema::openapi::embedding
                             .cosine_distance(embedding)
-                            .le(0.95),
+                            .le(0.85),
                     )
                     .first(&mut conn)
                     .await;

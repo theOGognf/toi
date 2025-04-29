@@ -39,7 +39,7 @@ impl fmt::Display for SimplePrompt {
             f,
             "You are a helpful assistant, but don't ever mention you're an AI language model or that you have limitations. \
             If you don't know the answer to something, say so. \
-            Your answers should be as concise as possible and use only layman's terms."
+            Your answers should be as concise as possible and only use layman's terms."
         )
     }
 }
@@ -50,11 +50,12 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to answer a user's request with the HTTP response the user provides and context from their chat history. \
+            "Your job is to answer a user's request using the HTTP response the user provides and context from their chat history. \
             If the HTTP response is OK, treat it as fact and don't assume it's incorrect. \
             If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
+            If the HTTP response is not useful for answering the user's request, ignore it, unless the request did something important. \
             Concisely answer the user's request while only using layman's terms. \
-            Do NOT ask if the user needs help after giving the answer."
+            Do NOT ask follow-up questions."
         )
     }
 }
