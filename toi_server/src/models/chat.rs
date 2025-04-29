@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use reqwest::{Client, Method, Request};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::collections::HashMap;
+use serde_json::Value;
 use toi::{Message, MessageRole};
 
 use crate::{models::client::ModelClientError, utils};
@@ -11,7 +11,7 @@ pub struct GeneratedUserQueries {
     pub queries: Vec<String>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum GeneratedMethod {
     Delete,
@@ -31,14 +31,12 @@ impl From<GeneratedMethod> for Method {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GeneratedRequest {
     method: GeneratedMethod,
     path: String,
-    #[serde(default)]
-    params: HashMap<String, String>,
-    #[serde(default)]
-    body: HashMap<String, String>,
+    params: Option<Value>,
+    body: Option<Value>,
 }
 
 impl GeneratedRequest {
@@ -50,15 +48,20 @@ impl GeneratedRequest {
     }
 
     pub fn into_http_request(self, binding_addr: String) -> Request {
-        Client::new()
-            .request(
-                self.method.into(),
-                format!("http://{binding_addr}{}", self.path),
-            )
-            .query(&self.params)
-            .json(&self.body)
-            .build()
-            .expect("valid request")
+        let mut request_builder = Client::new().request(
+            self.method.into(),
+            format!("http://{binding_addr}{}", self.path),
+        );
+
+        if let Some(params) = self.params {
+            request_builder = request_builder.query(&params);
+        }
+
+        if let Some(body) = self.body {
+            request_builder = request_builder.json(&body);
+        }
+
+        request_builder.build().expect("valid request")
     }
 }
 

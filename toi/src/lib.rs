@@ -17,7 +17,7 @@ pub struct Message {
     pub content: String,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct GenerationRequest {
     pub messages: Vec<Message>,
     #[serde(skip_deserializing)]

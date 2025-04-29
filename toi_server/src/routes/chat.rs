@@ -45,17 +45,12 @@ async fn chat(
             };
             let embedding = state.model_client.embed(embedding_request).await?;
             let result = {
-                use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
+                use diesel::{QueryDsl, SelectableHelper};
                 use diesel_async::RunQueryDsl;
                 use pgvector::VectorExpressionMethods;
 
                 let result: Result<OpenApiPathItem, _> = schema::openapi::table
                     .select(OpenApiPathItem::as_select())
-                    .filter(
-                        schema::openapi::embedding
-                            .cosine_distance(embedding.clone())
-                            .le(0.5),
-                    )
                     .order(schema::openapi::embedding.cosine_distance(embedding))
                     .first(&mut conn)
                     .await;
@@ -65,7 +60,7 @@ async fn chat(
             match result {
                 Ok(item) => {
                     // Convert user request into HTTP request.
-                    let system_prompt: HttpRequestPrompt = item.into();
+                    let mut system_prompt: HttpRequestPrompt = item.into();
                     let response_format = system_prompt.response_format();
                     let generation_request = system_prompt
                         .to_generation_request(&request.messages)

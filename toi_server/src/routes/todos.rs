@@ -21,6 +21,7 @@ use crate::{
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
+        .routes(routes!(add_todo))
         .routes(routes!(
             complete_matching_todos,
             delete_matching_todos,
