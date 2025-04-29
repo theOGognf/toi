@@ -12,11 +12,11 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
 
     // Initialize the server state.
-    let (binding_addr, _) = toi_server::init(db_connection_url).await?;
+    let state = toi_server::init(db_connection_url).await?;
     let openapi_router =
         OpenApiRouter::new().nest("/datetime", toi_server::routes::datetime::router());
     let (router, _) = openapi_router.split_for_parts();
-    let listener = TcpListener::bind(binding_addr.clone()).await?;
+    let listener = TcpListener::bind(state.binding_addr.clone()).await?;
 
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
@@ -25,7 +25,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     // Get current time and check that the day is correct.
     let now = chrono::offset::Utc::now();
     let datetime1 = client
-        .get(format!("{binding_addr}/datetime/now"))
+        .get(format!("{}/datetime/now", state.binding_addr))
         .send()
         .await?
         .json::<DateTime<Utc>>()
@@ -38,7 +38,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         .days(2)
         .build();
     let datetime2 = client
-        .post(format!("{binding_addr}/datetime/shift"))
+        .post(format!("{}/datetime/shift", state.binding_addr))
         .json(&body)
         .send()
         .await?
@@ -48,7 +48,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Finally, check the weekday of today.
     let weekday = client
-        .post(format!("{binding_addr}/datetime/weekday"))
+        .post(format!("{}/datetime/weekday", state.binding_addr))
         .send()
         .await?
         .json::<String>()

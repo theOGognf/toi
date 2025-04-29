@@ -48,17 +48,15 @@ impl GeneratedRequest {
             content: serde_json::to_string_pretty(&self).expect("request is not serializable"),
         }
     }
-}
 
-impl From<GeneratedRequest> for Request {
-    fn from(val: GeneratedRequest) -> Self {
+    pub fn into_http_request(self, binding_addr: String) -> Request {
         Client::new()
             .request(
-                val.method.into(),
-                format!("http://localhost:6969{}", val.path),
+                self.method.into(),
+                format!("http://{binding_addr}{}", self.path),
             )
-            .query(&val.params)
-            .json(&val.body)
+            .query(&self.params)
+            .json(&self.body)
             .build()
             .expect("valid request")
     }

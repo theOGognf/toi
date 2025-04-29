@@ -39,7 +39,7 @@ impl fmt::Display for SimplePrompt {
             f,
             "You are a helpful assistant, but don't ever mention you're an AI language model or that you have limitations. \
             If you don't know the answer to something, say so. \
-            Your answers should be extremely concise and in layman's terms."
+            Your answers should be as concise as possible and use only layman's terms."
         )
     }
 }
@@ -53,7 +53,7 @@ impl fmt::Display for SummaryPrompt {
             "Your job is to summarize the HTTP response the user provides based on the chat history. \
             If the response is OK, treat it as fact and don't assume it's incorrect. \
             If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
-            Your summary should be extremely concise and in layman's terms."
+            Your summary should be as concise as possible and use only layman's terms."
         )
     }
 }

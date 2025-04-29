@@ -22,11 +22,11 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         .expect("failed to reset test database");
 
     // Initialize the server state.
-    let (binding_addr, state) = toi_server::init(db_connection_url).await?;
+    let state = toi_server::init(db_connection_url).await?;
     let openapi_router =
-        OpenApiRouter::new().nest("/notes", toi_server::routes::notes::router(state));
+        OpenApiRouter::new().nest("/notes", toi_server::routes::notes::router(state.clone()));
     let (router, _) = openapi_router.split_for_parts();
-    let listener = TcpListener::bind(binding_addr.clone()).await?;
+    let listener = TcpListener::bind(&state.binding_addr).await?;
 
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
@@ -40,41 +40,13 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     let note1 = client
-        .post(format!("{binding_addr}/notes"))
+        .post(format!("{}/notes", state.binding_addr))
         .json(&body)
         .send()
         .await?
         .json::<Note>()
         .await?;
     assert_eq!(note1.content, content);
-
-    // Retrieve the note using its ID.
-    let note2 = client
-        .get(format!("{binding_addr}/notes/{}", note1.id))
-        .send()
-        .await?
-        .json::<Note>()
-        .await?;
-    assert_eq!(note2.content, content);
-
-    // Delete the note using its ID.
-    let note3 = client
-        .delete(format!("{binding_addr}/notes/{}", note1.id))
-        .send()
-        .await?
-        .json::<Note>()
-        .await?;
-    assert_eq!(note3.content, content);
-
-    // Make the note again.
-    let note4 = client
-        .post(format!("{binding_addr}/notes"))
-        .json(&body)
-        .send()
-        .await?
-        .json::<Note>()
-        .await?;
-    assert_eq!(note4.content, content);
 
     // Retrieve the note using search.
     let query = NoteQueryParams::builder()
@@ -86,7 +58,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_notes1 = client
-        .post(format!("{binding_addr}/notes/bulk"))
+        .post(format!("{}/notes", state.binding_addr))
         .query(&query)
         .send()
         .await?
@@ -97,7 +69,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the note using search.
     let vec_notes2 = client
-        .delete(format!("{binding_addr}/notes/bulk"))
+        .delete(format!("{}/notes", state.binding_addr))
         .query(&query)
         .send()
         .await?

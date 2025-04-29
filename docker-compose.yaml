@@ -12,6 +12,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      embedding:
+        condition: service_healthy
+      generation:
+        condition: service_healthy
 
   db:
     image: pgvector/pgvector:${POSTGRES_IAMGE_VERSION:-pg17}
@@ -30,11 +34,16 @@ services:
   embedding:
     image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
     command: >
-      --model ${EMBEDDING_MODEL_ID:-Snowflake/snowflake-arctic-embed-l-v2.0}
-      --dtype ${GENERATION_DTYPE:-auto}
-      --gpu-memory-utilization ${GENERATION_MEM:-0.2}
+      --model ${EMBEDDING_MODEL:-Snowflake/snowflake-arctic-embed-l-v2.0}
+      --dtype ${EMBEDDING_DTYPE:-auto}
+      --gpu-memory-utilization ${EMBEDDING_MEM:-0.2}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         reservations:
@@ -42,18 +51,21 @@ services:
             - driver: nvidia
               count: ${EMBEDDING_NUM_GPUS:-all}
               capabilities: [gpu]
-    profiles:
-      - models
 
   generation:
     image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
     command: >
-      --model ${GENERATION_MODEL_ID:-Qwen/Qwen3-1.7B}
+      --model ${GENERATION_MODEL:-Qwen/Qwen3-1.7B}
       --dtype ${GENERATION_DTYPE:-half}
       --gpu-memory-utilization ${GENERATION_MEM:-0.7}
       --max-model-len ${GENERATION_LEN:-8000}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         reservations:
@@ -61,5 +73,3 @@ services:
             - driver: nvidia
               count: ${GENERATION_NUM_GPUS:-all}
               capabilities: [gpu]
-    profiles:
-      - models

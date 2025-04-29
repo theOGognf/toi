@@ -1,5 +1,5 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
-use reqwest::{Client, Request};
+use reqwest::Client;
 use toi::{GenerationRequest, Message, MessageRole};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
@@ -41,7 +41,7 @@ async fn chat(
         Some(message) => {
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
             let embedding_request = EmbeddingRequest {
-                input: format!("query: {}", message.content),
+                input: message.content.clone(),
             };
             let embedding = state.model_client.embed(embedding_request).await?;
             let result = {
@@ -54,7 +54,7 @@ async fn chat(
                     .filter(
                         schema::openapi::embedding
                             .cosine_distance(embedding.clone())
-                            .le(0.9),
+                            .le(0.5),
                     )
                     .order(schema::openapi::embedding.cosine_distance(embedding))
                     .first(&mut conn)
@@ -79,7 +79,7 @@ async fn chat(
                     request.messages.push(assistant_message);
 
                     // Execute the HTTP request.
-                    let http_request: Request = generated_request.into();
+                    let http_request = generated_request.into_http_request(state.binding_addr);
                     let response = Client::new().execute(http_request).await.map_err(|err| {
                         ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
                     })?;

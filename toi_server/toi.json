@@ -1,0 +1,12 @@
+{
+    "binding_addr": "0.0.0.0:6969",
+    "embedding_api_config": {
+        "base_url": "http://embedding:8000"
+    },
+    "embedding_prompt_template": {
+        "query_prefix": "query: "
+    },
+    "generation_api_config": {
+        "base_url": "http://generation:8000"
+    }
+}

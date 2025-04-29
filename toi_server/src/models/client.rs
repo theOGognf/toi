@@ -3,6 +3,25 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use toi::Message;
 
+#[derive(Clone, Deserialize)]
+pub struct EmbeddingPromptTemplate {
+    pub instruction_prefix: Option<String>,
+    pub query_prefix: Option<String>,
+}
+
+impl EmbeddingPromptTemplate {
+    pub fn apply(&self, query: String) -> String {
+        match (&self.instruction_prefix, &self.query_prefix) {
+            (Some(instruction_prefix), Some(query_prefix)) => {
+                format!("{instruction_prefix}\n{query_prefix}{query}")
+            }
+            (Some(instruction_prefix), None) => format!("{instruction_prefix}\n{query}"),
+            (None, Some(query_prefix)) => format!("{query_prefix}{query}"),
+            (None, None) => query,
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct EmbeddingRequest {
     pub input: String,

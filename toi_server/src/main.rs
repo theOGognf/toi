@@ -2,6 +2,7 @@ use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tokio::net::TcpListener;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::{info, warn};
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
@@ -19,12 +20,15 @@ struct ApiDoc;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // An explicit database URL is required for setup.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
+    info!("connecting to {db_connection_url}");
     let mut conn = PgConnection::establish(&db_connection_url)?;
+    info!("running migrations");
     conn.run_pending_migrations(MIGRATIONS)
         .expect("failed to run migrations");
 
     // Initialize the server state and extract the server binding address.
-    let (binding_addr, mut state) = toi_server::init(db_connection_url).await?;
+    info!("initializing server state");
+    let state = toi_server::init(db_connection_url).await?;
 
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.
@@ -38,13 +42,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // context for generating HTTP requests within the "/chat" endpoint.
     // Start by deleting all the pre-existing OpenAPI path specs just in
     // case.
+    info!("preparing OpenAPI endpoints for automation");
     diesel::delete(toi_server::schema::openapi::table).execute(&mut conn)?;
     for (path, item) in openapi.paths.paths.iter_mut() {
         for (method, op) in [
-            ("delete", &mut item.delete),
-            ("get", &mut item.get),
-            ("post", &mut item.post),
-            ("put", &mut item.put),
+            ("DELETE", &mut item.delete),
+            ("GET", &mut item.get),
+            ("POST", &mut item.post),
+            ("PUT", &mut item.put),
         ] {
             if let Some(op) = op {
                 // Make the description from the operation's summary and description.
@@ -56,14 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect::<Vec<String>>()
                     .join("\n\n");
 
-                // Embed the endpoint's query.
-                let embedding_request =
-                    toi_server::models::client::EmbeddingRequest { input: description };
-                let embedding = state
-                    .model_client
-                    .embed(embedding_request)
-                    .await
-                    .map_err(|(_, err)| err)?;
+                if description.is_empty() {
+                    warn!("skipping {method} {path} due to missing context from doc string");
+                    continue;
+                }
 
                 // Get params and body from OpenAPI extensions.
                 let (params, body) = match op.extensions {
@@ -74,14 +75,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     None => (None, None),
                 };
 
+                // Make sure the JSON schema params match the params in the OpenAPI spec.
+                match (&op.parameters, &params) {
+                    (Some(_), Some(_)) | (None, None) => {}
+                    (Some(_), None) => {
+                        warn!("skipping {method} {path} due to missing JSON schema parameters");
+                        continue;
+                    }
+                    (None, Some(_)) => {
+                        warn!("skipping {method} {path} due to extra JSON schema parameters");
+                        continue;
+                    }
+                }
+
+                // Make sure the JSON schema params match the params in the OpenAPI spec.
+                match (&op.request_body, &body) {
+                    (Some(_), Some(_)) | (None, None) => {}
+                    (Some(_), None) => {
+                        warn!("skipping {method} {path} due to missing JSON schema body");
+                        continue;
+                    }
+                    (None, Some(_)) => {
+                        warn!("skipping {method} {path} due to extra JSON schema body");
+                        continue;
+                    }
+                }
+
+                // Embed the endpoint's query.
+                let embedding_request =
+                    toi_server::models::client::EmbeddingRequest { input: description };
+                let embedding = state
+                    .model_client
+                    .embed(embedding_request)
+                    .await
+                    .map_err(|(_, err)| err)?;
+
                 // Store all the details.
                 let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
                     path: path.to_string(),
-                    method: method.to_uppercase(),
+                    method: method.to_string(),
                     params,
                     body,
                     embedding,
                 };
+                info!("adding {method} {path}");
                 diesel::insert_into(toi_server::schema::openapi::table)
                     .values(&new_openapi_path)
                     .execute(&mut conn)?;
@@ -92,8 +129,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API routes.
-    state.openapi_spec = openapi.to_pretty_json()?;
-    let openapi_router = openapi_router.nest("/chat", toi_server::routes::chat::router(state));
+    let openapi_router =
+        openapi_router.nest("/chat", toi_server::routes::chat::router(state.clone()));
     let (router, api) = openapi_router.split_for_parts();
     let router = router
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
@@ -103,7 +140,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .on_response(DefaultOnResponse::new()),
         );
 
-    let listener = TcpListener::bind(binding_addr).await?;
+    info!("serving at {}", state.binding_addr);
+    let listener = TcpListener::bind(state.binding_addr).await?;
     axum::serve(listener, router).await?;
     Ok(())
 }
