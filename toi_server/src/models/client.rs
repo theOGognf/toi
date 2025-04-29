@@ -1,9 +1,10 @@
 use axum::http::StatusCode;
+use bon::Builder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use toi::Message;
 
-#[derive(Clone, Deserialize)]
+#[derive(Builder, Clone, Deserialize)]
 pub struct EmbeddingPromptTemplate {
     pub instruction_prefix: Option<String>,
     pub query_prefix: Option<String>,

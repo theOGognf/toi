@@ -12,7 +12,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::EmbeddingRequest,
+        client::{EmbeddingPromptTemplate, EmbeddingRequest},
         notes::{NewNote, NewNoteRequest, Note, NoteQueryParams},
         state::ToiState,
     },
@@ -123,9 +123,12 @@ pub async fn delete_matching_notes(
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = EmbeddingRequest {
-            input: note_similarity_search_params.query,
-        };
+        let input = EmbeddingPromptTemplate::builder()
+            .instruction_prefix("Instruction: Given a note, find similar notes".to_string())
+            .query_prefix("Query: ".to_string())
+            .build()
+            .apply(note_similarity_search_params.query);
+        let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding
@@ -192,9 +195,12 @@ pub async fn get_matching_notes(
 
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = EmbeddingRequest {
-            input: note_similarity_search_params.query,
-        };
+        let input = EmbeddingPromptTemplate::builder()
+            .instruction_prefix("Instruction: Given a note, find similar notes".to_string())
+            .query_prefix("Query: ".to_string())
+            .build()
+            .apply(note_similarity_search_params.query);
+        let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::notes::embedding

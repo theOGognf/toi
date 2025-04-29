@@ -12,7 +12,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::EmbeddingRequest,
+        client::{EmbeddingPromptTemplate, EmbeddingRequest},
         state::ToiState,
         todos::{CompleteTodoRequest, NewTodo, NewTodoRequest, Todo, TodoQueryParams},
     },
@@ -141,9 +141,14 @@ pub async fn complete_matching_todos(
 
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = body.similarity_search_params {
-        let embedding_request = EmbeddingRequest {
-            input: todo_similarity_search_params.query,
-        };
+        let input = EmbeddingPromptTemplate::builder()
+            .instruction_prefix(
+                "Instruction: Given a todo item, find similar todo items".to_string(),
+            )
+            .query_prefix("Query: ".to_string())
+            .build()
+            .apply(todo_similarity_search_params.query);
+        let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::todos::embedding
@@ -221,9 +226,14 @@ pub async fn delete_matching_todos(
 
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = EmbeddingRequest {
-            input: todo_similarity_search_params.query,
-        };
+        let input = EmbeddingPromptTemplate::builder()
+            .instruction_prefix(
+                "Instruction: Given a todo item, find similar todo items".to_string(),
+            )
+            .query_prefix("Query: ".to_string())
+            .build()
+            .apply(todo_similarity_search_params.query);
+        let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::todos::embedding
@@ -310,9 +320,14 @@ pub async fn get_matching_todos(
 
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
-        let embedding_request = EmbeddingRequest {
-            input: todo_similarity_search_params.query,
-        };
+        let input = EmbeddingPromptTemplate::builder()
+            .instruction_prefix(
+                "Instruction: Given a todo item, find similar todo items".to_string(),
+            )
+            .query_prefix("Query: ".to_string())
+            .build()
+            .apply(todo_similarity_search_params.query);
+        let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
         query = query.filter(
             schema::todos::embedding

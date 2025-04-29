@@ -34,7 +34,7 @@ services:
   embedding:
     image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
     command: >
-      --model ${EMBEDDING_MODEL:-Snowflake/snowflake-arctic-embed-l-v2.0}
+      --model ${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
       --dtype ${EMBEDDING_DTYPE:-auto}
       --gpu-memory-utilization ${EMBEDDING_MEM:-0.2}
     volumes:

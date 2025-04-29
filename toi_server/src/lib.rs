@@ -15,7 +15,6 @@ pub struct ToiConfig {
     #[serde(default = "utils::default_server_binding_addr")]
     binding_addr: String,
     embedding_api_config: models::client::HttpClientConfig,
-    embedding_prompt_template: Option<models::client::EmbeddingPromptTemplate>,
     generation_api_config: models::client::HttpClientConfig,
 }
 
@@ -32,17 +31,12 @@ pub async fn init(
     let ToiConfig {
         binding_addr,
         embedding_api_config,
-        embedding_prompt_template,
         generation_api_config,
     } = config;
 
     // Shared state components. A client is used for interacting with supporting
     // API services, while a pool is used for interacting with the database.
-    let model_client = client::ModelClient::new(
-        embedding_api_config,
-        embedding_prompt_template,
-        generation_api_config,
-    )?;
+    let model_client = client::ModelClient::new(embedding_api_config, generation_api_config)?;
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_connection_url);
     let pool = bb8::Pool::builder().build(manager).await?;
 

@@ -5,14 +5,13 @@ use serde::{Serialize, de::DeserializeOwned};
 use toi::GenerationRequest;
 
 use crate::models::client::{
-    EmbeddingPromptTemplate, EmbeddingRequest, EmbeddingResponse, GenerationResponse,
-    HttpClientConfig, ModelClientError, StreamingGenerationRequest,
+    EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
+    StreamingGenerationRequest,
 };
 
 #[derive(Clone)]
 pub struct ModelClient {
     pub embedding_api_config: HttpClientConfig,
-    embedding_prompt_template: Option<EmbeddingPromptTemplate>,
     embedding_client: Client,
     pub generation_api_config: HttpClientConfig,
     generation_client: Client,
@@ -37,13 +36,7 @@ impl ModelClient {
         Ok(request.clone())
     }
 
-    pub async fn embed(
-        &self,
-        mut request: EmbeddingRequest,
-    ) -> Result<Vector, (StatusCode, String)> {
-        if let Some(embedding_prompt_template) = &self.embedding_prompt_template {
-            request.input = embedding_prompt_template.apply(request.input)
-        }
+    pub async fn embed(&self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {
         let response: EmbeddingResponse = Self::post(
             &self.embedding_api_config,
             "/v1/embeddings".to_string(),
@@ -106,7 +99,6 @@ impl ModelClient {
 
     pub fn new(
         embedding_api_config: HttpClientConfig,
-        embedding_prompt_template: Option<EmbeddingPromptTemplate>,
         generation_api_config: HttpClientConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let embedding_header_map = HeaderMap::try_from(&embedding_api_config.headers)?;
@@ -119,7 +111,6 @@ impl ModelClient {
             .build()?;
         Ok(Self {
             embedding_api_config,
-            embedding_prompt_template,
             embedding_client,
             generation_api_config,
             generation_client,

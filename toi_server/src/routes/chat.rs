@@ -6,7 +6,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     models::{
         chat::{GeneratedRequest, parse_generated_response},
-        client::{EmbeddingRequest, ModelClientError},
+        client::{EmbeddingPromptTemplate, EmbeddingRequest, ModelClientError},
         openapi::OpenApiPathItem,
         prompts::{HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
         state::ToiState,
@@ -40,9 +40,15 @@ async fn chat(
     let streaming_generation_request = match request.messages.last() {
         Some(message) => {
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-            let embedding_request = EmbeddingRequest {
-                input: message.content.clone(),
-            };
+            let input = EmbeddingPromptTemplate::builder()
+                .instruction_prefix(
+                    "Instruction: Given a user query, retrieve relevant API descriptions for APIs that might be used to answer the user's query"
+                        .to_string(),
+                )
+                .query_prefix("Query: ".to_string())
+                .build()
+                .apply(message.content.clone());
+            let embedding_request = EmbeddingRequest { input };
             let embedding = state.model_client.embed(embedding_request).await?;
 
             let result = {
@@ -52,11 +58,7 @@ async fn chat(
 
                 let result: Result<OpenApiPathItem, _> = schema::openapi::table
                     .select(OpenApiPathItem::as_select())
-                    .filter(
-                        schema::openapi::embedding
-                            .cosine_distance(embedding)
-                            .le(0.75),
-                    )
+                    .filter(schema::openapi::embedding.l2_distance(embedding).le(0.7))
                     .first(&mut conn)
                     .await;
 
