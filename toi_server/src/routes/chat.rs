@@ -44,14 +44,19 @@ async fn chat(
                 input: message.content.clone(),
             };
             let embedding = state.model_client.embed(embedding_request).await?;
+
             let result = {
-                use diesel::{QueryDsl, SelectableHelper};
+                use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
                 use diesel_async::RunQueryDsl;
                 use pgvector::VectorExpressionMethods;
 
                 let result: Result<OpenApiPathItem, _> = schema::openapi::table
                     .select(OpenApiPathItem::as_select())
-                    .order(schema::openapi::embedding.cosine_distance(embedding))
+                    .filter(
+                        schema::openapi::embedding
+                            .cosine_distance(embedding)
+                            .le(0.75),
+                    )
                     .first(&mut conn)
                     .await;
 
@@ -67,35 +72,28 @@ async fn chat(
                         .with_response_format(response_format);
                     let generated_request = state.model_client.generate(generation_request).await?;
                     let generated_request =
-                        parse_generated_response::<Option<GeneratedRequest>>(generated_request)?;
+                        parse_generated_response::<GeneratedRequest>(generated_request)?;
 
-                    // Check if there was a generated request or if the retrieved path item
-                    // is not valid for the user's request.
-                    if let Some(generated_request) = generated_request {
-                        // Add the HTTP request to the context as an assistant message.
-                        let assistant_message = generated_request.clone().into_assistant_message();
-                        request.messages.push(assistant_message);
+                    // Add the HTTP request to the context as an assistant message.
+                    let assistant_message = generated_request.clone().into_assistant_message();
+                    request.messages.push(assistant_message);
 
-                        // Execute the HTTP request.
-                        let http_request = generated_request.into_http_request(state.binding_addr);
-                        let response =
-                            Client::new().execute(http_request).await.map_err(|err| {
-                                ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
-                            })?;
-                        let content = response
-                            .text()
-                            .await
-                            .unwrap_or_else(|err| format!("{err:?}"));
+                    // Execute the HTTP request.
+                    let http_request = generated_request.into_http_request(state.binding_addr);
+                    let response = Client::new().execute(http_request).await.map_err(|err| {
+                        ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
+                    })?;
+                    let content = response
+                        .text()
+                        .await
+                        .unwrap_or_else(|err| format!("{err:?}"));
 
-                        // Add the HTTP response as a pseudo user response.
-                        request.messages.push(Message {
-                            role: MessageRole::User,
-                            content,
-                        });
-                        SummaryPrompt {}.to_streaming_generation_request(&request.messages)
-                    } else {
-                        SimplePrompt {}.to_streaming_generation_request(&request.messages)
-                    }
+                    // Add the HTTP response as a pseudo user response.
+                    request.messages.push(Message {
+                        role: MessageRole::User,
+                        content,
+                    });
+                    SummaryPrompt {}.to_streaming_generation_request(&request.messages)
                 }
                 Err(_) => SimplePrompt {}.to_streaming_generation_request(&request.messages),
             }

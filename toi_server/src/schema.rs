@@ -19,7 +19,6 @@ diesel::table! {
     openapi (path, method) {
         path -> Text,
         method -> Text,
-        description -> Text,
         params -> Nullable<Jsonb>,
         body -> Nullable<Jsonb>,
         embedding -> Vector,
@@ -40,4 +39,8 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(notes, openapi, todos,);
+diesel::allow_tables_to_appear_in_same_query!(
+    notes,
+    openapi,
+    todos,
+);

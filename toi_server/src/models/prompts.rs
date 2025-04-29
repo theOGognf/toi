@@ -62,7 +62,6 @@ impl fmt::Display for SummaryPrompt {
 pub struct HttpRequestPrompt {
     pub path: String,
     pub method: String,
-    pub description: String,
     pub params: Option<Value>,
     pub body: Option<Value>,
 }
@@ -72,7 +71,6 @@ impl From<OpenApiPathItem> for HttpRequestPrompt {
         Self {
             path: value.path,
             method: value.method,
-            description: value.description,
             params: value.params,
             body: value.body,
         }
@@ -82,14 +80,13 @@ impl From<OpenApiPathItem> for HttpRequestPrompt {
 impl HttpRequestPrompt {
     pub fn response_format(&mut self) -> Value {
         // The base response format is just the path and method.
-        let mut response_format: Value = json!(
+        let mut response_format = json!(
             {
                 "type": "json_schema",
                 "json_schema": {
                     "name": "request",
                     "schema": {
-                        "type": ["object", "null"],
-                        "description": "An HTTP request based on the user's last message. Null if an HTTP request isn't appropriate for answering the user's last message.",
+                        "type": "object",
                         "properties": {
                             "path": {
                                 "type": "string",
@@ -100,7 +97,7 @@ impl HttpRequestPrompt {
                                 "type": "string",
                                 "description": "The HTTP method to use for the request",
                                 "enum": [self.method]
-                            },
+                            }
                         },
                         "additionalProperties": false,
                         "required": ["path", "method"]
@@ -155,12 +152,10 @@ impl HttpRequestPrompt {
 
 impl fmt::Display for HttpRequestPrompt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let repr = format!(
-            "Your job is to classify whether an HTTP request is appropriate for a user's last message based on the given API's description. \
-            If an HTTP is not appropriate, respond with 'null'. If an HTTP request is appropraite, respond concisely in JSON format. \
-            Here is the API endpoint's description: {}.",
-            self.description
-        );
-        write!(f, "{repr}")
+        write!(
+            f,
+            "Your job is to construct an HTTP request. \
+            Respond concisely in JSON format."
+        )
     }
 }

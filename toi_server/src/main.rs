@@ -60,71 +60,73 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(op) = op {
                 // This is what is used for semantic search rather than the spec
                 // itself so it's more likely to match with user queries.
-                if let Some(summary) = &op.summary {
-                    if summary.is_empty() {
-                        warn!("skipping {path} {method} due to missing context from doc string");
+                let description = [op.summary.clone(), op.description.clone()]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<String>>()
+                    .join("\n\n");
+
+                if description.is_empty() {
+                    warn!("skipping {path} {method} due to missing context from doc string");
+                    continue;
+                }
+
+                // Get params and body from OpenAPI extensions.
+                let (params, body) = match op.extensions {
+                    Some(ref mut extensions) => (
+                        extensions.remove("x-json-schema-params"),
+                        extensions.remove("x-json-schema-body"),
+                    ),
+                    None => (None, None),
+                };
+
+                // Make sure the JSON schema params match the params in the OpenAPI spec.
+                match (&op.parameters, &params) {
+                    (Some(_), Some(_)) | (None, None) => {}
+                    (Some(_), None) => {
+                        warn!("skipping {path} {method} due to missing JSON schema parameters");
                         continue;
                     }
-
-                    // Get params and body from OpenAPI extensions.
-                    let (params, body) = match op.extensions {
-                        Some(ref mut extensions) => (
-                            extensions.remove("x-json-schema-params"),
-                            extensions.remove("x-json-schema-body"),
-                        ),
-                        None => (None, None),
-                    };
-
-                    // Make sure the JSON schema params match the params in the OpenAPI spec.
-                    match (&op.parameters, &params) {
-                        (Some(_), Some(_)) | (None, None) => {}
-                        (Some(_), None) => {
-                            warn!("skipping {path} {method} due to missing JSON schema parameters");
-                            continue;
-                        }
-                        (None, Some(_)) => {
-                            warn!("skipping {path} {method} due to extra JSON schema parameters");
-                            continue;
-                        }
+                    (None, Some(_)) => {
+                        warn!("skipping {path} {method} due to extra JSON schema parameters");
+                        continue;
                     }
-
-                    // Make sure the JSON schema params match the params in the OpenAPI spec.
-                    match (&op.request_body, &body) {
-                        (Some(_), Some(_)) | (None, None) => {}
-                        (Some(_), None) => {
-                            warn!("skipping {path} {method}  due to missing JSON schema body");
-                            continue;
-                        }
-                        (None, Some(_)) => {
-                            warn!("skipping {path} {method} due to extra JSON schema body");
-                            continue;
-                        }
-                    }
-
-                    // Embed the endpoint's query.
-                    let embedding_request = toi_server::models::client::EmbeddingRequest {
-                        input: summary.clone(),
-                    };
-                    let embedding = state
-                        .model_client
-                        .embed(embedding_request)
-                        .await
-                        .map_err(|(_, err)| err)?;
-
-                    // Store all the details.
-                    let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
-                        path: path.to_string(),
-                        method: method.to_string(),
-                        description: summary.to_string(),
-                        params,
-                        body,
-                        embedding,
-                    };
-                    info!("adding {path} {method}");
-                    diesel::insert_into(toi_server::schema::openapi::table)
-                        .values(&new_openapi_path)
-                        .execute(&mut conn)?;
                 }
+
+                // Make sure the JSON schema params match the params in the OpenAPI spec.
+                match (&op.request_body, &body) {
+                    (Some(_), Some(_)) | (None, None) => {}
+                    (Some(_), None) => {
+                        warn!("skipping {path} {method}  due to missing JSON schema body");
+                        continue;
+                    }
+                    (None, Some(_)) => {
+                        warn!("skipping {path} {method} due to extra JSON schema body");
+                        continue;
+                    }
+                }
+
+                // Embed the endpoint's query.
+                let embedding_request =
+                    toi_server::models::client::EmbeddingRequest { input: description };
+                let embedding = state
+                    .model_client
+                    .embed(embedding_request)
+                    .await
+                    .map_err(|(_, err)| err)?;
+
+                // Store all the details.
+                let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
+                    path: path.to_string(),
+                    method: method.to_string(),
+                    params,
+                    body,
+                    embedding,
+                };
+                info!("adding {path} {method}");
+                diesel::insert_into(toi_server::schema::openapi::table)
+                    .values(&new_openapi_path)
+                    .execute(&mut conn)?;
             }
         }
     }

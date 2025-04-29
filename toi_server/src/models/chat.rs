@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use toi::{Message, MessageRole};
 
-use crate::{models::client::ModelClientError, utils};
+use crate::models::client::ModelClientError;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]

@@ -11,7 +11,6 @@ use serde_json::Value;
 pub struct OpenApiPathItem {
     pub path: String,
     pub method: String,
-    pub description: String,
     pub params: Option<Value>,
     pub body: Option<Value>,
 }
@@ -22,7 +21,6 @@ pub struct OpenApiPathItem {
 pub struct NewOpenApiPathItem {
     pub path: String,
     pub method: String,
-    pub description: String,
     pub params: Option<Value>,
     pub body: Option<Value>,
     pub embedding: Vector,
