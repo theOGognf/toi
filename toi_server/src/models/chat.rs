@@ -6,11 +6,6 @@ use toi::{Message, MessageRole};
 
 use crate::{models::client::ModelClientError, utils};
 
-#[derive(Deserialize)]
-pub struct GeneratedUserQueries {
-    pub queries: Vec<String>,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum GeneratedMethod {
@@ -66,8 +61,6 @@ impl GeneratedRequest {
 }
 
 pub fn parse_generated_response<T: DeserializeOwned>(s: String) -> Result<T, (StatusCode, String)> {
-    let extraction =
-        utils::extract_json(&s).map_err(|err| ModelClientError::ResponseJson.into_response(err))?;
-    serde_json::from_str::<T>(extraction)
+    serde_json::from_str::<T>(&s)
         .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
 }

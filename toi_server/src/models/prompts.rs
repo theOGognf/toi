@@ -53,7 +53,8 @@ impl fmt::Display for SummaryPrompt {
             "Your job is to answer a user's original request with the HTTP response the user provides based on the chat history. \
             If the response is OK, treat it as fact and don't assume it's incorrect. \
             If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
-            Just answer the user's original request and be as concise as possible while only using layman's terms."
+            Just answer the user's original request and be as concise as possible while only using layman's terms. \
+            Don't ask if the user needs anymore help - be cut and dry."
         )
     }
 }
@@ -61,6 +62,7 @@ impl fmt::Display for SummaryPrompt {
 pub struct HttpRequestPrompt {
     pub path: String,
     pub method: String,
+    pub description: String,
     pub params: Option<Value>,
     pub body: Option<Value>,
 }
@@ -70,6 +72,7 @@ impl From<OpenApiPathItem> for HttpRequestPrompt {
         Self {
             path: value.path,
             method: value.method,
+            description: value.description,
             params: value.params,
             body: value.body,
         }
@@ -79,13 +82,14 @@ impl From<OpenApiPathItem> for HttpRequestPrompt {
 impl HttpRequestPrompt {
     pub fn response_format(&mut self) -> Value {
         // The base response format is just the path and method.
-        let mut response_format = json!(
+        let mut response_format: Value = json!(
             {
                 "type": "json_schema",
                 "json_schema": {
                     "name": "request",
                     "schema": {
-                        "type": "object",
+                        "type": ["object", "null"],
+                        "description": "An HTTP request based on the user's last message. Null if an HTTP request isn't appropriate for answering the user's last message.",
                         "properties": {
                             "path": {
                                 "type": "string",
@@ -96,7 +100,7 @@ impl HttpRequestPrompt {
                                 "type": "string",
                                 "description": "The HTTP method to use for the request",
                                 "enum": [self.method]
-                            }
+                            },
                         },
                         "additionalProperties": false,
                         "required": ["path", "method"]
@@ -151,10 +155,12 @@ impl HttpRequestPrompt {
 
 impl fmt::Display for HttpRequestPrompt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Your job is to construct an HTTP request. \
-            Respond concisely in JSON format."
-        )
+        let repr = format!(
+            "Your job is to classify whether an HTTP request is appropriate for a user's last message based on the given API's description. \
+            If an HTTP is not appropriate, respond with 'null'. If an HTTP request is appropraite, respond concisely in JSON format. \
+            Here is the API endpoint's description: {}.",
+            self.description
+        );
+        write!(f, "{repr}")
     }
 }

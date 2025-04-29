@@ -37,6 +37,7 @@ pub struct NewNoteRequest {
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct NoteQueryParams {
     /// Parameters for performing similarity search against notes.
+    #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on notes created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,

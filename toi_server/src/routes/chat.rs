@@ -67,28 +67,35 @@ async fn chat(
                         .with_response_format(response_format);
                     let generated_request = state.model_client.generate(generation_request).await?;
                     let generated_request =
-                        parse_generated_response::<GeneratedRequest>(generated_request)?;
+                        parse_generated_response::<Option<GeneratedRequest>>(generated_request)?;
 
-                    // Add the HTTP request to the context as an assistant message.
-                    let assistant_message = generated_request.clone().into_assistant_message();
-                    request.messages.push(assistant_message);
+                    // Check if there was a generated request or if the retrieved path item
+                    // is not valid for the user's request.
+                    if let Some(generated_request) = generated_request {
+                        // Add the HTTP request to the context as an assistant message.
+                        let assistant_message = generated_request.clone().into_assistant_message();
+                        request.messages.push(assistant_message);
 
-                    // Execute the HTTP request.
-                    let http_request = generated_request.into_http_request(state.binding_addr);
-                    let response = Client::new().execute(http_request).await.map_err(|err| {
-                        ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
-                    })?;
-                    let content = response
-                        .text()
-                        .await
-                        .unwrap_or_else(|err| format!("{err:?}"));
+                        // Execute the HTTP request.
+                        let http_request = generated_request.into_http_request(state.binding_addr);
+                        let response =
+                            Client::new().execute(http_request).await.map_err(|err| {
+                                ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
+                            })?;
+                        let content = response
+                            .text()
+                            .await
+                            .unwrap_or_else(|err| format!("{err:?}"));
 
-                    // Add the HTTP response as a pseudo user response.
-                    request.messages.push(Message {
-                        role: MessageRole::User,
-                        content,
-                    });
-                    SummaryPrompt {}.to_streaming_generation_request(&request.messages)
+                        // Add the HTTP response as a pseudo user response.
+                        request.messages.push(Message {
+                            role: MessageRole::User,
+                            content,
+                        });
+                        SummaryPrompt {}.to_streaming_generation_request(&request.messages)
+                    } else {
+                        SimplePrompt {}.to_streaming_generation_request(&request.messages)
+                    }
                 }
                 Err(_) => SimplePrompt {}.to_streaming_generation_request(&request.messages),
             }

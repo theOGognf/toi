@@ -52,6 +52,7 @@ pub struct CompleteTodoRequest {
     #[serde(default)]
     pub completed_at: DateTime<Utc>,
     /// Parameters for performing similarity search against todos.
+    #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on todos created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
@@ -70,6 +71,7 @@ pub struct CompleteTodoRequest {
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct TodoQueryParams {
     /// Parameters for performing similarity search against todos.
+    #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on todos created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,

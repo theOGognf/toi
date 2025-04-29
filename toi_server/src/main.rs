@@ -115,6 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
                         path: path.to_string(),
                         method: method.to_string(),
+                        description: summary.to_string(),
                         params,
                         body,
                         embedding,
