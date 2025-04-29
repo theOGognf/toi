@@ -50,7 +50,7 @@ pub fn router() -> OpenApiRouter {
 /// Get the current time.
 ///
 /// Returns current time in ISO format.
-/// 
+///
 /// Useful for answering the following:
 /// - What time is it?
 /// - Return the time.
@@ -72,7 +72,7 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 /// Shift the given ISO datetime by seconds, minutes, hours, etc.
 ///
 /// Shift the given ISO datetime with the date defaulting to today's date.
-/// 
+///
 /// Useful for answering the following:
 /// - What time is it in 30 days?
 /// - What day was 10 days ago?
@@ -105,7 +105,7 @@ pub async fn shift(
 /// Get the weekday of a date.
 ///
 /// Get the weekday of an ISO datetime with the date defaulting to today's date.
-/// 
+///
 /// Useful for answering the following:
 /// - What day of the week is it?
 /// - What day of the week is today?

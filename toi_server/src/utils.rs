@@ -14,7 +14,7 @@ pub enum OrderBy {
 }
 
 pub fn default_distance_threshold() -> f64 {
-    0.5
+    0.85
 }
 
 pub fn default_server_binding_addr() -> String {
