@@ -56,7 +56,7 @@ async fn chat(
                 use diesel_async::RunQueryDsl;
                 use pgvector::VectorExpressionMethods;
 
-                let result: Result<Vec<OpenApiPathItem>, _> = schema::openapi::table
+                let result: Result<OpenApiPathItem, _> = schema::openapi::table
                     .select(OpenApiPathItem::as_select())
                     .filter(
                         schema::openapi::embedding
@@ -64,54 +64,43 @@ async fn chat(
                             .le(utils::default_distance_threshold()),
                     )
                     .order(schema::openapi::embedding.cosine_distance(embedding))
-                    .limit(1)
-                    .load(&mut conn)
+                    .first(&mut conn)
                     .await;
 
                 result
             };
             match result {
-                Ok(mut vec) => {
-                    match vec.pop() {
-                        Some(item) => {
-                            // Convert user request into HTTP request.
-                            let mut system_prompt: HttpRequestPrompt = item.into();
-                            let response_format = system_prompt.response_format();
-                            let generation_request = system_prompt
-                                .to_generation_request(&request.messages)
-                                .with_response_format(response_format);
-                            let generated_request =
-                                state.model_client.generate(generation_request).await?;
-                            let generated_request =
-                                parse_generated_response::<GeneratedRequest>(generated_request)?;
+                Ok(item) => {
+                    // Convert user request into HTTP request.
+                    let mut system_prompt: HttpRequestPrompt = item.into();
+                    let response_format = system_prompt.response_format();
+                    let generation_request = system_prompt
+                        .to_generation_request(&request.messages)
+                        .with_response_format(response_format);
+                    let generated_request = state.model_client.generate(generation_request).await?;
+                    let generated_request =
+                        parse_generated_response::<GeneratedRequest>(generated_request)?;
 
-                            // Add the HTTP request to the context as an assistant message.
-                            let assistant_message =
-                                generated_request.clone().into_assistant_message();
-                            request.messages.push(assistant_message);
+                    // Add the HTTP request to the context as an assistant message.
+                    let assistant_message = generated_request.clone().into_assistant_message();
+                    request.messages.push(assistant_message);
 
-                            // Execute the HTTP request.
-                            let http_request =
-                                generated_request.into_http_request(state.binding_addr);
-                            let response =
-                                Client::new().execute(http_request).await.map_err(|err| {
-                                    ModelClientError::ApiConnection
-                                        .into_response(&format!("{err:?}"))
-                                })?;
-                            let content = response
-                                .text()
-                                .await
-                                .unwrap_or_else(|err| format!("{err:?}"));
+                    // Execute the HTTP request.
+                    let http_request = generated_request.into_http_request(state.binding_addr);
+                    let response = Client::new().execute(http_request).await.map_err(|err| {
+                        ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
+                    })?;
+                    let content = response
+                        .text()
+                        .await
+                        .unwrap_or_else(|err| format!("{err:?}"));
 
-                            // Add the HTTP response as a pseudo user response.
-                            request.messages.push(Message {
-                                role: MessageRole::User,
-                                content,
-                            });
-                            SummaryPrompt {}.to_streaming_generation_request(&request.messages)
-                        }
-                        None => SimplePrompt {}.to_streaming_generation_request(&request.messages),
-                    }
+                    // Add the HTTP response as a pseudo user response.
+                    request.messages.push(Message {
+                        role: MessageRole::User,
+                        content,
+                    });
+                    SummaryPrompt {}.to_streaming_generation_request(&request.messages)
                 }
                 Err(_) => SimplePrompt {}.to_streaming_generation_request(&request.messages),
             }
