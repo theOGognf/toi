@@ -2596,6 +2596,7 @@ dependencies = [
  "diesel",
  "diesel-async",
  "diesel_cli",
+ "diesel_migrations",
  "dotenvy",
  "pgvector",
  "regex",

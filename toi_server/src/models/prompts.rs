@@ -48,7 +48,13 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to concisely summarize the HTTP response the user provides based on the chat history. If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again."
+            "Your job is to summarize the HTTP response the user provides based on the chat history. \
+            If the response is OK, treat it as fact and don't assume it's incorrect. \
+            If the response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
+            Be extremely concise. \
+            Your summarize should be in layman's terms. \
+            If something is returned in some fancy notation, be sure to reword it in a simpler format. \
+            As an example, if a date is given as ISO format, rephrase it to be like a date in essay."
         )
     }
 }

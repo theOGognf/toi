@@ -48,10 +48,10 @@ services:
   generation:
     image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
     command: >
-      --model ${GENERATION_MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct}
+      --model ${GENERATION_MODEL_ID:-Qwen/Qwen3-1.7B}
       --dtype ${GENERATION_DTYPE:-half}
       --gpu-memory-utilization ${GENERATION_MEM:-0.7}
-      --max-model-len ${GENERATION_LEN:-16000}
+      --max-model-len ${GENERATION_LEN:-8000}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     deploy:
