@@ -3,7 +3,6 @@ use std::fs::File;
 use ctrlc::set_handler;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
 use serde::Deserialize;
-use tracing_subscriber::EnvFilter;
 
 mod client;
 pub mod models;
@@ -23,12 +22,6 @@ pub struct ToiConfig {
 pub async fn init(
     db_connection_url: String,
 ) -> Result<models::state::ToiState, Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_target(false)
-        .compact()
-        .init();
-
     // Catching signals for exit.
     set_handler(|| std::process::exit(0))?;
 
