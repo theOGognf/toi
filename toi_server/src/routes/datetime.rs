@@ -50,6 +50,12 @@ pub fn router() -> OpenApiRouter {
 /// Get the current time.
 ///
 /// Returns current time in ISO format.
+/// 
+/// Useful for answering the following:
+/// - What time is it?
+/// - Return the time.
+/// - Can you get the time?
+/// - Do you have the time?
 #[utoipa::path(
     get,
     path = "/now",
@@ -66,6 +72,12 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 /// Shift the given ISO datetime by seconds, minutes, hours, etc.
 ///
 /// Shift the given ISO datetime with the date defaulting to today's date.
+/// 
+/// Useful for answering the following:
+/// - What time is it in 30 days?
+/// - What day was 10 days ago?
+/// - Get the date 22 months and 10 days from now.
+/// - Which month was 25 days ago?
 #[utoipa::path(
     post,
     path = "/shift", 
@@ -93,6 +105,12 @@ pub async fn shift(
 /// Get the weekday of a date.
 ///
 /// Get the weekday of an ISO datetime with the date defaulting to today's date.
+/// 
+/// Useful for answering the following:
+/// - What day of the week is it?
+/// - What day of the week is today?
+/// - What's the weekday?
+/// - Get the weekday.
 #[utoipa::path(
     get,
     path = "/weekday",
