@@ -50,12 +50,12 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to answer a user's request using the HTTP response the user provides and context from their chat history. \
+            "Your job is to answer a user's request using the HTTP response the user provides. \
             If the HTTP response is OK, treat it as fact and don't assume it's incorrect. \
             If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
             If the HTTP response is not useful for answering the user's request, ignore it, unless the request did something important. \
             Concisely answer the user's request while only using layman's terms. \
-            Do NOT ask follow-up questions."
+            Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')."
         )
     }
 }

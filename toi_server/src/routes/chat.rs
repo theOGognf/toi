@@ -42,7 +42,7 @@ async fn chat(
             let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
             let input = EmbeddingPromptTemplate::builder()
                 .instruction_prefix(
-                    "Instruction: Given a user query, retrieve API descriptions based on the verb/command within the user's query"
+                    "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query"
                         .to_string(),
                 )
                 .query_prefix("Query: ".to_string())
