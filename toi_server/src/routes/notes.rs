@@ -12,7 +12,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::{EmbeddingPromptTemplate, EmbeddingRequest},
+        client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         notes::{NewNote, NewNoteRequest, Note, NoteQueryParams},
         state::ToiState,
     },
@@ -67,6 +67,74 @@ pub fn router(state: ToiState) -> OpenApiRouter {
         .get_or_insert(notes_extensions);
 
     router
+}
+
+async fn search(
+    state: &ToiState,
+    params: &NoteQueryParams,
+    conn: &mut utils::Conn<'_>,
+) -> Result<Vec<i32>, (StatusCode, String)> {
+    let mut query = schema::notes::table.select(Note::as_select()).into_boxed();
+
+    // Filter items created on or after date.
+    if let Some(created_from) = params.created_from {
+        query = query.filter(schema::notes::created_at.ge(created_from));
+    }
+
+    // Filter items created on or before date.
+    if let Some(created_to) = params.created_to {
+        query = query.filter(schema::notes::created_at.le(created_to));
+    }
+
+    // Order items.
+    match params.order_by {
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
+        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
+        None => {
+            // By default, filter items similar to a given query.
+            if let Some(similarity_search_params) = &params.similarity_search_params {
+                let input = EmbeddingPromptTemplate::builder()
+                    .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+                    .query_prefix(QUERY_PREFIX.to_string())
+                    .build()
+                    .apply(&similarity_search_params.query);
+                let embedding_request = EmbeddingRequest { input };
+                let embedding = state.model_client.embed(embedding_request).await?;
+                query = query.order(schema::notes::embedding.l2_distance(embedding));
+            }
+        }
+    }
+
+    // Limit number of items.
+    if let Some(limit) = params.limit {
+        query = query.limit(limit);
+    }
+
+    // Get all the items that match the query.
+    let notes = query.load(conn).await.map_err(utils::internal_error)?;
+    let (ids, documents): (Vec<i32>, Vec<String>) = notes
+        .into_iter()
+        .map(|note| (note.id, note.content))
+        .unzip();
+
+    // Rerank and filter items once more.
+    let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
+        let rerank_request = RerankRequest {
+            query: similarity_search_params.query.to_string(),
+            documents,
+        };
+        let rerank_response = state.model_client.rerank(rerank_request).await?;
+        rerank_response
+            .results
+            .into_iter()
+            .filter(|item| item.relevance_score > similarity_search_params.similarity_threshold)
+            .map(|item| ids[item.index])
+            .collect()
+    } else {
+        ids
+    };
+
+    Ok(ids)
 }
 
 /// Add a note.
@@ -137,56 +205,13 @@ pub async fn delete_matching_notes(
     Query(params): Query<NoteQueryParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::notes::table.select(schema::notes::id).into_boxed();
-
-    // Filter notes similar to a query.
-    if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-            .query_prefix(QUERY_PREFIX.to_string())
-            .build()
-            .apply(note_similarity_search_params.query);
-        let embedding_request = EmbeddingRequest { input };
-        let embedding = state.model_client.embed(embedding_request).await?;
-        query = query.filter(
-            schema::notes::embedding
-                .cosine_distance(embedding.clone())
-                .le(note_similarity_search_params.distance_threshold),
-        );
-
-        // Sort by relevance.
-        if params.order_by == Some(utils::OrderBy::Relevance) {
-            query = query.order(schema::notes::embedding.l2_distance(embedding));
-        }
-    }
-
-    // Filter notes created on or after date.
-    if let Some(created_from) = params.created_from {
-        query = query.filter(schema::notes::created_at.ge(created_from));
-    }
-
-    // Filter notes created on or before date.
-    if let Some(created_to) = params.created_to {
-        query = query.filter(schema::notes::created_at.le(created_to));
-    }
-
-    match params.order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
-        _ => {}
-    }
-
-    // Limit number of notes deleted.
-    if let Some(limit) = params.limit {
-        query = query.limit(limit);
-    }
-
-    let res = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(query)))
+    let ids = search(&state, &params, &mut conn).await?;
+    let notes = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(ids)))
         .returning(Note::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
-    Ok(Json(res))
+    Ok(Json(notes))
 }
 
 /// Get notes.
@@ -215,50 +240,12 @@ pub async fn get_matching_notes(
     Query(params): Query<NoteQueryParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::notes::table.select(Note::as_select()).into_boxed();
-
-    // Filter notes similar to a query.
-    if let Some(note_similarity_search_params) = params.similarity_search_params {
-        let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-            .query_prefix(QUERY_PREFIX.to_string())
-            .build()
-            .apply(note_similarity_search_params.query);
-        let embedding_request = EmbeddingRequest { input };
-        let embedding = state.model_client.embed(embedding_request).await?;
-        query = query.filter(
-            schema::notes::embedding
-                .cosine_distance(embedding.clone())
-                .le(note_similarity_search_params.distance_threshold),
-        );
-
-        // Sort by relevance.
-        if params.order_by == Some(utils::OrderBy::Relevance) {
-            query = query.order(schema::notes::embedding.l2_distance(embedding));
-        }
-    }
-
-    // Filter notes created on or after date.
-    if let Some(created_from) = params.created_from {
-        query = query.filter(schema::notes::created_at.ge(created_from));
-    }
-
-    // Filter notes created on or before date.
-    if let Some(created_to) = params.created_to {
-        query = query.filter(schema::notes::created_at.le(created_to));
-    }
-
-    match params.order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
-        _ => {}
-    }
-
-    // Limit number of notes returned.
-    if let Some(limit) = params.limit {
-        query = query.limit(limit);
-    }
-
-    let res = query.load(&mut conn).await.map_err(utils::internal_error)?;
-    Ok(Json(res))
+    let ids = search(&state, &params, &mut conn).await?;
+    let notes = schema::notes::table
+        .select(Note::as_select())
+        .filter(schema::notes::id.eq_any(ids))
+        .load(&mut conn)
+        .await
+        .map_err(utils::internal_error)?;
+    Ok(Json(notes))
 }

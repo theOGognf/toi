@@ -5,16 +5,15 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 pub type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
+pub type Conn<'a> = bb8::PooledConnection<
+    'a,
+    diesel_async::pooled_connection::AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>,
+>;
 
 #[derive(PartialEq, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub enum OrderBy {
     Oldest,
     Newest,
-    Relevance,
-}
-
-pub fn default_distance_threshold() -> f64 {
-    0.75
 }
 
 pub fn default_similarity_threshold() -> f64 {

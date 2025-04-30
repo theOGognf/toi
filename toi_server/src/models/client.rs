@@ -11,14 +11,14 @@ pub struct EmbeddingPromptTemplate {
 }
 
 impl EmbeddingPromptTemplate {
-    pub fn apply(&self, query: String) -> String {
+    pub fn apply(&self, query: &str) -> String {
         match (&self.instruction_prefix, &self.query_prefix) {
             (Some(instruction_prefix), Some(query_prefix)) => {
                 format!("{instruction_prefix}\n{query_prefix}{query}")
             }
             (Some(instruction_prefix), None) => format!("{instruction_prefix}\n{query}"),
             (None, Some(query_prefix)) => format!("{query_prefix}{query}"),
-            (None, None) => query,
+            (None, None) => query.to_string(),
         }
     }
 }
