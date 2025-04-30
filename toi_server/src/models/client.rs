@@ -39,6 +39,29 @@ pub struct EmbeddingResponse {
 }
 
 #[derive(Serialize)]
+pub struct RerankRequest {
+    pub query: String,
+    pub documents: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct RerankDocument {
+    pub text: String,
+}
+
+#[derive(Deserialize)]
+pub struct RerankResult {
+    pub index: usize,
+    pub document: RerankDocument,
+    pub relevance_score: f64,
+}
+
+#[derive(Deserialize)]
+pub struct RerankResponse {
+    pub results: Vec<RerankResult>,
+}
+
+#[derive(Serialize)]
 pub struct StreamOptions {
     include_usage: bool,
 }

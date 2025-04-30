@@ -36,7 +36,7 @@ services:
     command: >
       --model ${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
       --dtype ${EMBEDDING_DTYPE:-auto}
-      --gpu-memory-utilization ${EMBEDDING_MEM:-0.2}
+      --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
@@ -72,4 +72,25 @@ services:
           devices:
             - driver: nvidia
               count: ${GENERATION_NUM_GPUS:-all}
+              capabilities: [gpu]
+
+  reranking:
+    image: vllm/vllm-openai:${RERANKING_IMAGE_VERSION:-latest}
+    command: >
+      --model ${RERANKING_MODEL:-BAAI/bge-reranker-v2-m3}
+      --dtype ${RERANKING_DTYPE:-auto}
+      --gpu-memory-utilization ${RERANKING_MEM:-0.1}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${RERANKING_NUM_GPUS:-all}
               capabilities: [gpu]

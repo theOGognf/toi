@@ -19,6 +19,11 @@ use crate::{
     schema, utils,
 };
 
+// Prefixes are used for embedding instructions.
+const INSTRUCTION_PREFIX: &str =
+    "Instruction: Given a user query, find similar notes to the one the user mentions";
+const QUERY_PREFIX: &str = "Query: ";
+
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(add_note))
@@ -71,6 +76,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 /// - Add a note that...
 /// - Keep note on...
 /// - Remember that...
+/// - Make a note...
 #[utoipa::path(
     post,
     path = "",
@@ -111,8 +117,8 @@ pub async fn add_note(
 ///
 /// Useful for answering phrases that start with the following:
 /// - Delete all notes related to...
-/// - Delete all notes about...
-/// - Delete notes there are on...
+/// - Erase all notes about...
+/// - Remove notes there are on...
 /// - Delete as many notes there are about...
 #[utoipa::path(
     delete,
@@ -136,11 +142,8 @@ pub async fn delete_matching_notes(
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(
-                "Instruction: Given a user query, find similar notes to the one the user mentions"
-                    .to_string(),
-            )
-            .query_prefix("Query: ".to_string())
+            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+            .query_prefix(QUERY_PREFIX.to_string())
             .build()
             .apply(note_similarity_search_params.query);
         let embedding_request = EmbeddingRequest { input };
@@ -217,11 +220,8 @@ pub async fn get_matching_notes(
     // Filter notes similar to a query.
     if let Some(note_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(
-                "Instruction: Given a user query, find similar notes to the one the user mentions"
-                    .to_string(),
-            )
-            .query_prefix("Query: ".to_string())
+            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+            .query_prefix(QUERY_PREFIX.to_string())
             .build()
             .apply(note_similarity_search_params.query);
         let embedding_request = EmbeddingRequest { input };

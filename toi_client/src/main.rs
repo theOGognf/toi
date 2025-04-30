@@ -257,40 +257,45 @@ impl History {
     }
 }
 
-const HELP: &str = "\
-Chat with a personal assistant
-
-USAGE:
-  toi_client [OPTIONS]
-
-OPTIONS:
-  --url     Server chat URL     [default: 127.0.0.1:6969/chat]
-  --limit   Chat context limit  [default: 8000]
-
-FLAGS:
-  -h, --help    Print help information
-";
-
 struct Args {
     url: String,
     context_limit: u32,
 }
+
+const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
+const DEFAULT_CONTEXT_LIMIT: u32 = 8000;
 
 /// Minimal REPL
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pargs = Arguments::from_env();
 
+    let help = format!(
+        r#"Chat with a personal assistant
+
+USAGE:
+    toi_client [OPTIONS]
+
+OPTIONS:
+    --url     Server chat URL     [default: {DEFAULT_SERVER_CHAT_URL}]
+    --limit   Chat context limit  [default: {DEFAULT_CONTEXT_LIMIT}]
+
+FLAGS:
+    -h, --help    Print help information"#
+    );
+
     if pargs.contains(["-h", "--help"]) {
-        println!("{}", HELP);
+        println!("{}", help);
         std::process::exit(0);
     }
 
     let args = Args {
         url: pargs
             .value_from_str("--url")
-            .unwrap_or("127.0.0.1:6969/chat".into()),
-        context_limit: pargs.value_from_str("--limit").unwrap_or(8000),
+            .unwrap_or(DEFAULT_SERVER_CHAT_URL.into()),
+        context_limit: pargs
+            .value_from_str("--limit")
+            .unwrap_or(DEFAULT_CONTEXT_LIMIT),
     };
     let Args { url, context_limit } = args;
 

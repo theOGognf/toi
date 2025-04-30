@@ -19,6 +19,11 @@ use crate::{
     schema, utils,
 };
 
+// Prefixes are used for embedding instructions.
+const INSTRUCTION_PREFIX: &str =
+    "Instruction: Given a user's query, find todo items similar to the one that the user mentions";
+const QUERY_PREFIX: &str = "Query: ";
+
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(add_todo))
@@ -83,6 +88,12 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 }
 
 /// Add a todo.
+///
+/// Useful for answering phrases that start with the following:
+/// - Add a todo saying...
+/// - Add a todo that...
+/// - Make a task for...
+/// - Add a task that...
 #[utoipa::path(
     post,
     path = "",
@@ -122,6 +133,12 @@ pub async fn add_todo(
 /// Complete todos.
 ///
 /// Complete todos that match a search criteria. Useful for completing todos in bulk.
+///
+/// Useful for answering phrases that start with the following:
+/// - Complete all todos related to...
+/// - Complete all todos about...
+/// - Complete todos there are on...
+/// - Mark the todos on...
 #[utoipa::path(
     put,
     path = "",
@@ -142,10 +159,8 @@ pub async fn complete_matching_todos(
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = body.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(
-                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
-            )
-            .query_prefix("Query: ".to_string())
+            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+            .query_prefix(QUERY_PREFIX.to_string())
             .build()
             .apply(todo_similarity_search_params.query);
         let embedding_request = EmbeddingRequest { input };
@@ -205,6 +220,12 @@ pub async fn complete_matching_todos(
 /// Delete todos.
 ///
 /// Delete todos that match a search criteria. Useful for deleting todos in bulk.
+///
+/// Useful for answering phrases that start with the following:
+/// - Delete all todos related to...
+/// - Erase all todos about...
+/// - Remove todos there are on...
+/// - Delete as many todos there are about...
 #[utoipa::path(
     delete,
     path = "",
@@ -227,10 +248,8 @@ pub async fn delete_matching_todos(
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(
-                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
-            )
-            .query_prefix("Query: ".to_string())
+            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+            .query_prefix(QUERY_PREFIX.to_string())
             .build()
             .apply(todo_similarity_search_params.query);
         let embedding_request = EmbeddingRequest { input };
@@ -299,6 +318,12 @@ pub async fn delete_matching_todos(
 /// Get todos.
 ///
 /// Get todos that match a search criteria. Useful for getting todos in bulk.
+///
+/// Useful for answering phrases that start with the following:
+/// - Get all todos related to...
+/// - List all todos about...
+/// - What todos are there on...
+/// - How many todos are there about...
 #[utoipa::path(
     get,
     path = "",
@@ -321,10 +346,8 @@ pub async fn get_matching_todos(
     // Filter todos similar to a query.
     if let Some(todo_similarity_search_params) = params.similarity_search_params {
         let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(
-                "Instruction: Given a user's query, find todo items similar to the one that the user mentions".to_string(),
-            )
-            .query_prefix("Query: ".to_string())
+            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+            .query_prefix(QUERY_PREFIX.to_string())
             .build()
             .apply(todo_similarity_search_params.query);
         let embedding_request = EmbeddingRequest { input };

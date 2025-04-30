@@ -20,8 +20,9 @@ struct ApiDoc;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
         .compact()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_line_number(true)
         .init();
 
     // An explicit database URL is required for setup.
@@ -107,8 +108,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Embed the endpoint's query.
-                let embedding_request =
-                    toi_server::models::client::EmbeddingRequest { input: description };
+                let embedding_request = toi_server::models::client::EmbeddingRequest {
+                    input: description.clone(),
+                };
                 let embedding = state
                     .model_client
                     .embed(embedding_request)
@@ -119,6 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
                     path: path.to_string(),
                     method: method.to_string(),
+                    description,
                     params,
                     body,
                     embedding,

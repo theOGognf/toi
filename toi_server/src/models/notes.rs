@@ -12,8 +12,6 @@ use crate::{models::search::SimilaritySearchParams, utils};
 #[diesel(table_name = crate::schema::notes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Note {
-    /// Unique note ID.
-    pub id: i32,
     /// Note content.
     pub content: String,
     /// Datetime the note was created in ISO format.

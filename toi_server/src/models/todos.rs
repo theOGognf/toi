@@ -12,8 +12,6 @@ use crate::{models::search::SimilaritySearchParams, utils};
 #[diesel(table_name = crate::schema::todos)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Todo {
-    /// Unique todo ID.
-    pub id: i32,
     /// Todo item.
     pub item: String,
     /// Datetime the todo was created in ISO format.

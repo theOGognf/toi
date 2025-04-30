@@ -19,6 +19,7 @@ diesel::table! {
     openapi (path, method) {
         path -> Text,
         method -> Text,
+        description -> Text,
         params -> Nullable<Jsonb>,
         body -> Nullable<Jsonb>,
         embedding -> Vector,

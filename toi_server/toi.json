@@ -5,5 +5,8 @@
     },
     "generation_api_config": {
         "base_url": "http://generation:8000"
+    },
+    "reranking_api_config": {
+        "base_url": "http://reranking:8000"
     }
 }

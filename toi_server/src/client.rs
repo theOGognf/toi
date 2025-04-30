@@ -6,7 +6,7 @@ use toi::GenerationRequest;
 
 use crate::models::client::{
     EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
-    StreamingGenerationRequest,
+    RerankRequest, RerankResponse, StreamingGenerationRequest,
 };
 
 #[derive(Clone)]
@@ -15,6 +15,8 @@ pub struct ModelClient {
     embedding_client: Client,
     pub generation_api_config: HttpClientConfig,
     generation_client: Client,
+    pub reranking_api_config: HttpClientConfig,
+    reranking_client: Client,
 }
 
 impl ModelClient {
@@ -91,6 +93,7 @@ impl ModelClient {
     pub fn new(
         embedding_api_config: HttpClientConfig,
         generation_api_config: HttpClientConfig,
+        reranking_api_config: HttpClientConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let embedding_header_map = HeaderMap::try_from(&embedding_api_config.headers)?;
         let embedding_client = Client::builder()
@@ -100,11 +103,17 @@ impl ModelClient {
         let generation_client = Client::builder()
             .default_headers(generation_header_map)
             .build()?;
+        let reranking_header_map = HeaderMap::try_from(&reranking_api_config.headers)?;
+        let reranking_client = Client::builder()
+            .default_headers(reranking_header_map)
+            .build()?;
         Ok(Self {
             embedding_api_config,
             embedding_client,
             generation_api_config,
             generation_client,
+            reranking_api_config,
+            reranking_client,
         })
     }
 
@@ -127,5 +136,19 @@ impl ModelClient {
             .json::<ResponseModel>()
             .await
             .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))
+    }
+
+    pub async fn rerank(
+        &self,
+        request: RerankRequest,
+    ) -> Result<RerankResponse, (StatusCode, String)> {
+        let response: RerankResponse = Self::post(
+            &self.reranking_api_config,
+            "/v1/rerank".to_string(),
+            &self.reranking_client,
+            request,
+        )
+        .await?;
+        Ok(response)
     }
 }
