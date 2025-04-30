@@ -37,9 +37,11 @@ impl fmt::Display for SimplePrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "You are a helpful assistant, but don't ever mention you're an AI language model or that you have limitations. \
-            If you don't know the answer to something, say so. \
-            Your answers should be as concise as possible and only use layman's terms."
+            r#"You are a helpful assistant that always follows these rules:
+- Never mention you're an AI language model or that you have limitations
+- If you don't know the answer to something, say so
+- Answer as concise as possible
+- Only use layman's terms"#
         )
     }
 }
@@ -50,12 +52,12 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Your job is to answer a user's request using the HTTP response the user provides. \
-            If the HTTP response is OK, treat it as fact and don't assume it's incorrect. \
-            If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again. \
-            If the HTTP response is not useful for answering the user's request, ignore it, unless the request did something important. \
-            Concisely answer the user's request while only using layman's terms. \
-            Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')."
+            r#"Your job is to answer a user's request using the HTTP response the user provides while following these rules:
+- If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again
+- If the HTTP response is OK, treat it as fact and DO NOT contradict it
+- Answer as concisesly as possible
+- Only use layman's terms
+- Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')"#
         )
     }
 }
@@ -108,42 +110,32 @@ impl HttpRequestPrompt {
         );
 
         // Need to move definitions up from params/body to the top-level of the schema.
-        let mut all_definitions = None;
+        let mut any_definitions = None;
 
         // Use JSON schema to determine if params are required.
         if let Some(params) = &mut self.params {
             if let Some(obj) = params.as_object_mut() {
                 obj.remove("$schema");
-                all_definitions = obj.remove("definitions");
+                any_definitions = obj.remove("definitions");
             }
             response_format["json_schema"]["schema"]["properties"]["params"] = params.clone();
-            let mut required: Vec<String> = serde_json::from_value(
-                response_format["json_schema"]["schema"]["required"].clone(),
-            )
-            .expect("couldn't deserialize required fields");
-            required.push("params".to_string());
             response_format["json_schema"]["schema"]["required"] =
-                serde_json::to_value(required).expect("couldn't serialize required fields");
+                ["path", "method", "params"].into();
         }
 
         // Use JSON schema to determine if a body is required.
         if let Some(body) = &mut self.body {
             if let Some(obj) = body.as_object_mut() {
                 obj.remove("$schema");
-                all_definitions = obj.remove("definitions");
+                any_definitions = obj.remove("definitions");
             }
             response_format["json_schema"]["schema"]["properties"]["body"] = body.clone();
-            let mut required: Vec<String> = serde_json::from_value(
-                response_format["json_schema"]["schema"]["required"].clone(),
-            )
-            .expect("couldn't deserialize required fields");
-            required.push("body".to_string());
             response_format["json_schema"]["schema"]["required"] =
-                serde_json::to_value(required).expect("couldn't serialize required fields");
+                ["path", "method", "body"].into();
         }
 
         // Move definitions up a level.
-        if let Some(definitions) = all_definitions {
+        if let Some(definitions) = any_definitions {
             response_format["json_schema"]["schema"]["definitions"] = definitions;
         }
 
