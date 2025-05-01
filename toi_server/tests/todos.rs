@@ -4,8 +4,8 @@ use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::notes::{Note, NoteQueryParams};
 use toi_server::models::search::SimilaritySearchParams;
+use toi_server::models::todos::{Todo, TodoQueryParams};
 
 #[tokio::test]
 #[serial]
@@ -24,7 +24,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
     let openapi_router =
-        OpenApiRouter::new().nest("/notes", toi_server::routes::notes::router(state.clone()));
+        OpenApiRouter::new().nest("/todos", toi_server::routes::todos::router(state.clone()));
     let (router, _) = openapi_router.split_for_parts();
     let listener = TcpListener::bind(&state.binding_addr).await?;
 
@@ -32,51 +32,51 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
     let client = reqwest::Client::new();
 
-    // Make a note and get its database-generated ID back.
-    let content = "My car takes OW-20 oil";
+    // Make a todo and get its database-generated ID back.
+    let item = "Change my car oil";
     let body = json!(
         {
-            "content": content
+            "item": item
         }
     );
-    let note1 = client
-        .post(format!("{}/notes", state.binding_addr))
+    let todo1 = client
+        .post(format!("{}/todos", state.binding_addr))
         .json(&body)
         .send()
         .await?
-        .json::<Note>()
+        .json::<Todo>()
         .await?;
-    assert_eq!(note1.content, content);
+    assert_eq!(todo1.item, item);
 
-    // Retrieve the note using search.
-    let query = NoteQueryParams::builder()
+    // Retrieve the todo using search.
+    let query = TodoQueryParams::builder()
         .similarity_search_params(
             SimilaritySearchParams::builder()
-                .query("what's my car's oil type?".to_string())
+                .query("Change my car oil".to_string())
                 .distance_threshold(0.5)
                 .similarity_threshold(0.5)
                 .build(),
         )
         .build();
-    let vec_notes1 = client
-        .get(format!("{}/notes", state.binding_addr))
+    let vec_todos1 = client
+        .get(format!("{}/todos", state.binding_addr))
         .query(&query)
         .send()
         .await?
-        .json::<Vec<Note>>()
+        .json::<Vec<Todo>>()
         .await?;
-    assert_eq!(vec_notes1.len(), 1);
-    assert_eq!(vec_notes1.first().unwrap().content, content);
+    assert_eq!(vec_todos1.len(), 1);
+    assert_eq!(vec_todos1.first().unwrap().item, item);
 
-    // Delete the note using search.
-    let vec_notes2 = client
-        .delete(format!("{}/notes", state.binding_addr))
+    // Delete the todo using search.
+    let vec_todos2 = client
+        .delete(format!("{}/todos", state.binding_addr))
         .query(&query)
         .send()
         .await?
-        .json::<Vec<Note>>()
+        .json::<Vec<Todo>>()
         .await?;
-    assert_eq!(vec_notes2.len(), 1);
-    assert_eq!(vec_notes2.first().unwrap().content, content);
+    assert_eq!(vec_todos2.len(), 1);
+    assert_eq!(vec_todos2.first().unwrap().item, item);
     Ok(())
 }
