@@ -1,4 +1,4 @@
-FROM rust:slim-bullseye AS chef
+FROM rust:slim-bookworm AS chef
 
 RUN apt-get update \
     && apt-get install -y \
@@ -30,14 +30,14 @@ COPY . .
 
 RUN cargo build --release -p toi_server
 
-FROM debian:bullseye-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
     && apt-get install -y \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ENV RUST_LOG=info
+ENV RUST_LOG=info,tower_http=trace
 
 WORKDIR /usr/app
 

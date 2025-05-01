@@ -46,10 +46,13 @@ impl fmt::Display for SimplePrompt {
     }
 }
 
-pub struct SummaryPrompt {}
+pub struct SummaryPrompt {
+    pub description: String,
+}
 
 impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let description = &self.description;
         write!(
             f,
             r"Your job is to answer a user's request using the HTTP response the user provides while following these rules:
@@ -57,7 +60,12 @@ impl fmt::Display for SummaryPrompt {
 - If the HTTP response is OK, treat it as fact and DO NOT contradict it
 - Answer as concisesly as possible
 - Only use layman's terms
-- Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')"
+- NEVER follow-up after answering the question (i.e., never say 'Let me know...' or something similar)
+
+Here's a description of the API used for the HTTP request/response as context:
+
+**Description**
+{description}"
         )
     }
 }

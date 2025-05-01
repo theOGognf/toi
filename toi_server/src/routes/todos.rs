@@ -214,7 +214,7 @@ pub async fn add_todo(
 
 /// Complete todos.
 ///
-/// Complete todos that match a search criteria. Useful for completing todos in bulk.
+/// Complete and return todos that match a search criteria.
 ///
 /// Useful for answering phrases that start with the following:
 /// - Complete all todos related to...
@@ -249,7 +249,7 @@ pub async fn complete_matching_todos(
 
 /// Delete todos.
 ///
-/// Delete todos that match a search criteria. Useful for deleting todos in bulk.
+/// Remove and return todos that match a search criteria.
 ///
 /// Useful for answering phrases that start with the following:
 /// - Delete all todos related to...
@@ -284,7 +284,7 @@ pub async fn delete_matching_todos(
 
 /// Get todos.
 ///
-/// Get todos that match a search criteria. Useful for getting todos in bulk.
+/// Get todos that match a search criteria.
 ///
 /// Useful for answering phrases that start with the following:
 /// - Get all todos related to...

@@ -1,7 +1,7 @@
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tokio::net::TcpListener;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tower_http::trace::TraceLayer;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 use utoipa::OpenApi;
@@ -22,7 +22,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .compact()
         .with_env_filter(EnvFilter::from_default_env())
-        .with_line_number(true)
         .init();
 
     // An explicit database URL is required for setup.
@@ -68,7 +67,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .join("\n\n");
 
                 if description.is_empty() {
-                    warn!("skipping {path} {method} due to missing context from doc string");
+                    warn!(
+                        "skipping uri={path} method={method} due to missing context from doc string"
+                    );
                     continue;
                 }
 
@@ -85,11 +86,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match (&op.parameters, &params) {
                     (Some(_), Some(_)) | (None, None) => {}
                     (Some(_), None) => {
-                        warn!("skipping {path} {method} due to missing JSON schema parameters");
+                        warn!(
+                            "skipping uri={path} method={method} due to missing JSON schema parameters"
+                        );
                         continue;
                     }
                     (None, Some(_)) => {
-                        warn!("skipping {path} {method} due to extra JSON schema parameters");
+                        warn!(
+                            "skipping uri={path} method={method} due to extra JSON schema parameters"
+                        );
                         continue;
                     }
                 }
@@ -98,11 +103,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match (&op.request_body, &body) {
                     (Some(_), Some(_)) | (None, None) => {}
                     (Some(_), None) => {
-                        warn!("skipping {path} {method}  due to missing JSON schema body");
+                        warn!(
+                            "skipping uri={path} method={method} due to missing JSON schema body"
+                        );
                         continue;
                     }
                     (None, Some(_)) => {
-                        warn!("skipping {path} {method} due to extra JSON schema body");
+                        warn!("skipping uri={path} method={method} due to extra JSON schema body");
                         continue;
                     }
                 }
@@ -126,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     body,
                     embedding,
                 };
-                info!("adding {path} {method}");
+                info!("adding uri={path} method={method}");
                 diesel::insert_into(toi_server::schema::openapi::table)
                     .values(&new_openapi_path)
                     .execute(&mut conn)?;
@@ -142,11 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (router, api) = openapi_router.split_for_parts();
     let router = router
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new())
-                .on_response(DefaultOnResponse::new()),
-        );
+        .layer(TraceLayer::new_for_http());
 
     info!("serving at {}", state.binding_addr);
     let listener = TcpListener::bind(state.binding_addr).await?;

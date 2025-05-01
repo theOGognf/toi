@@ -145,6 +145,8 @@ async fn search(
 
 /// Add a note.
 ///
+/// Adds and returns the added note's details.
+///
 /// Useful for answering phrases that start with the following:
 /// - Add a note saying...
 /// - Add a note that...
@@ -187,7 +189,7 @@ pub async fn add_note(
 
 /// Delete notes.
 ///
-/// Delete notes that match a search criteria. Useful for deleting notes in bulk.
+/// Remove and return notes that match a search criteria.
 ///
 /// Useful for answering phrases that start with the following:
 /// - Delete all notes related to...
@@ -222,7 +224,7 @@ pub async fn delete_matching_notes(
 
 /// Get notes.
 ///
-/// Get notes that match a search criteria. Useful for getting notes in bulk.
+/// Get notes that match a search criteria.
 ///
 /// Useful for answering phrases that start with the following:
 /// - Get all notes related to...

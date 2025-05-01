@@ -51,10 +51,10 @@ async fn chat(
     // found, respond like a normal chat assistant. Otherwise, execute an
     // HTTP request to fulfill the user's request.
     let streaming_generation_request = if let Some(message) = request.messages.last() {
-        info!("received request: {}", message.content);
+        info!("user> {}", message.content);
         let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
 
-        info!("embedding request for API search");
+        info!("embedding message for API search");
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(INSTRUCTION_PREFIX.to_string())
             .query_prefix(QUERY_PREFIX.to_string())
@@ -84,13 +84,14 @@ async fn chat(
         let most_relevant_result = &rerank_response.results[0];
         let item = items.remove(most_relevant_result.index);
         info!(
-            "most relevant API ({} {}) has score {:.2}",
+            "most relevant API (uri={} method={}) scored at {:.3}",
             item.path, item.method, most_relevant_result.relevance_score
         );
-        if most_relevant_result.relevance_score > utils::default_similarity_threshold() {
-            info!("API satisfies similarity threshold");
+        if most_relevant_result.relevance_score >= utils::default_similarity_threshold() {
+            info!("API passes similarity threshold");
 
             // Convert user request into HTTP request.
+            let description = item.description.clone();
             let mut system_prompt: HttpRequestPrompt = item.into();
             let response_format = system_prompt.response_format();
             let generation_request = system_prompt
@@ -124,9 +125,9 @@ async fn chat(
                 content,
             });
             info!("summarizing API response");
-            SummaryPrompt {}.to_streaming_generation_request(&request.messages)
+            SummaryPrompt { description }.to_streaming_generation_request(&request.messages)
         } else {
-            info!("no relevant APIs found");
+            info!("no APIs pass similarity threshold");
             SimplePrompt {}.to_streaming_generation_request(&request.messages)
         }
     } else {
