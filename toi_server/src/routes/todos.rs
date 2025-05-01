@@ -12,7 +12,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::{EmbeddingPromptTemplate, EmbeddingRequest},
+        client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         state::ToiState,
         todos::{CompleteTodoRequest, NewTodo, NewTodoRequest, Todo, TodoQueryParams},
     },
@@ -87,6 +87,88 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
+async fn search(
+    state: &ToiState,
+    params: &TodoQueryParams,
+    conn: &mut utils::Conn<'_>,
+) -> Result<Vec<i32>, (StatusCode, String)> {
+    let mut query = schema::todos::table.select(Todo::as_select()).into_boxed();
+
+    // Filter items created on or after date.
+    if let Some(created_from) = params.created_from {
+        query = query.filter(schema::todos::created_at.ge(created_from));
+    }
+
+    // Filter items created on or before date.
+    if let Some(created_to) = params.created_to {
+        query = query.filter(schema::todos::created_at.le(created_to));
+    }
+
+    // Filter todos completed on or after date.
+    if let Some(completed_from) = params.completed_from {
+        query = query.filter(schema::todos::completed_at.ge(completed_from));
+    }
+
+    // Filter todos completed on or before date.
+    if let Some(completed_to) = params.completed_to {
+        query = query.filter(schema::todos::completed_at.le(completed_to));
+    }
+
+    // Order items.
+    match params.order_by {
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
+        Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
+        None => {
+            // By default, filter items similar to a given query.
+            if let Some(similarity_search_params) = &params.similarity_search_params {
+                let input = EmbeddingPromptTemplate::builder()
+                    .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+                    .query_prefix(QUERY_PREFIX.to_string())
+                    .build()
+                    .apply(&similarity_search_params.query);
+                let embedding_request = EmbeddingRequest { input };
+                let embedding = state.model_client.embed(embedding_request).await?;
+                query = query
+                    .filter(
+                        schema::todos::embedding
+                            .l2_distance(embedding.clone())
+                            .le(similarity_search_params.distance_threshold),
+                    )
+                    .order(schema::todos::embedding.l2_distance(embedding));
+            }
+        }
+    }
+
+    // Limit number of items.
+    if let Some(limit) = params.limit {
+        query = query.limit(limit);
+    }
+
+    // Get all the items that match the query.
+    let todos = query.load(conn).await.map_err(utils::internal_error)?;
+    let (ids, documents): (Vec<i32>, Vec<String>) =
+        todos.into_iter().map(|todo| (todo.id, todo.item)).unzip();
+
+    // Rerank and filter items once more.
+    let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
+        let rerank_request = RerankRequest {
+            query: similarity_search_params.query.to_string(),
+            documents,
+        };
+        let rerank_response = state.model_client.rerank(rerank_request).await?;
+        rerank_response
+            .results
+            .into_iter()
+            .filter(|item| item.relevance_score > similarity_search_params.similarity_threshold)
+            .map(|item| ids[item.index])
+            .collect()
+    } else {
+        ids
+    };
+
+    Ok(ids)
+}
+
 /// Add a todo.
 ///
 /// Useful for answering phrases that start with the following:
@@ -154,67 +236,15 @@ pub async fn complete_matching_todos(
     Json(body): Json<CompleteTodoRequest>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::todos::table.select(schema::todos::id).into_boxed();
-
-    // Filter todos similar to a query.
-    if let Some(todo_similarity_search_params) = body.similarity_search_params {
-        let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-            .query_prefix(QUERY_PREFIX.to_string())
-            .build()
-            .apply(todo_similarity_search_params.query);
-        let embedding_request = EmbeddingRequest { input };
-        let embedding = state.model_client.embed(embedding_request).await?;
-        query = query.filter(
-            schema::todos::embedding
-                .cosine_distance(embedding.clone())
-                .le(todo_similarity_search_params.distance_threshold),
-        );
-
-        // Sort by relevance.
-        if body.order_by == Some(utils::OrderBy::Relevance) {
-            query = query.order(schema::todos::embedding.l2_distance(embedding));
-        }
-    }
-
-    // Filter todos created on or after date.
-    if let Some(created_from) = body.created_from {
-        query = query.filter(schema::todos::created_at.ge(created_from));
-    }
-
-    // Filter todos created on or before date.
-    if let Some(created_to) = body.created_to {
-        query = query.filter(schema::todos::created_at.le(created_to));
-    }
-
-    // Filter todos due on or after date.
-    if let Some(due_from) = body.due_from {
-        query = query.filter(schema::todos::due_at.ge(due_from));
-    }
-
-    // Filter todos due on or before date.
-    if let Some(due_to) = body.due_to {
-        query = query.filter(schema::todos::due_at.le(due_to));
-    }
-
-    match body.order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
-        _ => {}
-    }
-
-    // Limit number of todos deleted.
-    if let Some(limit) = body.limit {
-        query = query.limit(limit);
-    }
-
-    let res = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(query)))
-        .set(schema::todos::completed_at.eq(body.completed_at))
+    let completed_at = body.completed_at.clone();
+    let ids = search(&state, &body.into(), &mut conn).await?;
+    let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
+        .set(schema::todos::completed_at.eq(completed_at))
         .returning(Todo::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
-    Ok(Json(res))
+    Ok(Json(todos))
 }
 
 /// Delete todos.
@@ -243,76 +273,13 @@ pub async fn delete_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::todos::table.select(schema::todos::id).into_boxed();
-
-    // Filter todos similar to a query.
-    if let Some(todo_similarity_search_params) = params.similarity_search_params {
-        let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-            .query_prefix(QUERY_PREFIX.to_string())
-            .build()
-            .apply(todo_similarity_search_params.query);
-        let embedding_request = EmbeddingRequest { input };
-        let embedding = state.model_client.embed(embedding_request).await?;
-        query = query.filter(
-            schema::todos::embedding
-                .cosine_distance(embedding.clone())
-                .le(todo_similarity_search_params.distance_threshold),
-        );
-
-        // Sort by relevance.
-        if params.order_by == Some(utils::OrderBy::Relevance) {
-            query = query.order(schema::todos::embedding.l2_distance(embedding));
-        }
-    }
-
-    // Filter todos created on or after date.
-    if let Some(created_from) = params.created_from {
-        query = query.filter(schema::todos::created_at.ge(created_from));
-    }
-
-    // Filter todos created on or before date.
-    if let Some(created_to) = params.created_to {
-        query = query.filter(schema::todos::created_at.le(created_to));
-    }
-
-    // Filter todos due on or after date.
-    if let Some(due_from) = params.due_from {
-        query = query.filter(schema::todos::due_at.ge(due_from));
-    }
-
-    // Filter todos due on or before date.
-    if let Some(due_to) = params.due_to {
-        query = query.filter(schema::todos::due_at.le(due_to));
-    }
-
-    // Filter todos completed on or after date.
-    if let Some(completed_from) = params.completed_from {
-        query = query.filter(schema::todos::completed_at.ge(completed_from));
-    }
-
-    // Filter todos completed on or before date.
-    if let Some(completed_to) = params.completed_to {
-        query = query.filter(schema::todos::completed_at.le(completed_to));
-    }
-
-    match params.order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
-        _ => {}
-    }
-
-    // Limit number of todos deleted.
-    if let Some(limit) = params.limit {
-        query = query.limit(limit);
-    }
-
-    let res = diesel::delete(schema::todos::table.filter(schema::todos::id.eq_any(query)))
+    let ids = search(&state, &params, &mut conn).await?;
+    let todos = diesel::delete(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .returning(Todo::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::internal_error)?;
-    Ok(Json(res))
+    Ok(Json(todos))
 }
 
 /// Get todos.
@@ -341,70 +308,12 @@ pub async fn get_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let mut query = schema::todos::table.select(Todo::as_select()).into_boxed();
-
-    // Filter todos similar to a query.
-    if let Some(todo_similarity_search_params) = params.similarity_search_params {
-        let input = EmbeddingPromptTemplate::builder()
-            .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-            .query_prefix(QUERY_PREFIX.to_string())
-            .build()
-            .apply(todo_similarity_search_params.query);
-        let embedding_request = EmbeddingRequest { input };
-        let embedding = state.model_client.embed(embedding_request).await?;
-        query = query.filter(
-            schema::todos::embedding
-                .cosine_distance(embedding.clone())
-                .le(todo_similarity_search_params.distance_threshold),
-        );
-
-        // Sort by relevance.
-        if params.order_by == Some(utils::OrderBy::Relevance) {
-            query = query.order(schema::todos::embedding.l2_distance(embedding));
-        }
-    }
-
-    // Filter todos created on or after date.
-    if let Some(created_from) = params.created_from {
-        query = query.filter(schema::todos::created_at.ge(created_from));
-    }
-
-    // Filter todos created on or before date.
-    if let Some(created_to) = params.created_to {
-        query = query.filter(schema::todos::created_at.le(created_to));
-    }
-
-    // Filter todos due on or after date.
-    if let Some(due_from) = params.due_from {
-        query = query.filter(schema::todos::due_at.ge(due_from));
-    }
-
-    // Filter todos due on or before date.
-    if let Some(due_to) = params.due_to {
-        query = query.filter(schema::todos::due_at.le(due_to));
-    }
-
-    // Filter todos completed on or after date.
-    if let Some(completed_from) = params.completed_from {
-        query = query.filter(schema::todos::completed_at.ge(completed_from));
-    }
-
-    // Filter todos completed on or before date.
-    if let Some(completed_to) = params.completed_to {
-        query = query.filter(schema::todos::completed_at.le(completed_to));
-    }
-
-    match params.order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
-        _ => {}
-    }
-
-    // Limit number of todos returned.
-    if let Some(limit) = params.limit {
-        query = query.limit(limit);
-    }
-
-    let res = query.load(&mut conn).await.map_err(utils::internal_error)?;
-    Ok(Json(res))
+    let ids = search(&state, &params, &mut conn).await?;
+    let todos = schema::todos::table
+        .select(Todo::as_select())
+        .filter(schema::todos::id.eq_any(ids))
+        .load(&mut conn)
+        .await
+        .map_err(utils::internal_error)?;
+    Ok(Json(todos))
 }

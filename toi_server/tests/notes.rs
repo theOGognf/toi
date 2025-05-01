@@ -54,6 +54,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
             SimilaritySearchParams::builder()
                 .query("what's my car's oil type?".to_string())
                 .distance_threshold(0.5)
+                .similarity_threshold(0.5)
                 .build(),
         )
         .build();

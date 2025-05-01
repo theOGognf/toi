@@ -100,7 +100,13 @@ async fn search(
                     .apply(&similarity_search_params.query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query.order(schema::notes::embedding.l2_distance(embedding));
+                query = query
+                    .filter(
+                        schema::notes::embedding
+                            .l2_distance(embedding.clone())
+                            .le(similarity_search_params.distance_threshold),
+                    )
+                    .order(schema::notes::embedding.l2_distance(embedding));
             }
         }
     }

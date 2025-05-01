@@ -60,7 +60,7 @@ async fn chat(
                 .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                 .query_prefix(QUERY_PREFIX.to_string())
                 .build()
-                .apply(message.content.clone());
+                .apply(&message.content);
             let embedding_request = EmbeddingRequest { input };
             let embedding = state.model_client.embed(embedding_request).await?;
 

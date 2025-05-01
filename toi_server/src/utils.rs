@@ -16,6 +16,10 @@ pub enum OrderBy {
     Newest,
 }
 
+pub fn default_distance_threshold() -> f64 {
+    0.85
+}
+
 pub fn default_similarity_threshold() -> f64 {
     0.01
 }
