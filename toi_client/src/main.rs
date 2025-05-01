@@ -7,6 +7,7 @@ use rustyline::{
     error::ReadlineError,
 };
 use std::io::{self, Write};
+use std::time::Duration;
 use std::{collections::VecDeque, thread};
 use toi::{GenerationRequest, Message, MessageRole};
 use tokio::{
@@ -25,8 +26,16 @@ use models::{
 /// Loop for interacting with the server. Waits for a new message request,
 /// and, when one is received, attempts to stream the response in chunks
 /// until it finishes or an interrupt signal is caught.
-async fn client(url: String, mut rx: Receiver<ServerRequest>, tx: Sender<ServerResponse>) {
-    let client = reqwest::Client::new();
+async fn client(
+    url: String,
+    timeout: Duration,
+    mut rx: Receiver<ServerRequest>,
+    tx: Sender<ServerResponse>,
+) {
+    let client = reqwest::Client::builder()
+        .timeout(timeout)
+        .build()
+        .expect("failed to build reqwest client");
 
     loop {
         if let Some(ServerRequest::Start(request)) = rx.recv().await {
@@ -259,10 +268,12 @@ impl History {
 
 struct Args {
     url: String,
+    timeout: Duration,
     context_limit: u32,
 }
 
 const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
+const DEFAULT_RESPONSE_TIMEOUT: u64 = 5;
 const DEFAULT_CONTEXT_LIMIT: u32 = 8000;
 
 /// Minimal REPL
@@ -277,8 +288,9 @@ USAGE:
     toi_client [OPTIONS]
 
 OPTIONS:
-    --url     Server chat URL     [default: {DEFAULT_SERVER_CHAT_URL}]
-    --limit   Chat context limit  [default: {DEFAULT_CONTEXT_LIMIT}]
+    --url       Server chat URL         [default: {DEFAULT_SERVER_CHAT_URL}]
+    --timeout   Server response timeout [default: {DEFAULT_RESPONSE_TIMEOUT}]
+    --limit     Chat context limit      [default: {DEFAULT_CONTEXT_LIMIT}]
 
 FLAGS:
     -h, --help    Print help information"
@@ -293,11 +305,19 @@ FLAGS:
         url: pargs
             .value_from_str("--url")
             .unwrap_or(DEFAULT_SERVER_CHAT_URL.into()),
+        timeout: pargs
+            .value_from_str("--timeout")
+            .map(Duration::from_secs)
+            .unwrap_or(Duration::from_secs(DEFAULT_RESPONSE_TIMEOUT)),
         context_limit: pargs
             .value_from_str("--limit")
             .unwrap_or(DEFAULT_CONTEXT_LIMIT),
     };
-    let Args { url, context_limit } = args;
+    let Args {
+        url,
+        timeout,
+        context_limit,
+    } = args;
 
     // Channels for all the IPC going on.
     let (start_repl_sender, start_repl_receiver) = tokio::sync::mpsc::channel(1);
@@ -317,7 +337,12 @@ FLAGS:
 
     // Begin background processes.
     thread::spawn(move || repl(start_repl_receiver, &user_request_sender));
-    tokio::spawn(client(url, server_request_receiver, server_response_sender));
+    tokio::spawn(client(
+        url,
+        timeout,
+        server_request_receiver,
+        server_response_sender,
+    ));
     thread::spawn(|| ctrlc_handler(ctrlc_user_request_sender));
 
     // Kick-off the user prompt.
