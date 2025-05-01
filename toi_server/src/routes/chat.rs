@@ -100,7 +100,7 @@ async fn chat(
             let generated_request = state.model_client.generate(generation_request).await?;
             info!("parsing proxy API request");
             let generated_request =
-                parse_generated_response::<GeneratedRequest>(generated_request)?;
+                parse_generated_response::<GeneratedRequest>(&generated_request)?;
 
             // Add the HTTP request to the context as an assistant message.
             let assistant_message = generated_request.clone().into_assistant_message();
@@ -108,7 +108,7 @@ async fn chat(
 
             // Execute the HTTP request.
             info!("sending proxy API request");
-            let http_request = generated_request.into_http_request(state.binding_addr);
+            let http_request = generated_request.into_http_request(&state.binding_addr);
             let response = Client::new().execute(http_request).await.map_err(|err| {
                 ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
             })?;

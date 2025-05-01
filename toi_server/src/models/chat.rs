@@ -44,7 +44,7 @@ impl GeneratedRequest {
     }
 
     #[must_use]
-    pub fn into_http_request(self, binding_addr: String) -> Request {
+    pub fn into_http_request(self, binding_addr: &str) -> Request {
         let mut request_builder = Client::new().request(
             self.method.into(),
             format!("http://{binding_addr}{}", self.path),
@@ -62,7 +62,7 @@ impl GeneratedRequest {
     }
 }
 
-pub fn parse_generated_response<T: DeserializeOwned>(s: String) -> Result<T, (StatusCode, String)> {
+pub fn parse_generated_response<T: DeserializeOwned>(s: &str) -> Result<T, (StatusCode, String)> {
     serde_json::from_str::<T>(&s)
         .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
 }

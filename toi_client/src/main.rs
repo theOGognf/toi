@@ -143,7 +143,7 @@ impl ConditionalEventHandler for InterruptEventHandler {
 /// using this loop. If a message is sent, a response is streamed from
 /// the server and this REPL is inactive until the response finishes or
 /// the stream is interrupted through the other CTRL+C handler.
-fn repl(mut rx: Receiver<()>, tx: Sender<UserRequest>) -> Result<(), ReadlineError> {
+fn repl(mut rx: Receiver<()>, tx: &Sender<UserRequest>) -> Result<(), ReadlineError> {
     let mut rl = DefaultEditor::new()?;
     let interrupt_event_handler = Box::new(InterruptEventHandler);
     rl.bind_sequence(
@@ -194,13 +194,13 @@ struct History {
     limit: u32,
     size: u32,
     buffer: Vec<String>,
-    message_history: VecDeque<Message>,
-    usage_history: VecDeque<TokenUsage>,
+    messages: VecDeque<Message>,
+    usages: VecDeque<TokenUsage>,
 }
 
 impl History {
     pub fn len(&self) -> usize {
-        self.message_history.len()
+        self.messages.len()
     }
 
     pub fn new(limit: u32) -> Self {
@@ -208,13 +208,13 @@ impl History {
             limit,
             size: 0,
             buffer: vec![],
-            message_history: VecDeque::new(),
-            usage_history: VecDeque::new(),
+            messages: VecDeque::new(),
+            usages: VecDeque::new(),
         }
     }
 
     pub fn pop_back(&mut self) {
-        self.message_history.pop_back();
+        self.messages.pop_back();
     }
 
     pub fn push_assistant_and_token_usage(&mut self, usage: TokenUsage) {
@@ -227,18 +227,18 @@ impl History {
             .size
             .checked_add_signed(total_usage)
             .expect("overflow from adding token usage");
-        self.message_history.push_back(message);
-        self.usage_history.push_back(usage);
+        self.messages.push_back(message);
+        self.usages.push_back(usage);
         self.buffer.clear();
 
         while self.size > self.limit {
-            if let Some(usage) = self.usage_history.pop_front() {
+            if let Some(usage) = self.usages.pop_front() {
                 let total_usage = usage.prompt_tokens + usage.completion_tokens;
                 self.size = self
                     .size
                     .checked_add_signed(-total_usage)
                     .expect("overflow from subbing token usage");
-                self.message_history = self.message_history.split_off(2);
+                self.messages = self.messages.split_off(2);
             }
         }
     }
@@ -252,8 +252,8 @@ impl History {
             role: MessageRole::User,
             content,
         };
-        self.message_history.push_back(message);
-        GenerationRequest::new(self.message_history.clone().into())
+        self.messages.push_back(message);
+        GenerationRequest::new(self.messages.clone().into())
     }
 }
 
@@ -316,7 +316,7 @@ FLAGS:
     ) = tokio::sync::mpsc::channel(1);
 
     // Begin background processes.
-    thread::spawn(|| repl(start_repl_receiver, user_request_sender));
+    thread::spawn(move || repl(start_repl_receiver, &user_request_sender));
     tokio::spawn(client(url, server_request_receiver, server_response_sender));
     thread::spawn(|| ctrlc_handler(ctrlc_user_request_sender));
 

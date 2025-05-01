@@ -35,7 +35,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
         .with_state(state);
 
     let openapi = router.get_openapi_mut();
-    let paths = &mut openapi.paths.paths.get_mut("").expect("doesn't exist");
+    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
 
     // Update POST /todos extensions
     let add_todo_json_schema = schema_for!(NewTodoRequest);
