@@ -63,6 +63,6 @@ impl GeneratedRequest {
 }
 
 pub fn parse_generated_response<T: DeserializeOwned>(s: &str) -> Result<T, (StatusCode, String)> {
-    serde_json::from_str::<T>(&s)
+    serde_json::from_str::<T>(s)
         .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
 }
