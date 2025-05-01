@@ -32,23 +32,20 @@ async fn client(
     mut rx: Receiver<ServerRequest>,
     tx: Sender<ServerResponse>,
 ) {
-    let client = reqwest::Client::builder()
-        .timeout(timeout)
-        .build()
-        .expect("failed to build reqwest client");
+    let client = reqwest::Client::new();
 
     loop {
         if let Some(ServerRequest::Start(request)) = rx.recv().await {
             tokio::select! {
-                response = client.post(&url).json(&request).send() => {
-                    match response.map_err(|err| format!("{err:?}")) {
-                        Err(err) => {
-                            let message = ServerResponse::Error(err);
+                response = tokio::time::timeout(timeout, client.post(&url).json(&request).send()) => {
+                    match response {
+                        Ok(Err(err)) => {
+                            let message = ServerResponse::Error(format!("{err:?}"));
                             tx.send(message)
                                 .await
                                 .expect("server response channel full");
                         }
-                        Ok(response) if response.status() == 200 => {
+                        Ok(Ok(response)) if response.status() == 200 => {
                             let stream = response
                                 .bytes_stream()
                                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
@@ -56,9 +53,9 @@ async fn client(
                             let mut lines = reader.lines();
                             loop {
                                 tokio::select! {
-                                    result = lines.next_line() => {
+                                    result = tokio::time::timeout(timeout, lines.next_line()) => {
                                         match result {
-                                            Ok(Some(line)) => {
+                                            Ok(Ok(Some(line))) => {
                                                 if let Some(data) = line.strip_prefix("data: ") {
                                                     match data {
                                                         "[DONE]" => {
@@ -86,11 +83,17 @@ async fn client(
                                             }
                                             // This shouldn't get hit in a streaming response because streaming responses
                                             // end with the '[DONE]' string before returning no lines.
-                                            Ok(None) => unreachable!("streaming response didn't end on [DONE]"),
-                                            Err(err) => {
+                                            Ok(Ok(None)) => unreachable!("streaming response didn't end on [DONE]"),
+                                            Ok(Err(err)) => {
                                                 let message = ServerResponse::Error(err.to_string());
                                                 tx.send(message).await.expect("server response channel full");
                                                 break
+                                            },
+                                            Err(err) => {
+                                                let message = ServerResponse::Error(err.to_string());
+                                                tx.send(message)
+                                                    .await
+                                                    .expect("server response channel full");
                                             }
                                         }
                                     }
@@ -102,7 +105,7 @@ async fn client(
                                 }
                             }
                         }
-                        Ok(response) => {
+                        Ok(Ok(response)) => {
                             let text = match response.error_for_status() {
                                 Ok(response) => {
                                     let repr = format!("{response:?}");
@@ -115,6 +118,12 @@ async fn client(
                                 Err(err) => format!("{err:?}"),
                             };
                             let message = ServerResponse::Error(text);
+                            tx.send(message)
+                                .await
+                                .expect("server response channel full");
+                        }
+                        Err(err) => {
+                            let message = ServerResponse::Error(err.to_string());
                             tx.send(message)
                                 .await
                                 .expect("server response channel full");
@@ -273,7 +282,7 @@ struct Args {
 }
 
 const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
-const DEFAULT_RESPONSE_TIMEOUT: u64 = 5;
+const DEFAULT_RESPONSE_TIMEOUT: u64 = 100;
 const DEFAULT_CONTEXT_LIMIT: u32 = 8000;
 
 /// Minimal REPL
@@ -288,9 +297,9 @@ USAGE:
     toi_client [OPTIONS]
 
 OPTIONS:
-    --url       Server chat URL         [default: {DEFAULT_SERVER_CHAT_URL}]
-    --timeout   Server response timeout [default: {DEFAULT_RESPONSE_TIMEOUT}]
-    --limit     Chat context limit      [default: {DEFAULT_CONTEXT_LIMIT}]
+    --url       Server chat URL                 [default: {DEFAULT_SERVER_CHAT_URL}]
+    --timeout   Server response timeout in ms   [default: {DEFAULT_RESPONSE_TIMEOUT}]
+    --limit     Chat context limit              [default: {DEFAULT_CONTEXT_LIMIT}]
 
 FLAGS:
     -h, --help    Print help information"
@@ -308,7 +317,7 @@ FLAGS:
         timeout: pargs
             .value_from_str("--timeout")
             .map(Duration::from_secs)
-            .unwrap_or(Duration::from_secs(DEFAULT_RESPONSE_TIMEOUT)),
+            .unwrap_or(Duration::from_millis(DEFAULT_RESPONSE_TIMEOUT)),
         context_limit: pargs
             .value_from_str("--limit")
             .unwrap_or(DEFAULT_CONTEXT_LIMIT),

@@ -51,7 +51,7 @@ async fn chat(
     // found, respond like a normal chat assistant. Otherwise, execute an
     // HTTP request to fulfill the user's request.
     let streaming_generation_request = if let Some(message) = request.messages.last() {
-        info!("user> {}", message.content);
+        info!(">> {}", message.content);
         let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
 
         info!("embedding message for API search");
