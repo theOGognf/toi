@@ -275,7 +275,7 @@ struct Args {
 }
 
 const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
-const DEFAULT_RESPONSE_TIMEOUT: u64 = 100;
+const DEFAULT_RESPONSE_TIMEOUT: u64 = 5;
 const DEFAULT_CONTEXT_LIMIT: u32 = 8000;
 
 /// Minimal REPL
@@ -290,9 +290,9 @@ USAGE:
     toi_client [OPTIONS]
 
 OPTIONS:
-    --url       Server chat URL                 [default: {DEFAULT_SERVER_CHAT_URL}]
-    --timeout   Server response timeout in ms   [default: {DEFAULT_RESPONSE_TIMEOUT}]
-    --limit     Chat context limit              [default: {DEFAULT_CONTEXT_LIMIT}]
+    --url       Server chat URL         [default: {DEFAULT_SERVER_CHAT_URL}]
+    --timeout   Server response timeout [default: {DEFAULT_RESPONSE_TIMEOUT}]
+    --limit     Chat context limit      [default: {DEFAULT_CONTEXT_LIMIT}]
 
 FLAGS:
     -h, --help    Print help information"
@@ -310,7 +310,7 @@ FLAGS:
         timeout: pargs
             .value_from_str("--timeout")
             .map(Duration::from_secs)
-            .unwrap_or(Duration::from_millis(DEFAULT_RESPONSE_TIMEOUT)),
+            .unwrap_or(Duration::from_secs(DEFAULT_RESPONSE_TIMEOUT)),
         context_limit: pargs
             .value_from_str("--limit")
             .unwrap_or(DEFAULT_CONTEXT_LIMIT),
