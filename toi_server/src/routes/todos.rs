@@ -236,7 +236,7 @@ pub async fn complete_matching_todos(
     Json(body): Json<CompleteTodoRequest>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let completed_at = body.completed_at.clone();
+    let completed_at = body.completed_at;
     let ids = search(&state, &body.into(), &mut conn).await?;
     let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .set(schema::todos::completed_at.eq(completed_at))

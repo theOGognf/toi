@@ -75,7 +75,7 @@ impl ModelClient {
         &self,
         request: StreamingGenerationRequest,
     ) -> Result<Body, (StatusCode, String)> {
-        let base_url = self.generation_api_config.base_url.trim_end_matches("/");
+        let base_url = self.generation_api_config.base_url.trim_end_matches('/');
         let url = format!("{base_url}/v1/chat/completions");
         let request = Self::build_request_json(&self.generation_api_config, request)?;
         let response = self
@@ -123,7 +123,7 @@ impl ModelClient {
         client: &Client,
         request: Request,
     ) -> Result<ResponseModel, (StatusCode, String)> {
-        let base_url = config.base_url.trim_end_matches("/");
+        let base_url = config.base_url.trim_end_matches('/');
         let url = format!("{base_url}{endpoint}",);
         let request = Self::build_request_json(config, request)?;
         client

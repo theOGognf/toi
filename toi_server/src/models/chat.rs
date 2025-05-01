@@ -35,6 +35,7 @@ pub struct GeneratedRequest {
 }
 
 impl GeneratedRequest {
+    #[must_use]
     pub fn into_assistant_message(self) -> Message {
         Message {
             role: MessageRole::Assistant,
@@ -42,6 +43,7 @@ impl GeneratedRequest {
         }
     }
 
+    #[must_use]
     pub fn into_http_request(self, binding_addr: String) -> Request {
         let mut request_builder = Client::new().request(
             self.method.into(),

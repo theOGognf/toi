@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // case.
     info!("preparing OpenAPI endpoints for automation");
     diesel::delete(toi_server::schema::openapi::table).execute(&mut conn)?;
-    for (path, item) in openapi.paths.paths.iter_mut() {
+    for (path, item) in &mut openapi.paths.paths {
         for (method, op) in [
             ("DELETE", &mut item.delete),
             ("GET", &mut item.get),

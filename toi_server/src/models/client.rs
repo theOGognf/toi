@@ -11,6 +11,7 @@ pub struct EmbeddingPromptTemplate {
 }
 
 impl EmbeddingPromptTemplate {
+    #[must_use]
     pub fn apply(&self, query: &str) -> String {
         match (&self.instruction_prefix, &self.query_prefix) {
             (Some(instruction_prefix), Some(query_prefix)) => {
@@ -74,6 +75,7 @@ pub struct StreamingGenerationRequest {
 }
 
 impl StreamingGenerationRequest {
+    #[must_use]
     pub fn new(messages: Vec<Message>) -> Self {
         Self {
             messages,
@@ -103,6 +105,7 @@ pub enum ModelClientError {
 }
 
 impl ModelClientError {
+    #[must_use]
     pub fn into_response(self, err: &str) -> (StatusCode, String) {
         match self {
             Self::ApiConnection => (

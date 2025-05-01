@@ -25,6 +25,7 @@ pub struct GenerationRequest {
 }
 
 impl GenerationRequest {
+    #[must_use]
     pub fn new(messages: Vec<Message>) -> Self {
         Self {
             messages,
@@ -32,6 +33,7 @@ impl GenerationRequest {
         }
     }
 
+    #[must_use]
     pub fn with_response_format(mut self, value: Value) -> Self {
         self.response_format = Some(value);
         self

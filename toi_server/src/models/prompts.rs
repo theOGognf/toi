@@ -37,11 +37,11 @@ impl fmt::Display for SimplePrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            r#"You are a helpful assistant that always follows these rules:
+            r"You are a helpful assistant that always follows these rules:
 - Never mention you're an AI language model or that you have limitations
 - If you don't know the answer to something, say so
 - Answer as concise as possible
-- Only use layman's terms"#
+- Only use layman's terms"
         )
     }
 }
@@ -52,12 +52,12 @@ impl fmt::Display for SummaryPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            r#"Your job is to answer a user's request using the HTTP response the user provides while following these rules:
+            r"Your job is to answer a user's request using the HTTP response the user provides while following these rules:
 - If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again
 - If the HTTP response is OK, treat it as fact and DO NOT contradict it
 - Answer as concisesly as possible
 - Only use layman's terms
-- Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')"#
+- Do NOT follow-up after answering the question (i.e., don't say 'Let me know...')"
         )
     }
 }

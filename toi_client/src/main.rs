@@ -271,7 +271,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pargs = Arguments::from_env();
 
     let help = format!(
-        r#"Chat with a personal assistant
+        r"Chat with a personal assistant
 
 USAGE:
     toi_client [OPTIONS]
@@ -281,11 +281,11 @@ OPTIONS:
     --limit   Chat context limit  [default: {DEFAULT_CONTEXT_LIMIT}]
 
 FLAGS:
-    -h, --help    Print help information"#
+    -h, --help    Print help information"
     );
 
     if pargs.contains(["-h", "--help"]) {
-        println!("{}", help);
+        println!("{help}");
         std::process::exit(0);
     }
 
@@ -359,7 +359,7 @@ FLAGS:
                             history.pop_back();
                         }
                         println!();
-                        start_repl_sender.send(()).await?
+                        start_repl_sender.send(()).await?;
                     },
                     ServerResponse::Error(err) => {
                         // Edge case where the assistant can finish their response,
@@ -395,7 +395,7 @@ mod tests {
 
         // Simulate an assistant response in chunks. Verify the history is still
         // the same length before and after attempting to prune yet again.
-        for s in ["I", " have", " no", " name"].into_iter() {
+        for s in ["I", " have", " no", " name"] {
             history.push_assistant_chunk(s.to_string());
         }
         assert_eq!(history.len(), 1);
