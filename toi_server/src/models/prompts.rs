@@ -1,19 +1,19 @@
 use serde_json::{Value, json};
 use std::fmt;
-use toi::{GenerationRequest, Message, MessageRole};
+use toi::{Message, MessageRole};
 
 use crate::models::client::StreamingGenerationRequest;
 
 use super::openapi::OpenApiPathItem;
 
 pub trait SystemPrompt: fmt::Display {
-    fn to_generation_request(&self, history: &[toi::Message]) -> GenerationRequest {
+    fn to_messages(&self, history: &[toi::Message]) -> Vec<Message> {
         let mut messages = vec![Message {
             role: MessageRole::System,
             content: self.to_string(),
         }];
         messages.extend_from_slice(history);
-        GenerationRequest::new(messages)
+        messages
     }
 
     fn to_streaming_generation_request(
@@ -89,7 +89,7 @@ impl From<OpenApiPathItem> for HttpRequestPrompt {
 }
 
 impl HttpRequestPrompt {
-    pub fn response_format(&mut self) -> Value {
+    pub fn into_response_format(self) -> Value {
         // The base response format is just the path and method.
         let mut response_format = json!(
             {
@@ -121,23 +121,23 @@ impl HttpRequestPrompt {
         let mut any_definitions = None;
 
         // Use JSON schema to determine if params are required.
-        if let Some(params) = &mut self.params {
+        if let Some(mut params) = self.params {
             if let Some(obj) = params.as_object_mut() {
                 obj.remove("$schema");
                 any_definitions = obj.remove("definitions");
             }
-            response_format["json_schema"]["schema"]["properties"]["params"] = params.clone();
+            response_format["json_schema"]["schema"]["properties"]["params"] = params;
             response_format["json_schema"]["schema"]["required"] =
                 ["path", "method", "params"].into();
         }
 
         // Use JSON schema to determine if a body is required.
-        if let Some(body) = &mut self.body {
+        if let Some(mut body) = self.body {
             if let Some(obj) = body.as_object_mut() {
                 obj.remove("$schema");
                 any_definitions = obj.remove("definitions");
             }
-            response_format["json_schema"]["schema"]["properties"]["body"] = body.clone();
+            response_format["json_schema"]["schema"]["properties"]["body"] = body;
             response_format["json_schema"]["schema"]["required"] =
                 ["path", "method", "body"].into();
         }

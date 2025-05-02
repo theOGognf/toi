@@ -23,19 +23,19 @@ impl ModelClient {
     fn build_request_json<Request: Serialize>(
         config: &HttpClientConfig,
         request: Request,
-    ) -> Result<serde_json::Map<String, serde_json::Value>, (StatusCode, String)> {
+    ) -> Result<serde_json::Value, (StatusCode, String)> {
         let mut value = serde_json::to_value(request)
             .map_err(|err| ModelClientError::RequestJson.into_response(&err.to_string()))?;
         let request = value
             .as_object_mut()
             .expect("request value can never be empty");
-        if let Some(json) = serde_json::to_value(config.json.clone())
+        if let Some(json) = serde_json::to_value(&config.json)
             .map_err(|err| ModelClientError::DefaultJson.into_response(&err.to_string()))?
             .as_object()
         {
             request.extend(json.clone());
         }
-        Ok(request.clone())
+        Ok(value)
     }
 
     pub async fn embed(&self, request: EmbeddingRequest) -> Result<Vector, (StatusCode, String)> {

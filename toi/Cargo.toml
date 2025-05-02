@@ -8,6 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [dependencies]
+bon = "3.6.3"
 reqwest = "0.12.15"
 serde = { version = "1.0.219", features = ["derive"] }
 serde-query = "0.2.0"

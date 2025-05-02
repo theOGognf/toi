@@ -19,11 +19,14 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query";
 const QUERY_PREFIX: &str = "Query: ";
 
-impl From<(String, &Vec<OpenApiPathItem>)> for RerankRequest {
-    fn from(value: (String, &Vec<OpenApiPathItem>)) -> Self {
+impl From<(&String, &Vec<OpenApiPathItem>)> for RerankRequest {
+    fn from(value: (&String, &Vec<OpenApiPathItem>)) -> Self {
         let (query, items) = value;
         let documents = items.iter().map(|item| item.description.clone()).collect();
-        Self { query, documents }
+        Self {
+            query: query.to_string(),
+            documents,
+        }
     }
 }
 
@@ -79,7 +82,7 @@ async fn chat(
         };
         // Rerank the results and reevaluate to see if they're relevant.
         info!("reranking API search results for relevance");
-        let rerank_request: RerankRequest = (message.content.clone(), &items).into();
+        let rerank_request: RerankRequest = (&message.content, &items).into();
         let rerank_response = state.model_client.rerank(rerank_request).await?;
         let most_relevant_result = &rerank_response.results[0];
         let item = items.remove(most_relevant_result.index);
@@ -91,12 +94,23 @@ async fn chat(
             info!("API passes similarity threshold");
 
             // Convert user request into HTTP request.
-            let description = item.description.clone();
-            let mut system_prompt: HttpRequestPrompt = item.into();
-            let response_format = system_prompt.response_format();
-            let generation_request = system_prompt
-                .to_generation_request(&request.messages)
-                .with_response_format(response_format);
+            let OpenApiPathItem {
+                path,
+                method,
+                description,
+                params,
+                body,
+            } = item;
+            let system_prompt = HttpRequestPrompt {
+                path,
+                method,
+                params,
+                body,
+            };
+            let generation_request = GenerationRequest::builder()
+                .messages(system_prompt.to_messages(&request.messages))
+                .response_format(system_prompt.into_response_format())
+                .build();
             info!("preparing proxy API request");
             let generated_request = state.model_client.generate(generation_request).await?;
             info!("parsing proxy API request");
@@ -104,12 +118,12 @@ async fn chat(
                 parse_generated_response::<GeneratedRequest>(&generated_request)?;
 
             // Add the HTTP request to the context as an assistant message.
-            let assistant_message = generated_request.clone().into_assistant_message();
+            let http_request = generated_request.to_http_request(&state.binding_addr);
+            let assistant_message = generated_request.into_assistant_message();
             request.messages.push(assistant_message);
 
             // Execute the HTTP request.
             info!("sending proxy API request");
-            let http_request = generated_request.into_http_request(&state.binding_addr);
             let response = Client::new().execute(http_request).await.map_err(|err| {
                 ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
             })?;

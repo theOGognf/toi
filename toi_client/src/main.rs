@@ -264,7 +264,9 @@ impl History {
             content,
         };
         self.messages.push_back(message);
-        GenerationRequest::new(self.messages.clone().into())
+        GenerationRequest::builder()
+            .messages(self.messages.clone().into())
+            .build()
     }
 }
 
@@ -367,9 +369,9 @@ FLAGS:
             Some(server_response) = server_response_receiver.recv() => {
                 match server_response {
                     ServerResponse::Chunk(chunk) => {
-                        if let Some(choice) = chunk.choices.first() {
-                            history.push_assistant_chunk(choice.delta.content.clone());
+                        if let Some(choice) = chunk.choices.into_iter().next() {
                             print!("{}", choice.delta.content);
+                            history.push_assistant_chunk(choice.delta.content);
                             io::stdout().flush()?;
                         }
                         if let Some(usage) = chunk.usage {

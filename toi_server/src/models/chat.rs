@@ -44,17 +44,17 @@ impl GeneratedRequest {
     }
 
     #[must_use]
-    pub fn into_http_request(self, binding_addr: &str) -> Request {
+    pub fn to_http_request(&self, binding_addr: &str) -> Request {
         let mut request_builder = Client::new().request(
-            self.method.into(),
+            self.method.clone().into(),
             format!("http://{binding_addr}{}", self.path),
         );
 
-        if let Some(params) = self.params {
-            request_builder = request_builder.query(&params);
+        if let Some(params) = &self.params {
+            request_builder = request_builder.query(params);
         }
 
-        if let Some(body) = self.body {
+        if let Some(body) = &self.body {
             request_builder = request_builder.json(&body);
         }
 
