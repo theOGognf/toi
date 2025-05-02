@@ -1,10 +1,10 @@
 use axum::{extract::Query, http::StatusCode, response::Json};
-use chrono::{DateTime, Datelike, Duration, Local, Utc};
+use chrono::{DateTime, Datelike, Duration, Utc};
 use schemars::schema_for;
 use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::models::datetime::{DateTimeQueryParams, DateTimeShiftRequest};
+use crate::models::datetime::{DateTimeShiftRequest, DateTimeWeekdayParams};
 
 pub fn router() -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
@@ -14,22 +14,12 @@ pub fn router() -> OpenApiRouter {
     let openapi = router.get_openapi_mut();
     let paths = &mut openapi.paths.paths;
 
-    // Update POST /local extensions
-    let json_schema = schema_for!(DateTimeQueryParams);
+    // Update GET /weekday extensions
+    let json_schema = schema_for!(DateTimeWeekdayParams);
     let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
-    let query_extensions = ExtensionsBuilder::new()
+    let weekday_extensions = ExtensionsBuilder::new()
         .add("x-json-schema-params", json_schema)
         .build();
-    paths
-        .get_mut("/local")
-        .expect("/local doesn't exist")
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(query_extensions.clone());
-
-    // Update GET /weekday extensions
     paths
         .get_mut("/weekday")
         .expect("/weekday doesn't exist")
@@ -37,7 +27,7 @@ pub fn router() -> OpenApiRouter {
         .as_mut()
         .expect("GET doesn't exist")
         .extensions
-        .get_or_insert(query_extensions);
+        .get_or_insert(weekday_extensions);
 
     // Update POST /shift extensions
     let json_schema = schema_for!(DateTimeShiftRequest);
@@ -55,33 +45,6 @@ pub fn router() -> OpenApiRouter {
         .get_or_insert(shift_extensions);
 
     router
-}
-
-/// Convert the given time to local time.
-///
-/// Returns local time in ISO format.
-///
-/// Useful for answering the following:
-/// - What is that in local time?
-/// - Make the time zone local.
-/// - Convert the time zone to my time zone.
-/// - What time is it locally?
-#[utoipa::path(
-    post,
-    path = "/local",
-    params(
-        DateTimeQueryParams
-    ),
-    responses(
-        (status = 200, description = "Successfully got local time", body = DateTime<Local>)
-    ),
-)]
-#[axum::debug_handler]
-pub async fn local(
-    Query(params): Query<DateTimeQueryParams>,
-) -> Result<Json<DateTime<Local>>, (StatusCode, String)> {
-    let res = params.datetime.into();
-    Ok(Json(res))
 }
 
 /// Get the current time.
@@ -152,7 +115,7 @@ pub async fn shift(
     get,
     path = "/weekday",
     params(
-        DateTimeQueryParams
+        DateTimeWeekdayParams
     ),
     responses(
         (status = 200, description = "Successfully got weekday of given date", body = String)
@@ -160,7 +123,7 @@ pub async fn shift(
 )]
 #[axum::debug_handler]
 pub async fn weekday(
-    Query(params): Query<DateTimeQueryParams>,
+    Query(params): Query<DateTimeWeekdayParams>,
 ) -> Result<String, (StatusCode, String)> {
     let res = params.datetime.weekday();
     Ok(res.to_string())

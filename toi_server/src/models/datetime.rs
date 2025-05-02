@@ -6,7 +6,7 @@ use utoipa::{IntoParams, ToSchema};
 
 #[derive(Default, Deserialize, JsonSchema, IntoParams, Serialize)]
 #[serde(default)]
-pub struct DateTimeQueryParams {
+pub struct DateTimeWeekdayParams {
     /// Datetime in ISO format. Defaults to now.
     pub datetime: DateTime<Utc>,
 }
