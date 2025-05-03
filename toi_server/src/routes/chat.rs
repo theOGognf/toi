@@ -1,7 +1,7 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::Client;
 use toi::{GenerationRequest, Message, MessageRole};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -54,10 +54,10 @@ async fn chat(
     // found, respond like a normal chat assistant. Otherwise, execute an
     // HTTP request to fulfill the user's request.
     let streaming_generation_request = if let Some(message) = request.messages.last() {
-        info!(">> {}", message.content);
+        debug!(">> {}", message.content);
         let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
 
-        info!("embedding message for API search");
+        debug!("embedding message for API search");
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(INSTRUCTION_PREFIX.to_string())
             .query_prefix(QUERY_PREFIX.to_string())
@@ -81,7 +81,7 @@ async fn chat(
                 .expect("no APi items found")
         };
         // Rerank the results and reevaluate to see if they're relevant.
-        info!("reranking API search results for relevance");
+        debug!("reranking API search results for relevance");
         let rerank_request: RerankRequest = (&message.content, &items).into();
         let rerank_response = state.model_client.rerank(rerank_request).await?;
         let most_relevant_result = &rerank_response.results[0];
@@ -91,7 +91,7 @@ async fn chat(
             item.path, item.method, most_relevant_result.relevance_score
         );
         if most_relevant_result.relevance_score >= utils::default_similarity_threshold() {
-            info!("API passes similarity threshold");
+            debug!("API passes similarity threshold");
 
             // Convert user request into HTTP request.
             let OpenApiPathItem {
@@ -111,9 +111,9 @@ async fn chat(
                 .messages(system_prompt.to_messages(&request.messages))
                 .response_format(system_prompt.into_response_format())
                 .build();
-            info!("preparing proxy API request");
+            debug!("preparing proxy API request");
             let generated_request = state.model_client.generate(generation_request).await?;
-            info!("parsing proxy API request");
+            debug!("parsing proxy API request");
             let generated_request =
                 parse_generated_response::<GeneratedRequest>(&generated_request)?;
 
@@ -123,11 +123,11 @@ async fn chat(
             request.messages.push(assistant_message);
 
             // Execute the HTTP request.
-            info!("sending proxy API request");
+            debug!("sending proxy API request");
             let response = Client::new().execute(http_request).await.map_err(|err| {
                 ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
             })?;
-            info!("receiving proxy API response");
+            debug!("receiving proxy API response");
             let content = response
                 .text()
                 .await
@@ -138,10 +138,10 @@ async fn chat(
                 role: MessageRole::User,
                 content,
             });
-            info!("summarizing API response");
+            debug!("summarizing API response");
             SummaryPrompt { description }.to_streaming_generation_request(&request.messages)
         } else {
-            info!("no APIs pass similarity threshold");
+            debug!("no APIs pass similarity threshold");
             SimplePrompt {}.to_streaming_generation_request(&request.messages)
         }
     } else {
@@ -149,7 +149,7 @@ async fn chat(
         SimplePrompt {}.to_streaming_generation_request(&request.messages)
     };
 
-    info!("beginning response stream");
+    debug!("beginning response stream");
     let stream = state
         .model_client
         .generate_stream(streaming_generation_request)

@@ -1,6 +1,6 @@
 use bon::Builder;
 use chrono::{DateTime, Utc};
-use diesel::{Queryable, Selectable, prelude::Insertable};
+use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

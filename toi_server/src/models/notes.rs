@@ -1,6 +1,6 @@
 use bon::Builder;
 use chrono::{DateTime, Utc};
-use diesel::{Queryable, Selectable, prelude::Insertable};
+use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::{models::search::SimilaritySearchParams, utils};
 
-#[derive(Clone, Deserialize, Queryable, Selectable, Serialize, ToSchema)]
+#[derive(Deserialize, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::notes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Note {

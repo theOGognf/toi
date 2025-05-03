@@ -1,6 +1,7 @@
 pub mod chat;
 pub mod client;
 pub mod datetime;
+pub mod events;
 pub mod notes;
 pub mod openapi;
 pub mod prompts;

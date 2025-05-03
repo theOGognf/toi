@@ -1,4 +1,6 @@
 -- Your SQL goes here
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS openapi (
     path TEXT,
     method TEXT,
