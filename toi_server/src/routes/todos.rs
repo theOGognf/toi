@@ -193,15 +193,20 @@ pub async fn add_todo(
     Json(body): Json<NewTodoRequest>,
 ) -> Result<Json<Todo>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let NewTodoRequest {
+        item,
+        due_at,
+        completed_at,
+    } = body;
     let embedding_request = EmbeddingRequest {
-        input: body.item.clone(),
+        input: item.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
     let new_todo = NewTodo {
-        item: body.item,
+        item,
         embedding,
-        due_at: body.due_at,
-        completed_at: body.completed_at,
+        due_at,
+        completed_at,
     };
     let res = diesel::insert_into(schema::todos::table)
         .values(new_todo)

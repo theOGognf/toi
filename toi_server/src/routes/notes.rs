@@ -170,14 +170,12 @@ pub async fn add_note(
     Json(body): Json<NewNoteRequest>,
 ) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let NewNoteRequest { content } = body;
     let embedding_request = EmbeddingRequest {
-        input: body.content.clone(),
+        input: content.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
-    let new_note = NewNote {
-        content: body.content,
-        embedding,
-    };
+    let new_note = NewNote { content, embedding };
     let res = diesel::insert_into(schema::notes::table)
         .values(new_note)
         .returning(Note::as_returning())

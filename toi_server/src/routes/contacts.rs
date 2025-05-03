@@ -14,8 +14,7 @@ use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         contacts::{
-            Contact, ContactQueryParams, NewContact, NewContactRequest,
-            UpdateContactRequest,
+            Contact, ContactQueryParams, NewContact, NewContactRequest, UpdateContactRequest,
         },
         state::ToiState,
     },
@@ -302,20 +301,52 @@ pub async fn update_matching_contact(
     Json(body): Json<UpdateContactRequest>,
 ) -> Result<Json<Contact>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &body.clone().into(), &mut conn).await?;
+    let UpdateContactRequest {
+        contact_updates,
+        similarity_search_params,
+        created_from,
+        created_to,
+        order_by,
+        limit,
+    } = body;
+    let params = ContactQueryParams {
+        similarity_search_params,
+        created_from,
+        created_to,
+        order_by,
+        limit,
+    };
+    let ids = search(&state, &params, &mut conn).await?;
     let mut contact: Contact = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq_any(ids))
         .first(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    contact.update(body.contact_updates);
+    contact.update(contact_updates);
     let embedding_request = EmbeddingRequest {
         input: serde_json::to_string_pretty(&contact).expect("contact not serializable"),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
-    let id = contact.id.clone();
-    let new_contact: NewContact = (contact, embedding).into();
+    let Contact {
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+        ..
+    } = contact;
+    let new_contact = NewContact {
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+        embedding,
+    };
     let contact = diesel::update(schema::contacts::table.filter(schema::contacts::id.eq(id)))
         .set(&new_contact)
         .returning(Contact::as_returning())

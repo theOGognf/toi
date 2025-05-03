@@ -66,21 +66,6 @@ pub struct NewContact {
     pub embedding: Vector,
 }
 
-impl From<(Contact, Vector)> for NewContact {
-    fn from(value: (Contact, Vector)) -> Self {
-        let (contact, embedding) = value;
-        Self {
-            first_name: contact.first_name,
-            last_name: contact.last_name,
-            email: contact.email,
-            phone: contact.phone,
-            birthday: contact.birthday,
-            relationship: contact.relationship,
-            embedding,
-        }
-    }
-}
-
 impl From<(NewContactRequest, Vector)> for NewContact {
     fn from(value: (NewContactRequest, Vector)) -> Self {
         let (new_contact_request, embedding) = value;
@@ -128,18 +113,6 @@ pub struct ContactQueryParams {
     pub limit: Option<i64>,
 }
 
-impl From<UpdateContactRequest> for ContactQueryParams {
-    fn from(value: UpdateContactRequest) -> Self {
-        Self {
-            similarity_search_params: value.similarity_search_params,
-            created_from: value.created_from,
-            created_to: value.created_to,
-            order_by: value.order_by,
-            limit: value.limit,
-        }
-    }
-}
-
 #[derive(Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct ContactUpdates {
     /// Contact's first name.
@@ -162,16 +135,12 @@ pub struct UpdateContactRequest {
     pub contact_updates: ContactUpdates,
     #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,
-    /// Filter on todos created after this ISO formatted datetime.
+    /// Filter on contacts created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
-    /// Filter on todos created before this ISO formatted datetime.
+    /// Filter on contacts created before this ISO formatted datetime.
     pub created_to: Option<DateTime<Utc>>,
-    /// Filter on todos due after this ISO formatted datetime.
-    pub due_from: Option<DateTime<Utc>>,
-    /// Filter on todos due before this ISO formatted datetime.
-    pub due_to: Option<DateTime<Utc>>,
-    /// How to order results for retrieved todos.
+    /// How to order results for retrieved contacts.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of todos to return from the search.
+    /// Max number of contacts to return from the search.
     pub limit: Option<i64>,
 }
