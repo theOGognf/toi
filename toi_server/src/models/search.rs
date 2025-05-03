@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::utils;
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Builder, Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct SimilaritySearchParams {
     /// User query string to compare embeddings against. Basically,
     /// if the user is asking something like "what color is my jacket?",

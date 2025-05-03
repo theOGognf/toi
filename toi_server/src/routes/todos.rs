@@ -145,7 +145,7 @@ async fn search(
     }
 
     // Get all the items that match the query.
-    let todos = query.load(conn).await.map_err(utils::internal_error)?;
+    let todos = query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) =
         todos.into_iter().map(|todo| (todo.id, todo.item)).unzip();
 
@@ -243,7 +243,7 @@ pub async fn complete_matching_todos(
         .returning(Todo::as_returning())
         .load(&mut conn)
         .await
-        .map_err(utils::internal_error)?;
+        .map_err(utils::diesel_error)?;
     Ok(Json(todos))
 }
 
@@ -278,7 +278,7 @@ pub async fn delete_matching_todos(
         .returning(Todo::as_returning())
         .load(&mut conn)
         .await
-        .map_err(utils::internal_error)?;
+        .map_err(utils::diesel_error)?;
     Ok(Json(todos))
 }
 
@@ -314,6 +314,6 @@ pub async fn get_matching_todos(
         .filter(schema::todos::id.eq_any(ids))
         .load(&mut conn)
         .await
-        .map_err(utils::internal_error)?;
+        .map_err(utils::diesel_error)?;
     Ok(Json(todos))
 }

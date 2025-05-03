@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS contacts (
     phone TEXT UNIQUE,
     birthday DATE,
     relationship TEXT,
+    embedding VECTOR NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

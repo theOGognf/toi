@@ -21,7 +21,7 @@ use crate::{
 
 // Prefixes are used for embedding instructions.
 const INSTRUCTION_PREFIX: &str =
-    "Instruction: Given a user query, find similar notes to the one the user mentions";
+    "Instruction: Given a user query, find notes similar to the one the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
@@ -117,7 +117,7 @@ async fn search(
     }
 
     // Get all the items that match the query.
-    let notes = query.load(conn).await.map_err(utils::internal_error)?;
+    let notes = query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = notes
         .into_iter()
         .map(|note| (note.id, note.content))
@@ -218,7 +218,7 @@ pub async fn delete_matching_notes(
         .returning(Note::as_returning())
         .load(&mut conn)
         .await
-        .map_err(utils::internal_error)?;
+        .map_err(utils::diesel_error)?;
     Ok(Json(notes))
 }
 
@@ -254,6 +254,6 @@ pub async fn get_matching_notes(
         .filter(schema::notes::id.eq_any(ids))
         .load(&mut conn)
         .await
-        .map_err(utils::internal_error)?;
+        .map_err(utils::diesel_error)?;
     Ok(Json(notes))
 }

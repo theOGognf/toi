@@ -12,6 +12,7 @@ diesel::table! {
         phone -> Nullable<Text>,
         birthday -> Nullable<Date>,
         relationship -> Nullable<Text>,
+        embedding -> Vector,
         created_at -> Timestamptz,
     }
 }

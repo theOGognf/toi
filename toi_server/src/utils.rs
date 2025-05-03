@@ -10,7 +10,7 @@ pub type Conn<'a> = bb8::PooledConnection<
     diesel_async::pooled_connection::AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>,
 >;
 
-#[derive(PartialEq, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Clone, Deserialize, JsonSchema, PartialEq, Serialize, ToSchema)]
 pub enum OrderBy {
     Oldest,
     Newest,
