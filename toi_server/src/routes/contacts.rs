@@ -15,7 +15,8 @@ use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         contacts::{
-            Contact, ContactQueryParams, NewContact, NewContactRequest, UpdateContactRequest,
+            Contact, ContactDeleteParams, ContactQueryParams, NewContact, NewContactRequest,
+            UpdateContactRequest,
         },
         state::ToiState,
     },
@@ -309,7 +310,7 @@ pub async fn add_contact(
 #[utoipa::path(
     delete,
     path = "",
-    params(ContactQueryParams),
+    params(ContactDeleteParams),
     responses(
         (status = 200, description = "Successfully deleted contacts", body = [Contact]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -320,9 +321,24 @@ pub async fn add_contact(
 #[axum::debug_handler]
 pub async fn delete_matching_contacts(
     State(state): State<ToiState>,
-    Query(params): Query<ContactQueryParams>,
+    Query(params): Query<ContactDeleteParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let ContactDeleteParams {
+        similarity_search_params,
+        created_from,
+        created_to,
+        order_by,
+        limit,
+    } = params;
+    let params = ContactQueryParams {
+        birthday_search_params: None,
+        similarity_search_params,
+        created_from,
+        created_to,
+        order_by,
+        limit,
+    };
     let ids = search(&state, &params, &mut conn).await?;
     let contacts = diesel::delete(schema::contacts::table.filter(schema::contacts::id.eq_any(ids)))
         .returning(Contact::as_returning())

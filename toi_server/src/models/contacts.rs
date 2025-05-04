@@ -113,6 +113,22 @@ pub struct BirthdaySearchParams {
 }
 
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+pub struct ContactDeleteParams {
+    /// Parameters for performing similarity search against contacts.
+    #[serde(flatten)]
+    pub similarity_search_params: Option<SimilaritySearchParams>,
+    /// Filter on contacts created after this ISO formatted datetime.
+    pub created_from: Option<DateTime<Utc>>,
+    /// Filter on contacts created before this ISO formatted datetime.
+    pub created_to: Option<DateTime<Utc>>,
+    /// How to order results for retrieved contacts.
+    pub order_by: Option<utils::OrderBy>,
+    /// Max number of contacts to return from the search.
+    #[param(minimum = 1)]
+    pub limit: Option<i64>,
+}
+
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct ContactQueryParams {
     /// Parameters for performing a search against contact birthdays.
     #[serde(flatten)]
