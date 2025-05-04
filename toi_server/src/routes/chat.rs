@@ -19,17 +19,6 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query";
 const QUERY_PREFIX: &str = "Query: ";
 
-impl From<(&String, &Vec<OpenApiPathItem>)> for RerankRequest {
-    fn from(value: (&String, &Vec<OpenApiPathItem>)) -> Self {
-        let (query, items) = value;
-        let documents = items.iter().map(|item| item.description.clone()).collect();
-        Self {
-            query: query.to_string(),
-            documents,
-        }
-    }
-}
-
 pub fn router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new().routes(routes!(chat)).with_state(state)
 }
@@ -82,7 +71,10 @@ async fn chat(
         };
         // Rerank the results and reevaluate to see if they're relevant.
         debug!("reranking API search results for relevance");
-        let rerank_request: RerankRequest = (&message.content, &items).into();
+        let rerank_request = RerankRequest {
+            query: message.content.clone(),
+            documents: items.iter().map(|item| item.description.clone()).collect(),
+        };
         let rerank_response = state.model_client.rerank(rerank_request).await?;
         let most_relevant_result = &rerank_response.results[0];
         let item = items.remove(most_relevant_result.index);
