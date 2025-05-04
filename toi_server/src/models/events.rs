@@ -1,5 +1,5 @@
 use bon::Builder;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
@@ -44,8 +44,23 @@ pub struct NewEventRequest {
     pub ends_at: DateTime<Utc>,
 }
 
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+pub struct EventFallsOnSearchParams {
+    /// Event day search parameter. What kind of search depends on
+    /// the `falls_on` field.
+    #[serde(default)]
+    pub event_day: NaiveDate,
+    /// What kind of calendar object the event falls on. Used
+    /// to search if an event falls on the month of, week of,
+    /// or day of `event_day`.
+    pub falls_on: utils::DateFallsOn,
+}
+
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct EventQueryParams {
+    /// Parameters for performing a search against event days.
+    #[serde(flatten)]
+    pub event_day_falls_on_search_params: Option<EventFallsOnSearchParams>,
     /// Parameters for performing similarity search against events.
     #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,

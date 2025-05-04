@@ -100,18 +100,6 @@ impl fmt::Display for NewContactRequest {
     }
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
-pub struct BirthdaySearchParams {
-    /// Birthday search parameter. What kind of search depends on
-    /// the `falls_on` field.
-    #[serde(default)]
-    pub birthday: NaiveDate,
-    /// What kind of calendar object the birthday falls on. Used
-    /// to search if a contact's birthday falls on the month of, week of,
-    /// or day of `birthday`.
-    pub falls_on: utils::DateFallsOn,
-}
-
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct ContactDeleteParams {
     /// Parameters for performing similarity search against contacts.
@@ -128,11 +116,23 @@ pub struct ContactDeleteParams {
     pub limit: Option<i64>,
 }
 
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+pub struct BirthdayFallsOnSearchParams {
+    /// Birthday search parameter. What kind of search depends on
+    /// the `falls_on` field.
+    #[serde(default)]
+    pub birthday: NaiveDate,
+    /// What kind of calendar object the birthday falls on. Used
+    /// to search if a contact's birthday falls on the month of, week of,
+    /// or day of `birthday`.
+    pub falls_on: utils::DateFallsOn,
+}
+
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct ContactQueryParams {
     /// Parameters for performing a search against contact birthdays.
     #[serde(flatten)]
-    pub birthday_search_params: Option<BirthdaySearchParams>,
+    pub birthday_falls_on_search_params: Option<BirthdayFallsOnSearchParams>,
     /// Parameters for performing similarity search against contacts.
     #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,

@@ -24,7 +24,8 @@ use crate::{
 };
 
 // Prefixes are used for embedding instructions.
-const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, find contacts stored as JSON with values that the user mentions";
+const INSTRUCTION_PREFIX: &str =
+    "Instruction: Given a user query, find contacts stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
@@ -111,11 +112,11 @@ async fn search(
     }
 
     // Filter items according to birthdays.
-    if let Some(birthday_search_params) = &params.birthday_search_params {
-        match birthday_search_params.falls_on {
+    if let Some(birthday_falls_on_search_params) = &params.birthday_falls_on_search_params {
+        match birthday_falls_on_search_params.falls_on {
             utils::DateFallsOn::Month => {
-                let year = birthday_search_params.birthday.year();
-                let month = birthday_search_params.birthday.month();
+                let year = birthday_falls_on_search_params.birthday.year();
+                let month = birthday_falls_on_search_params.birthday.month();
                 let num_days_in_month = {
                     let month = u8::try_from(month).map_err(|_| {
                         (
@@ -139,7 +140,10 @@ async fn search(
                     "invalid birthday search".to_string(),
                 ))?;
                 let last_day_of_month =
-                    NaiveDate::from_ymd_opt(year, month, num_days_in_month.into());
+                    NaiveDate::from_ymd_opt(year, month, num_days_in_month.into()).ok_or((
+                        StatusCode::BAD_REQUEST,
+                        "invalid birthday search".to_string(),
+                    ))?;
                 query = query.filter(
                     schema::contacts::birthday
                         .ge(first_day_of_month)
@@ -147,12 +151,12 @@ async fn search(
                 );
             }
             utils::DateFallsOn::Week => {
-                let num_days_from_sunday = birthday_search_params
+                let num_days_from_sunday = birthday_falls_on_search_params
                     .birthday
                     .weekday()
                     .num_days_from_sunday();
-                let this_weeks_sunday =
-                    birthday_search_params.birthday - Duration::days(num_days_from_sunday.into());
+                let this_weeks_sunday = birthday_falls_on_search_params.birthday
+                    - Duration::days(num_days_from_sunday.into());
                 let this_weeks_saturday = this_weeks_sunday + Duration::days(6);
                 query = query.filter(
                     schema::contacts::birthday
@@ -161,7 +165,8 @@ async fn search(
                 );
             }
             utils::DateFallsOn::Day => {
-                query = query.filter(schema::contacts::birthday.eq(birthday_search_params.birthday))
+                query = query
+                    .filter(schema::contacts::birthday.eq(birthday_falls_on_search_params.birthday))
             }
         }
     }
@@ -332,7 +337,7 @@ pub async fn delete_matching_contacts(
         limit,
     } = params;
     let params = ContactQueryParams {
-        birthday_search_params: None,
+        birthday_falls_on_search_params: None,
         similarity_search_params,
         created_from,
         created_to,
@@ -417,7 +422,7 @@ pub async fn update_matching_contact(
         limit,
     } = body;
     let params = ContactQueryParams {
-        birthday_search_params: None,
+        birthday_falls_on_search_params: None,
         similarity_search_params,
         created_from,
         created_to,
