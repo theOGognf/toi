@@ -68,22 +68,6 @@ pub struct CompleteTodoRequest {
     pub limit: Option<i64>,
 }
 
-impl From<CompleteTodoRequest> for TodoQueryParams {
-    fn from(value: CompleteTodoRequest) -> Self {
-        Self {
-            similarity_search_params: value.similarity_search_params,
-            created_from: value.created_from,
-            created_to: value.created_to,
-            due_from: value.due_from,
-            due_to: value.due_to,
-            completed_from: None,
-            completed_to: None,
-            order_by: value.order_by,
-            limit: value.limit,
-        }
-    }
-}
-
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct TodoQueryParams {
     /// Parameters for performing similarity search against todos.

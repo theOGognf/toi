@@ -3,7 +3,8 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
+use chrono::{Datelike, Duration, Month, NaiveDate};
+use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
@@ -27,8 +28,12 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
-        .routes(routes!(add_contact))
-        .routes(routes!(delete_matching_contacts, get_matching_contacts))
+        .routes(routes!(
+            add_contact,
+            delete_matching_contacts,
+            get_matching_contacts,
+            update_matching_contact
+        ))
         .with_state(state);
 
     let openapi = router.get_openapi_mut();
@@ -104,6 +109,62 @@ async fn search(
         query = query.filter(schema::contacts::created_at.le(created_to));
     }
 
+    // Filter items according to birthdays.
+    if let Some(birthday_search_params) = &params.birthday_search_params {
+        match birthday_search_params.falls_on {
+            utils::DateFallsOn::Month => {
+                let year = birthday_search_params.birthday.year();
+                let month = birthday_search_params.birthday.month();
+                let num_days_in_month = {
+                    let month = u8::try_from(month).map_err(|_| {
+                        (
+                            StatusCode::BAD_REQUEST,
+                            "invalid birthday search month".to_string(),
+                        )
+                    })?;
+                    let month = Month::try_from(month).map_err(|_| {
+                        (
+                            StatusCode::BAD_REQUEST,
+                            "invalid birthday search month".to_string(),
+                        )
+                    })?;
+                    month.num_days(year).ok_or((
+                        StatusCode::BAD_REQUEST,
+                        "invalid birthday search year".to_string(),
+                    ))?
+                };
+                let first_day_of_month = NaiveDate::from_ymd_opt(year, month, 1).ok_or((
+                    StatusCode::BAD_REQUEST,
+                    "invalid birthday search".to_string(),
+                ))?;
+                let last_day_of_month =
+                    NaiveDate::from_ymd_opt(year, month, num_days_in_month.into());
+                query = query.filter(
+                    schema::contacts::birthday
+                        .ge(first_day_of_month)
+                        .and(schema::contacts::birthday.le(last_day_of_month)),
+                );
+            }
+            utils::DateFallsOn::Week => {
+                let num_days_from_sunday = birthday_search_params
+                    .birthday
+                    .weekday()
+                    .num_days_from_sunday();
+                let this_weeks_sunday =
+                    birthday_search_params.birthday - Duration::days(num_days_from_sunday.into());
+                let this_weeks_saturday = this_weeks_sunday + Duration::days(6);
+                query = query.filter(
+                    schema::contacts::birthday
+                        .ge(this_weeks_sunday)
+                        .and(schema::contacts::birthday.le(this_weeks_saturday)),
+                );
+            }
+            utils::DateFallsOn::Day => {
+                query = query.filter(schema::contacts::birthday.eq(birthday_search_params.birthday))
+            }
+        }
+    }
+
     // Order items.
     match params.order_by {
         Some(utils::OrderBy::Oldest) => query = query.order(schema::contacts::created_at),
@@ -139,10 +200,25 @@ async fn search(
     let (ids, documents): (Vec<i32>, Vec<String>) = contacts
         .into_iter()
         .map(|contact| {
-            (
-                contact.id,
-                serde_json::to_string_pretty(&contact).expect("contact not serializable"),
-            )
+            let Contact {
+                id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                birthday,
+                relationship,
+                ..
+            } = contact;
+            let new_contact_request = NewContactRequest {
+                first_name,
+                last_name,
+                email,
+                phone,
+                birthday,
+                relationship,
+            };
+            (id, new_contact_request.to_string())
         })
         .unzip();
 
@@ -171,7 +247,6 @@ async fn search(
 /// Adds and returns the added contact's details.
 ///
 /// Useful for answering phrases that start with the following:
-/// - Add a contact saying...
 /// - Add a contact with...
 /// - Remember this contact...
 /// - Make a contact...
@@ -193,10 +268,26 @@ pub async fn add_contact(
 ) -> Result<Json<Contact>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let embedding_request = EmbeddingRequest {
-        input: serde_json::to_string_pretty(&body).expect("contact not serializable"),
+        input: body.to_string(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
-    let new_contact: NewContact = (body, embedding).into();
+    let NewContactRequest {
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+    } = body;
+    let new_contact = NewContact {
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+        embedding,
+    };
     let res = diesel::insert_into(schema::contacts::table)
         .values(new_contact)
         .returning(Contact::as_returning())
@@ -212,7 +303,7 @@ pub async fn add_contact(
 ///
 /// Useful for answering phrases that start with the following:
 /// - Delete all contacts with...
-/// - Erase all contacts...
+/// - Erase all contacts whom...
 /// - Remove contacts with...
 /// - Delete contacts whom...
 #[utoipa::path(
@@ -310,6 +401,7 @@ pub async fn update_matching_contact(
         limit,
     } = body;
     let params = ContactQueryParams {
+        birthday_search_params: None,
         similarity_search_params,
         created_from,
         created_to,
@@ -324,10 +416,6 @@ pub async fn update_matching_contact(
         .await
         .map_err(utils::diesel_error)?;
     contact.update(contact_updates);
-    let embedding_request = EmbeddingRequest {
-        input: serde_json::to_string_pretty(&contact).expect("contact not serializable"),
-    };
-    let embedding = state.model_client.embed(embedding_request).await?;
     let Contact {
         id,
         first_name,
@@ -338,6 +426,26 @@ pub async fn update_matching_contact(
         relationship,
         ..
     } = contact;
+    let new_contact_request = NewContactRequest {
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+    };
+    let embedding_request = EmbeddingRequest {
+        input: new_contact_request.to_string(),
+    };
+    let embedding = state.model_client.embed(embedding_request).await?;
+    let NewContactRequest {
+        first_name,
+        last_name,
+        email,
+        phone,
+        birthday,
+        relationship,
+    } = new_contact_request;
     let new_contact = NewContact {
         first_name,
         last_name,

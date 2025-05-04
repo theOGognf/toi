@@ -4,8 +4,6 @@ use toi::{Message, MessageRole};
 
 use crate::models::client::StreamingGenerationRequest;
 
-use super::openapi::OpenApiPathItem;
-
 pub trait SystemPrompt: fmt::Display {
     fn to_messages(&self, history: &[toi::Message]) -> Vec<Message> {
         let mut messages = vec![Message {
@@ -77,17 +75,6 @@ pub struct HttpRequestPrompt {
     pub method: String,
     pub params: Option<Value>,
     pub body: Option<Value>,
-}
-
-impl From<OpenApiPathItem> for HttpRequestPrompt {
-    fn from(value: OpenApiPathItem) -> Self {
-        Self {
-            path: value.path,
-            method: value.method,
-            params: value.params,
-            body: value.body,
-        }
-    }
 }
 
 impl HttpRequestPrompt {

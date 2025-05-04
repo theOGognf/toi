@@ -4,6 +4,7 @@ use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{models::search::SimilaritySearchParams, utils};
@@ -66,21 +67,6 @@ pub struct NewContact {
     pub embedding: Vector,
 }
 
-impl From<(NewContactRequest, Vector)> for NewContact {
-    fn from(value: (NewContactRequest, Vector)) -> Self {
-        let (new_contact_request, embedding) = value;
-        Self {
-            first_name: new_contact_request.first_name,
-            last_name: new_contact_request.last_name,
-            email: new_contact_request.email,
-            phone: new_contact_request.phone,
-            birthday: new_contact_request.birthday,
-            relationship: new_contact_request.relationship,
-            embedding,
-        }
-    }
-}
-
 #[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct NewContactRequest {
     /// Contact's first name.
@@ -97,8 +83,40 @@ pub struct NewContactRequest {
     pub relationship: Option<String>,
 }
 
+impl fmt::Display for NewContactRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let items: Vec<String> = [
+            ("First Name", Some(&self.first_name)),
+            ("Last Name", self.last_name.as_ref()),
+            ("Email", self.email.as_ref()),
+            ("Phone", self.phone.as_ref()),
+            ("Relationship", self.relationship.as_ref()),
+        ]
+        .iter()
+        .filter_map(|(k, opt)| opt.map(|v| format!("{k}: {v}")))
+        .collect();
+        let repr = items.join("\n");
+        write!(f, "{repr}")
+    }
+}
+
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+pub struct BirthdaySearchParams {
+    /// Birthday search parameter. What kind of search depends on
+    /// the `falls_on` field.
+    #[serde(default)]
+    pub birthday: NaiveDate,
+    /// What kind of calendar object the birthday falls on. Used
+    /// to search if a contact's birthday falls on the month of, week of,
+    /// or day of `birthday`.
+    pub falls_on: utils::DateFallsOn,
+}
+
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct ContactQueryParams {
+    /// Parameters for performing a search against contact birthdays.
+    #[serde(flatten)]
+    pub birthday_search_params: Option<BirthdaySearchParams>,
     /// Parameters for performing similarity search against contacts.
     #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,

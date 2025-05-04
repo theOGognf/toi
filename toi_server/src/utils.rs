@@ -10,6 +10,13 @@ pub type Conn<'a> = bb8::PooledConnection<
     diesel_async::pooled_connection::AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>,
 >;
 
+#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+pub enum DateFallsOn {
+    Month,
+    Week,
+    Day,
+}
+
 #[derive(Clone, Deserialize, JsonSchema, PartialEq, Serialize, ToSchema)]
 pub enum OrderBy {
     Oldest,

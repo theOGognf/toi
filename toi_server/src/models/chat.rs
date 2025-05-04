@@ -58,7 +58,7 @@ impl GeneratedRequest {
             request_builder = request_builder.json(&body);
         }
 
-        request_builder.build().expect("valid request")
+        request_builder.build().expect("invalid request")
     }
 }
 

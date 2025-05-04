@@ -26,8 +26,7 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
-        .routes(routes!(add_note))
-        .routes(routes!(delete_matching_notes, get_matching_notes))
+        .routes(routes!(add_note, delete_matching_notes, get_matching_notes))
         .with_state(state);
 
     let openapi = router.get_openapi_mut();

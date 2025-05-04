@@ -26,8 +26,8 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
-        .routes(routes!(add_todo))
         .routes(routes!(
+            add_todo,
             complete_matching_todos,
             delete_matching_todos,
             get_matching_todos
@@ -241,8 +241,28 @@ pub async fn complete_matching_todos(
     Json(body): Json<CompleteTodoRequest>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let completed_at = body.completed_at;
-    let ids = search(&state, &body.into(), &mut conn).await?;
+    let CompleteTodoRequest {
+        completed_at,
+        similarity_search_params,
+        created_from,
+        created_to,
+        due_from,
+        due_to,
+        order_by,
+        limit,
+    } = body;
+    let params = TodoQueryParams {
+        similarity_search_params,
+        created_from,
+        created_to,
+        due_from,
+        due_to,
+        completed_from: None,
+        completed_to: None,
+        order_by,
+        limit,
+    };
+    let ids = search(&state, &params, &mut conn).await?;
     let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .set(schema::todos::completed_at.eq(completed_at))
         .returning(Todo::as_returning())
