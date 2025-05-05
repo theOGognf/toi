@@ -15,10 +15,8 @@ use crate::{
     models::{
         contacts::{Contact, ContactQueryParams},
         events::{Event, EventQueryParams},
-        participants::{
-            Participant, ParticipantContactQueryParams, ParticipantEventQueryParams,
-            ParticipantQueryParams, Participants,
-        },
+        participants::{Participant, ParticipantQueryParams, Participants},
+        search::SimilaritySearchParams,
         state::ToiState,
     },
     routes::{contacts::search_contacts, events::search_events},
@@ -77,29 +75,35 @@ pub async fn search_participants(
     conn: &mut utils::Conn<'_>,
 ) -> Result<(Event, Vec<Contact>), (StatusCode, String)> {
     let ParticipantQueryParams {
-        event_query_params,
-        contact_query_params,
+        event_query,
+        event_distance_threshold,
+        event_similarity_threshold,
+        event_created_from,
+        event_created_to,
+        event_starts_from,
+        event_starts_to,
+        event_ends_from,
+        event_ends_to,
+        event_order_by,
+        contact_query,
+        contact_distance_threshold,
+        contact_similarity_threshold,
+        contact_limit,
     } = params;
-    let ParticipantEventQueryParams {
-        similarity_search_params,
-        created_from,
-        created_to,
-        starts_from,
-        starts_to,
-        ends_from,
-        ends_to,
-        order_by,
-    } = event_query_params;
     let event_query_params = EventQueryParams {
         event_day_falls_on_search_params: None,
-        similarity_search_params,
-        created_from,
-        created_to,
-        starts_from,
-        starts_to,
-        ends_from,
-        ends_to,
-        order_by,
+        similarity_search_params: Some(SimilaritySearchParams {
+            query: event_query,
+            distance_threshold: event_distance_threshold,
+            similarity_threshold: event_similarity_threshold,
+        }),
+        created_from: event_created_from,
+        created_to: event_created_to,
+        starts_from: event_starts_from,
+        starts_to: event_starts_to,
+        ends_from: event_ends_from,
+        ends_to: event_ends_to,
+        order_by: event_order_by,
         limit: Some(1),
     };
     let event_id = search_events(state, &event_query_params, conn)
@@ -113,17 +117,17 @@ pub async fn search_participants(
         .first(conn)
         .await
         .map_err(utils::diesel_error)?;
-    let ParticipantContactQueryParams {
-        similarity_search_params,
-        limit,
-    } = contact_query_params;
     let contact_query_params = ContactQueryParams {
         birthday_falls_on_search_params: None,
-        similarity_search_params,
+        similarity_search_params: Some(SimilaritySearchParams {
+            query: contact_query,
+            distance_threshold: contact_distance_threshold,
+            similarity_threshold: contact_similarity_threshold,
+        }),
         created_from: None,
         created_to: None,
         order_by: None,
-        limit,
+        limit: contact_limit,
     };
     let contact_ids = search_contacts(state, &contact_query_params, conn).await?;
     let contacts = schema::contacts::table

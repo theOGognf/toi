@@ -5,9 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{
-    models::contacts::Contact, models::events::Event, models::search::SimilaritySearchParams, utils,
-};
+use crate::{models::contacts::Contact, models::events::Event, utils};
 
 #[derive(Insertable, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::event_participants)]
@@ -26,37 +24,68 @@ pub struct Participants {
 }
 
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
-pub struct ParticipantEventQueryParams {
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+pub struct ParticipantQueryParams {
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question.
+    pub event_query: String,
+    /// Measure of distance between the query and string it's being
+    /// compared to. Only return items whose distance is less than
+    /// or equal this value. A lower number restricts the search to
+    /// more similar items, while a higher number allows for more
+    /// dissimilar items. The default value for this is usually fine
+    /// for most scenarios.
+    #[serde(default = "utils::default_distance_threshold")]
+    #[schema(minimum = 0.01, maximum = 0.95)]
+    pub event_distance_threshold: f64,
+    /// Measure of similarity between the query and string it's being
+    /// compared to. Only return items whose distance is greater than
+    /// or equal this value. A higher number restricts the search to
+    /// more similar items, while a lower number allows for more
+    /// dissimilar items. The default value for this is usually fine
+    /// for most scenarios.
+    #[serde(default = "utils::default_similarity_threshold")]
+    #[schema(minimum = 0.01, maximum = 0.95)]
+    pub event_similarity_threshold: f64,
     /// Filter on events created after this ISO formatted datetime.
-    pub created_from: Option<DateTime<Utc>>,
+    pub event_created_from: Option<DateTime<Utc>>,
     /// Filter on events created before this ISO formatted datetime.
-    pub created_to: Option<DateTime<Utc>>,
+    pub event_created_to: Option<DateTime<Utc>>,
     /// Filter on events starting after this ISO formatted datetime.
-    pub starts_from: Option<DateTime<Utc>>,
+    pub event_starts_from: Option<DateTime<Utc>>,
     /// Filter on events starting before this ISO formatted datetime.
-    pub starts_to: Option<DateTime<Utc>>,
+    pub event_starts_to: Option<DateTime<Utc>>,
     /// Filter on events ending after this ISO formatted datetime.
-    pub ends_from: Option<DateTime<Utc>>,
+    pub event_ends_from: Option<DateTime<Utc>>,
     /// Filter on events ending before this ISO formatted datetime.
-    pub ends_to: Option<DateTime<Utc>>,
+    pub event_ends_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved events.
-    pub order_by: Option<utils::OrderBy>,
-}
-
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
-pub struct ParticipantContactQueryParams {
-    /// Parameters for performing similarity search against contacts.
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+    pub event_order_by: Option<utils::OrderBy>,
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question.
+    pub contact_query: String,
+    /// Measure of distance between the query and string it's being
+    /// compared to. Only return items whose distance is less than
+    /// or equal this value. A lower number restricts the search to
+    /// more similar items, while a higher number allows for more
+    /// dissimilar items. The default value for this is usually fine
+    /// for most scenarios.
+    #[serde(default = "utils::default_distance_threshold")]
+    #[schema(minimum = 0.01, maximum = 0.95)]
+    pub contact_distance_threshold: f64,
+    /// Measure of similarity between the query and string it's being
+    /// compared to. Only return items whose distance is greater than
+    /// or equal this value. A higher number restricts the search to
+    /// more similar items, while a lower number allows for more
+    /// dissimilar items. The default value for this is usually fine
+    /// for most scenarios.
+    #[serde(default = "utils::default_similarity_threshold")]
+    #[schema(minimum = 0.01, maximum = 0.95)]
+    pub contact_similarity_threshold: f64,
     /// Max number of contacts to return from the search.
     #[param(minimum = 1)]
-    pub limit: Option<i64>,
-}
-
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
-pub struct ParticipantQueryParams {
-    pub event_query_params: ParticipantEventQueryParams,
-    pub contact_query_params: ParticipantContactQueryParams,
+    pub contact_limit: Option<i64>,
 }
