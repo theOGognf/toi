@@ -2,6 +2,7 @@ use bon::Builder;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_repr::Deserialize_repr;
 use std::fmt;
 use utoipa::{IntoParams, ToSchema};
 
@@ -12,7 +13,8 @@ pub enum ForecastLength {
     Seven,
 }
 
-#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Deserialize_repr, Serialize, JsonSchema, ToSchema)]
+#[repr(u8)]
 pub enum WeatherCode {
     ClearSky = 0,
     MainlyClear = 1,
@@ -109,7 +111,7 @@ impl fmt::Display for GeocodingResult {
 
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct WeatherQueryParams {
-    /// City to check the weather for.
+    /// City name to check the weather for (excluding county, state, zip, etc).
     pub query: String,
     /// Two-letter country code that the city resides in.
     pub country_code: String,

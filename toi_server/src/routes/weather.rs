@@ -82,7 +82,7 @@ pub async fn get_weather_forecast(
         }
     );
     let geocoding_response = client
-        .post("https://geocoding-api.open-meteo.com/v1/search")
+        .get("https://geocoding-api.open-meteo.com/v1/search")
         .query(&geocoding_params)
         .send()
         .await
@@ -127,7 +127,7 @@ pub async fn get_weather_forecast(
         }
     );
     let weather_forecast = client
-        .post("https://api.open-meteo.com/v1/forecast")
+        .get("https://api.open-meteo.com/v1/forecast")
         .query(&forecast_params)
         .send()
         .await
