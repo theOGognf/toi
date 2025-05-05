@@ -5,3 +5,4 @@ pub mod events;
 pub mod notes;
 pub mod participants;
 pub mod todos;
+pub mod weather;

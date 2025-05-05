@@ -10,3 +10,4 @@ pub mod prompts;
 pub mod search;
 pub mod state;
 pub mod todos;
+pub mod weather;
