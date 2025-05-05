@@ -39,7 +39,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define base router and OpenAPI spec used for building the system prompt
     // for the main assistant endpoint.
     let mut openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .nest(
+            "/contacts",
+            toi_server::routes::contacts::router(state.clone()),
+        )
         .nest("/datetime", toi_server::routes::datetime::router())
+        .nest(
+            "/events",
+            toi_server::routes::events::router(state.clone()).nest(
+                "/participants",
+                toi_server::routes::participants::router(state.clone()),
+            ),
+        )
         .nest("/notes", toi_server::routes::notes::router(state.clone()))
         .nest("/todos", toi_server::routes::todos::router(state.clone()));
     let openapi = openapi_router.get_openapi_mut();

@@ -1,28 +1,29 @@
+use std::collections::HashSet;
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
-use chrono::{Datelike, Duration, Month, NaiveDate, NaiveTime};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
-use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
 use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        contacts::Contact,
-        events::{Event, EventQueryParams, NewEvent, NewEventRequest},
-        participants::{Participant, ParticipantQueryParams, Participants},
+        contacts::{Contact, ContactQueryParams},
+        events::{Event, EventQueryParams},
+        participants::{
+            Participant, ParticipantContactQueryParams, ParticipantEventQueryParams,
+            ParticipantQueryParams, Participants,
+        },
         state::ToiState,
     },
+    routes::{contacts::search_contacts, events::search_events},
     schema, utils,
 };
-
-use super::{contacts::search_contacts, events::search_events};
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
@@ -37,23 +38,20 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
 
     // Update POST /participants extensions
-    let add_participant_json_schema = schema_for!(NewEventRequest);
-    let add_participant_json_schema =
-        serde_json::to_value(add_participant_json_schema).expect("schema unserializable");
-    let add_participant_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_participant_json_schema)
+    let participant_json_schema = schema_for!(ParticipantQueryParams);
+    let participants_json_schema =
+        serde_json::to_value(participant_json_schema).expect("schema unserializable");
+    let participant_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", participants_json_schema.clone())
         .build();
     paths
         .post
         .as_mut()
         .expect("POST doesn't exist")
         .extensions
-        .get_or_insert(add_participant_extensions);
+        .get_or_insert(participant_extensions);
 
     // Update DELETE and GET /participants extensions
-    let participants_json_schema = schema_for!(EventQueryParams);
-    let participants_json_schema =
-        serde_json::to_value(participants_json_schema).expect("schema unserializable");
     let participants_extensions = ExtensionsBuilder::new()
         .add("x-json-schema-params", participants_json_schema)
         .build();
@@ -82,7 +80,28 @@ pub async fn search_participants(
         event_query_params,
         contact_query_params,
     } = params;
-    event_query_params.limit = Some(1);
+    let ParticipantEventQueryParams {
+        similarity_search_params,
+        created_from,
+        created_to,
+        starts_from,
+        starts_to,
+        ends_from,
+        ends_to,
+        order_by,
+    } = event_query_params;
+    let event_query_params = EventQueryParams {
+        event_day_falls_on_search_params: None,
+        similarity_search_params,
+        created_from,
+        created_to,
+        starts_from,
+        starts_to,
+        ends_from,
+        ends_to,
+        order_by,
+        limit: Some(1),
+    };
     let event_id = search_events(state, &event_query_params, conn)
         .await?
         .into_iter()
@@ -94,6 +113,18 @@ pub async fn search_participants(
         .first(conn)
         .await
         .map_err(utils::diesel_error)?;
+    let ParticipantContactQueryParams {
+        similarity_search_params,
+        limit,
+    } = contact_query_params;
+    let contact_query_params = ContactQueryParams {
+        birthday_falls_on_search_params: None,
+        similarity_search_params,
+        created_from: None,
+        created_to: None,
+        order_by: None,
+        limit,
+    };
     let contact_ids = search_contacts(state, &contact_query_params, conn).await?;
     let contacts = schema::contacts::table
         .select(Contact::as_select())
@@ -175,17 +206,24 @@ pub async fn delete_matching_participants(
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (event, contacts) = search_participants(&state, params, &mut conn).await?;
     let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let _ = diesel::delete(schema::event_participants::table)
+    let participants = diesel::delete(schema::event_participants::table)
         .filter(
             schema::event_participants::event_id
                 .eq(event.id)
                 .and(schema::event_participants::contact_id.eq_any(contact_ids)),
         )
-        .returning(Participant::as_returning())
-        .load(&mut conn)
+        .returning(schema::event_participants::contact_id)
+        .get_results(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let participants = Participants { event, contacts };
+    let participants: HashSet<i32> = HashSet::from_iter(participants);
+    let participants = Participants {
+        event,
+        contacts: contacts
+            .into_iter()
+            .filter(|contact| participants.contains(&contact.id))
+            .collect(),
+    };
     Ok(Json(participants))
 }
 
@@ -201,9 +239,9 @@ pub async fn delete_matching_participants(
 #[utoipa::path(
     get,
     path = "",
-    params(EventQueryParams),
+    params(ParticipantQueryParams),
     responses(
-        (status = 200, description = "Successfully got participants", body = [Event]),
+        (status = 200, description = "Successfully got participants", body = [Participants]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -212,22 +250,28 @@ pub async fn delete_matching_participants(
 #[axum::debug_handler]
 pub async fn get_matching_participants(
     State(state): State<ToiState>,
-    Query(params): Query<EventQueryParams>,
-) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
+    Query(params): Query<ParticipantQueryParams>,
+) -> Result<Json<Participants>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (event, contacts) = search_participants(&state, params, &mut conn).await?;
     let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let _ = schema::event_participants::table
-        .select()
+    let participants = schema::event_participants::table
+        .select(schema::event_participants::contact_id)
         .filter(
             schema::event_participants::event_id
                 .eq(event.id)
                 .and(schema::event_participants::contact_id.eq_any(contact_ids)),
         )
-        .returning(Participant::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let participants = Participants { event, contacts };
+    let participants: HashSet<i32> = HashSet::from_iter(participants);
+    let participants = Participants {
+        event,
+        contacts: contacts
+            .into_iter()
+            .filter(|contact| participants.contains(&contact.id))
+            .collect(),
+    };
     Ok(Json(participants))
 }
