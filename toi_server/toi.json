@@ -8,5 +8,6 @@
     },
     "reranking_api_config": {
         "base_url": "http://reranking:8000"
-    }
+    },
+    "user_agent": "https://github.com/theOGognf/toi"
 }

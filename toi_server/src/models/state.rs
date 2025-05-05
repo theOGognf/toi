@@ -7,6 +7,7 @@ pub struct ToiState {
     pub binding_addr: String,
     pub model_client: ModelClient,
     pub pool: utils::Pool,
+    pub user_agent: String,
 }
 
 impl FromRef<ToiState> for ModelClient {

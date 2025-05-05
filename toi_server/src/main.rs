@@ -52,7 +52,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ),
         )
         .nest("/notes", toi_server::routes::notes::router(state.clone()))
-        .nest("/todos", toi_server::routes::todos::router(state.clone()));
+        .nest("/todos", toi_server::routes::todos::router(state.clone()))
+        .nest(
+            "/weather",
+            toi_server::routes::weather::router(state.clone()),
+        );
     let openapi = openapi_router.get_openapi_mut();
 
     // Go through and embed all OpenAPI path specs so they can be used as

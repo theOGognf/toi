@@ -17,6 +17,7 @@ pub struct ToiConfig {
     embedding_api_config: models::client::HttpClientConfig,
     generation_api_config: models::client::HttpClientConfig,
     reranking_api_config: models::client::HttpClientConfig,
+    user_agent: String,
 }
 
 pub async fn init(
@@ -34,6 +35,7 @@ pub async fn init(
         embedding_api_config,
         generation_api_config,
         reranking_api_config,
+        user_agent,
     } = config;
 
     // Shared state components. A client is used for interacting with supporting
@@ -52,6 +54,7 @@ pub async fn init(
         binding_addr,
         model_client,
         pool,
+        user_agent,
     };
     Ok(state)
 }

@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
+use reqwest::header;
 use schemars::schema_for;
 use serde_json::json;
 use utoipa::openapi::extensions::ExtensionsBuilder;
@@ -64,7 +65,14 @@ pub async fn get_weather_forecast(
     State(state): State<ToiState>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<WeatherForecast>, (StatusCode, String)> {
-    let client = reqwest::Client::new();
+    let mut headers = header::HeaderMap::new();
+    let user_agent =
+        header::HeaderValue::from_str(&state.user_agent).map_err(utils::internal_error)?;
+    headers.insert("User-Agent", user_agent);
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(utils::internal_error)?;
 
     // Get latitude/longitude by geocoding the given query.
     let geocoding_params = json!(
