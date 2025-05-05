@@ -39,6 +39,62 @@ pub enum WeatherCode {
 }
 
 #[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+pub struct DailyUnits {
+    time: String,
+    weather_code: String,
+    temperature_2m_min: String,
+    temperature_2m_max: String,
+    rain_sum: String,
+    showers_sum: String,
+    snowfall_sum: String,
+    precipitation_sum: String,
+    precipitation_hours: String,
+    relative_humidity_2m_min: String,
+    relative_humidity_2m_max: String,
+    precipitation_probability_max: String,
+    precipitation_probability_min: String,
+    visibility_min: String,
+    visibility_max: String,
+    wind_gusts_10m_min: String,
+    wind_gusts_10m_max: String,
+    wind_speed_10m_min: String,
+    wind_speed_10m_max: String,
+    cloud_cover_min: String,
+    cloud_cover_max: String,
+}
+
+#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+pub struct DailyForecast {
+    time: Vec<String>,
+    weather_code: Vec<WeatherCode>,
+    temperature_2m_min: Vec<f32>,
+    temperature_2m_max: Vec<f32>,
+    rain_sum: Vec<f32>,
+    showers_sum: Vec<f32>,
+    snowfall_sum: Vec<f32>,
+    precipitation_sum: Vec<f32>,
+    precipitation_hours: Vec<f32>,
+    relative_humidity_2m_min: Vec<u8>,
+    relative_humidity_2m_max: Vec<u8>,
+    precipitation_probability_max: Vec<u8>,
+    precipitation_probability_min: Vec<u8>,
+    visibility_min: Vec<f32>,
+    visibility_max: Vec<f32>,
+    wind_gusts_10m_min: Vec<f32>,
+    wind_gusts_10m_max: Vec<f32>,
+    wind_speed_10m_min: Vec<f32>,
+    wind_speed_10m_max: Vec<f32>,
+    cloud_cover_min: Vec<u8>,
+    cloud_cover_max: Vec<u8>,
+}
+
+#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+pub struct DailyWeatherForecast {
+    daily_units: DailyUnits,
+    daily: DailyForecast,
+}
+
+#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct HourlyUnits {
     time: String,
     temperature_2m: String,
@@ -63,7 +119,7 @@ pub struct HourlyForecast {
 }
 
 #[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
-pub struct WeatherForecast {
+pub struct HourlyWeatherForecast {
     hourly_units: HourlyUnits,
     hourly: HourlyForecast,
 }
@@ -101,19 +157,10 @@ impl fmt::Display for GeocodingResult {
     }
 }
 
-#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
-pub enum ForecastLength {
-    One,
-    Three,
-    Seven,
-}
-
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct WeatherQueryParams {
     /// City name to check the weather for (excluding county, state, zip, etc).
     pub city: String,
     /// Two-letter country code that the city resides in.
     pub country_code: String,
-    /// Number of days of hourly forecast to return.
-    pub forecast_length: ForecastLength,
 }

@@ -90,7 +90,11 @@ async fn client(
                                             }
                                             // This shouldn't get hit in a streaming response because streaming responses
                                             // end with the '[DONE]' string before returning no lines.
-                                            Ok(None) => unreachable!("streaming response didn't end on [DONE]"),
+                                            Ok(None) => {
+                                                let message = ServerResponse::Error("server resposne didn't end on [DONE]".to_string());
+                                                tx.send(message).await.expect("server response channel full");
+                                                break
+                                            },
                                             Err(err) => {
                                                 let message = ServerResponse::Error(err.to_string());
                                                 tx.send(message).await.expect("server response channel full");
@@ -290,8 +294,8 @@ struct Args {
 }
 
 const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
-const DEFAULT_RESPONSE_TIMEOUT: u64 = 5;
-const DEFAULT_CONTEXT_LIMIT: u32 = 8000;
+const DEFAULT_RESPONSE_TIMEOUT: u64 = 10;
+const DEFAULT_CONTEXT_LIMIT: u32 = 4000;
 
 /// Minimal REPL
 #[tokio::main]
