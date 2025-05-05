@@ -9,6 +9,7 @@ license = "Apache-2.0"
 
 [dependencies]
 ctrlc = "3.4.5"
+dirs-next = "2.0.0"
 futures = "0.3.31"
 pico-args = "0.5.0"
 reqwest = { version = "0.12.12", features = ["json", "stream"] }

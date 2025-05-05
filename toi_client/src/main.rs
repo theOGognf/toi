@@ -2,11 +2,13 @@ use ctrlc::set_handler;
 use futures::stream::TryStreamExt;
 use models::client::TokenUsage;
 use pico_args::Arguments;
+use rustyline::config::Configurer;
 use rustyline::{
     Cmd, ConditionalEventHandler, DefaultEditor, Event, EventContext, EventHandler, KeyEvent,
     error::ReadlineError,
 };
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::time::Duration;
 use std::{collections::VecDeque, thread};
 use toi::{GenerationRequest, Message, MessageRole};
@@ -156,6 +158,15 @@ impl ConditionalEventHandler for InterruptEventHandler {
 /// the stream is interrupted through the other CTRL+C handler.
 fn repl(mut rx: Receiver<()>, tx: &Sender<UserRequest>) -> Result<(), ReadlineError> {
     let mut rl = DefaultEditor::new()?;
+    let history_path = match dirs_next::home_dir() {
+        Some(mut dir) => {
+            dir.push(".toi_history");
+            dir
+        }
+        None => PathBuf::from(".toi_history"),
+    };
+    let _ = rl.set_max_history_size(2048);
+    let _ = rl.load_history(&history_path);
     let interrupt_event_handler = Box::new(InterruptEventHandler);
     rl.bind_sequence(
         KeyEvent::ctrl('c'),
@@ -166,6 +177,7 @@ fn repl(mut rx: Receiver<()>, tx: &Sender<UserRequest>) -> Result<(), ReadlineEr
         loop {
             match rl.readline(">> ") {
                 Ok(input) => {
+                    let _ = rl.add_history_entry(&input);
                     let message = UserRequest::Prompt(input);
                     tx.blocking_send(message)
                         .expect("user request channel full");
@@ -175,6 +187,7 @@ fn repl(mut rx: Receiver<()>, tx: &Sender<UserRequest>) -> Result<(), ReadlineEr
                     println!("^C");
                 }
                 Err(ReadlineError::Eof) => {
+                    let _ = rl.save_history(&history_path);
                     std::process::exit(0);
                 }
                 _ => {}
