@@ -87,7 +87,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
-async fn search(
+async fn search_todos(
     state: &ToiState,
     params: &TodoQueryParams,
     conn: &mut utils::Conn<'_>,
@@ -262,7 +262,7 @@ pub async fn complete_matching_todos(
         order_by,
         limit,
     };
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, &params, &mut conn).await?;
     let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .set(schema::todos::completed_at.eq(completed_at))
         .returning(Todo::as_returning())
@@ -298,7 +298,7 @@ pub async fn delete_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, &params, &mut conn).await?;
     let todos = diesel::delete(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .returning(Todo::as_returning())
         .load(&mut conn)
@@ -333,7 +333,7 @@ pub async fn get_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, &params, &mut conn).await?;
     let todos = schema::todos::table
         .select(Todo::as_select())
         .filter(schema::todos::id.eq_any(ids))

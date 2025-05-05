@@ -92,7 +92,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
-async fn search(
+pub async fn search_contacts(
     state: &ToiState,
     params: &ContactQueryParams,
     conn: &mut utils::Conn<'_>,
@@ -344,7 +344,7 @@ pub async fn delete_matching_contacts(
         order_by,
         limit,
     };
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_contacts(&state, &params, &mut conn).await?;
     let contacts = diesel::delete(schema::contacts::table.filter(schema::contacts::id.eq_any(ids)))
         .returning(Contact::as_returning())
         .load(&mut conn)
@@ -379,7 +379,7 @@ pub async fn get_matching_contacts(
     Query(params): Query<ContactQueryParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_contacts(&state, &params, &mut conn).await?;
     let contacts = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq_any(ids))
@@ -419,7 +419,6 @@ pub async fn update_matching_contact(
         created_from,
         created_to,
         order_by,
-        limit,
     } = body;
     let params = ContactQueryParams {
         birthday_falls_on_search_params: None,
@@ -427,12 +426,16 @@ pub async fn update_matching_contact(
         created_from,
         created_to,
         order_by,
-        limit,
+        limit: Some(1),
     };
-    let ids = search(&state, &params, &mut conn).await?;
-    let mut contact: Contact = schema::contacts::table
+    let id = search_contacts(&state, &params, &mut conn)
+        .await?
+        .into_iter()
+        .next()
+        .ok_or((StatusCode::NOT_FOUND, "Contact not found".to_string()))?;
+    let mut contact = schema::contacts::table
         .select(Contact::as_select())
-        .filter(schema::contacts::id.eq_any(ids))
+        .filter(schema::contacts::id.eq(id))
         .first(&mut conn)
         .await
         .map_err(utils::diesel_error)?;

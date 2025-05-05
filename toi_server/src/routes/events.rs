@@ -74,7 +74,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
-async fn search(
+pub async fn search_events(
     state: &ToiState,
     params: &EventQueryParams,
     conn: &mut utils::Conn<'_>,
@@ -252,7 +252,7 @@ async fn search(
     path = "",
     request_body = NewEventRequest,
     responses(
-        (status = 201, description = "Successfully added a event", body = Event),
+        (status = 201, description = "Successfully added an event", body = Event),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -314,7 +314,7 @@ pub async fn delete_matching_events(
     Query(params): Query<EventQueryParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_events(&state, &params, &mut conn).await?;
     let events = diesel::delete(schema::events::table.filter(schema::events::id.eq_any(ids)))
         .returning(Event::as_returning())
         .load(&mut conn)
@@ -349,7 +349,7 @@ pub async fn get_matching_events(
     Query(params): Query<EventQueryParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_events(&state, &params, &mut conn).await?;
     let events = schema::events::table
         .select(Event::as_select())
         .filter(schema::events::id.eq_any(ids))

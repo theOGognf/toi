@@ -128,7 +128,7 @@ pub struct BirthdayFallsOnSearchParams {
     pub falls_on: utils::DateFallsOn,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
 pub struct ContactQueryParams {
     /// Parameters for performing a search against contact birthdays.
     #[serde(flatten)]
@@ -175,6 +175,4 @@ pub struct UpdateContactRequest {
     pub created_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved contacts.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of contacts to return from the search.
-    pub limit: Option<i64>,
 }

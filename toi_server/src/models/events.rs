@@ -56,7 +56,7 @@ pub struct EventFallsOnSearchParams {
     pub falls_on: utils::DateFallsOn,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
 pub struct EventQueryParams {
     /// Parameters for performing a search against event days.
     #[serde(flatten)]

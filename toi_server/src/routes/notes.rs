@@ -68,7 +68,7 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
-async fn search(
+async fn search_notes(
     state: &ToiState,
     params: &NoteQueryParams,
     conn: &mut utils::Conn<'_>,
@@ -210,7 +210,7 @@ pub async fn delete_matching_notes(
     Query(params): Query<NoteQueryParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_notes(&state, &params, &mut conn).await?;
     let notes = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(ids)))
         .returning(Note::as_returning())
         .load(&mut conn)
@@ -245,7 +245,7 @@ pub async fn get_matching_notes(
     Query(params): Query<NoteQueryParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search(&state, &params, &mut conn).await?;
+    let ids = search_notes(&state, &params, &mut conn).await?;
     let notes = schema::notes::table
         .select(Note::as_select())
         .filter(schema::notes::id.eq_any(ids))
