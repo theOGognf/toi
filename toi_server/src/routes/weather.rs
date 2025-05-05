@@ -77,7 +77,7 @@ pub async fn get_weather_forecast(
     // Get latitude/longitude by geocoding the given query.
     let geocoding_params = json!(
         {
-            "name": params.query,
+            "name": params.city,
             "countryCode": params.country_code,
         }
     );
@@ -96,7 +96,7 @@ pub async fn get_weather_forecast(
         .map(|r| r.to_string())
         .collect();
     let rerank_request = RerankRequest {
-        query: params.query.clone(),
+        query: params.city,
         documents,
     };
     let (latitude, longitude) = state

@@ -1,17 +1,9 @@
 use bon::Builder;
-use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
 use std::fmt;
 use utoipa::{IntoParams, ToSchema};
-
-#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
-pub enum ForecastLength {
-    One,
-    Three,
-    Seven,
-}
 
 #[derive(Deserialize_repr, Serialize, JsonSchema, ToSchema)]
 #[repr(u8)]
@@ -60,14 +52,14 @@ pub struct HourlyUnits {
 
 #[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct HourlyForecast {
-    time: Vec<DateTime<Utc>>,
-    temperature_2m: Vec<f64>,
-    relative_humidity_2m: Vec<f64>,
-    precipitation_probability: Vec<f64>,
-    precipitation: Vec<f64>,
+    time: Vec<String>,
+    temperature_2m: Vec<f32>,
+    relative_humidity_2m: Vec<u8>,
+    precipitation_probability: Vec<u8>,
+    precipitation: Vec<f32>,
     weather_code: Vec<WeatherCode>,
-    wind_speed_10m: Vec<f64>,
-    visibility: Vec<f64>,
+    wind_speed_10m: Vec<f32>,
+    visibility: Vec<f32>,
 }
 
 #[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
@@ -109,10 +101,17 @@ impl fmt::Display for GeocodingResult {
     }
 }
 
+#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+pub enum ForecastLength {
+    One,
+    Three,
+    Seven,
+}
+
 #[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
 pub struct WeatherQueryParams {
     /// City name to check the weather for (excluding county, state, zip, etc).
-    pub query: String,
+    pub city: String,
     /// Two-letter country code that the city resides in.
     pub country_code: String,
     /// Number of days of hourly forecast to return.
