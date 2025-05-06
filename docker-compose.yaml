@@ -16,6 +16,8 @@ services:
         condition: service_healthy
       generation:
         condition: service_healthy
+      reranking:
+        condition: service_healthy
 
   db:
     image: pgvector/pgvector:${POSTGRES_IAMGE_VERSION:-pg17}
@@ -34,7 +36,7 @@ services:
   embedding:
     image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
     command: >
-      --model ${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
+      --model ${EMBEDDING_MODEL:-BAAI/bge-reranker-v2-m3}
       --dtype ${EMBEDDING_DTYPE:-auto}
       --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
     volumes:
@@ -77,7 +79,7 @@ services:
   reranking:
     image: vllm/vllm-openai:${RERANKING_IMAGE_VERSION:-latest}
     command: >
-      --model ${RERANKING_MODEL:-BAAI/bge-reranker-v2-m3}
+      --model ${RERANKING_MODEL:-cross-encoder/ms-marco-MiniLM-L6-v2}
       --dtype ${RERANKING_DTYPE:-auto}
       --gpu-memory-utilization ${RERANKING_MEM:-0.1}
     volumes:

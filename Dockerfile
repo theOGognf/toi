@@ -1,3 +1,5 @@
+ARG RELEASE=false
+
 FROM rust:slim-bookworm AS chef
 
 RUN apt-get update \
@@ -16,19 +18,24 @@ WORKDIR /usr/app
 
 FROM chef AS planner
 
+ARG RELEASE
+
 COPY . .
 
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 
+ARG RELEASE
+
+COPY --from=planner /usr/app/build.sh build.sh
 COPY --from=planner /usr/app/recipe.json recipe.json
 
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN ./build.sh "cook" ${RELEASE}
 
 COPY . .
 
-RUN cargo build --release -p toi_server
+RUN ./build.sh "build" ${RELEASE}
 
 FROM debian:bookworm-slim AS runtime
 
@@ -43,6 +50,6 @@ ENV RUST_LOG=info,tower_http=trace
 
 WORKDIR /usr/app
 
-COPY --from=builder /usr/app/target/release/toi_server ./toi_server
+COPY --from=builder /usr/local/bin/toi_server /usr/local/bin/toi_server
 
-CMD ["./toi_server"]
+CMD ["toi_server"]
