@@ -2,11 +2,17 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS openapi (
-    path TEXT,
-    method TEXT,
+    id SERIAL PRIMARY KEY,
+    path TEXT NOT NULL,
+    method TEXT NOT NULL,
     description TEXT NOT NULL,
     params JSONB,
-    body JSONB,
-    embedding VECTOR NOT NULL,
-    PRIMARY KEY(path, method)
+    body JSONB
+);
+
+CREATE TABLE IF NOT EXISTS searchable_openapi (
+    id SERIAL PRIMARY KEY,
+    parent_id INT NOT NULL REFERENCES openapi(id) ON DELETE CASCADE,
+    description TEXT NOT NULL,
+    embedding VECTOR NOT NULL
 );

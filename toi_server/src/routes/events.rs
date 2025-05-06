@@ -239,11 +239,9 @@ pub async fn search_events(
     Ok(ids)
 }
 
-/// Add an event.
+/// Add and return an event.
 ///
-/// Adds and returns the added event's details.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for adding an event using this endpoint:
 /// - Add an event with...
 /// - Remember this event...
 /// - Make an event...
@@ -288,11 +286,9 @@ pub async fn add_event(
     Ok(Json(res))
 }
 
-/// Delete events.
+/// Delete and return events.
 ///
-/// Remove and return events that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for deleting events using this endpoint:
 /// - Delete all events with...
 /// - Erase all events that...
 /// - Remove events with...
@@ -325,9 +321,7 @@ pub async fn delete_matching_events(
 
 /// Get events.
 ///
-/// Get events that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for getting events using this endpoint:
 /// - Get all events where...
 /// - List all events...
 /// - What events do I have on...

@@ -169,9 +169,9 @@ async fn search_todos(
     Ok(ids)
 }
 
-/// Add a todo.
+/// Add and return a todo.
 ///
-/// Useful for answering phrases that start with the following:
+/// Example queries for adding todos using this endpoint:
 /// - Add a todo saying...
 /// - Add a todo that...
 /// - Make a task for...
@@ -217,11 +217,9 @@ pub async fn add_todo(
     Ok(Json(res))
 }
 
-/// Complete todos.
+/// Complete and return todos.
 ///
-/// Complete and return todos that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for completing todos using this endpoint:
 /// - Complete all todos related to...
 /// - Complete all todos about...
 /// - Complete todos there are on...
@@ -272,11 +270,9 @@ pub async fn complete_matching_todos(
     Ok(Json(todos))
 }
 
-/// Delete todos.
+/// Delete and return todos.
 ///
-/// Remove and return todos that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for deleting todos using this endpoint:
 /// - Delete all todos related to...
 /// - Erase all todos about...
 /// - Remove todos there are on...
@@ -309,9 +305,7 @@ pub async fn delete_matching_todos(
 
 /// Get todos.
 ///
-/// Get todos that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for getting todos using this endpoint:
 /// - Get all todos related to...
 /// - List all todos about...
 /// - What todos are there on...

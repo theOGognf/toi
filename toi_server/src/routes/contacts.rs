@@ -248,11 +248,9 @@ pub async fn search_contacts(
     Ok(ids)
 }
 
-/// Add a contact.
+/// Add and return a contact.
 ///
-/// Adds and returns the added contact's details.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for adding contacts using this endpoint:
 /// - Add a contact with...
 /// - Remember this contact...
 /// - Make a contact...
@@ -303,11 +301,9 @@ pub async fn add_contact(
     Ok(Json(res))
 }
 
-/// Delete contacts.
+/// Delete and return contacts.
 ///
-/// Remove and return contacts that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for deleting contacts using this endpoint:
 /// - Delete all contacts with...
 /// - Erase all contacts whom...
 /// - Remove contacts with...
@@ -355,9 +351,7 @@ pub async fn delete_matching_contacts(
 
 /// Get contacts.
 ///
-/// Get contacts that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for getting contacts using this endpoint:
 /// - Get all contacts whom...
 /// - List all contacts...
 /// - What contacts do I have whom...
@@ -389,11 +383,9 @@ pub async fn get_matching_contacts(
     Ok(Json(contacts))
 }
 
-/// Update a contact.
+/// Update and return a contact.
 ///
-/// Update and return a contact that matches a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for updating a contact using this endpoint:
 /// - Update my contact for...
 /// - Update the birthday for...
 /// - Update the email for...

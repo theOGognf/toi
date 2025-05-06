@@ -57,12 +57,24 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
-    openapi (path, method) {
+    openapi (id) {
+        id -> Int4,
         path -> Text,
         method -> Text,
         description -> Text,
         params -> Nullable<Jsonb>,
         body -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
+    searchable_openapi (id) {
+        id -> Int4,
+        parent_id -> Int4,
+        description -> Text,
         embedding -> Vector,
     }
 }
@@ -83,6 +95,7 @@ diesel::table! {
 
 diesel::joinable!(event_participants -> contacts (contact_id));
 diesel::joinable!(event_participants -> events (event_id));
+diesel::joinable!(searchable_openapi -> openapi (parent_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     contacts,
@@ -90,5 +103,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     events,
     notes,
     openapi,
+    searchable_openapi,
     todos,
 );

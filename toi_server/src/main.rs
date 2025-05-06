@@ -73,15 +73,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ("PUT", &mut item.put),
         ] {
             if let Some(op) = op {
-                // This is what is used for semantic search rather than the spec
-                // itself so it's more likely to match with user queries.
-                let description = [op.summary.clone(), op.description.clone()]
+                // Split the docstring according to newlines.
+                let summary_and_description = [op.summary.clone(), op.description.clone()]
                     .into_iter()
                     .flatten()
                     .collect::<Vec<String>>()
                     .join("\n\n");
+                let descriptions: Vec<String> = summary_and_description
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .map(|line| line.to_string())
+                    .collect();
 
-                if description.is_empty() {
+                if descriptions.is_empty() {
                     warn!(
                         "skipping uri={path} method={method} due to missing context from doc string"
                     );
@@ -129,29 +133,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                // Embed the endpoint's query.
-                let embedding_request = toi_server::models::client::EmbeddingRequest {
-                    input: description.clone(),
-                };
-                let embedding = state
-                    .model_client
-                    .embed(embedding_request)
-                    .await
-                    .map_err(|(_, err)| err)?;
-
-                // Store all the details.
-                let new_openapi_path = toi_server::models::openapi::NewOpenApiPathItem {
+                // Assuming that each line in the endpoint's docstring has
+                // a more unique string that might better match up to a user's
+                // query.
+                info!("adding uri={path} method={method}");
+                let new_openapi_path = toi_server::models::openapi::OpenApiPathItem {
                     path: path.to_string(),
                     method: method.to_string(),
-                    description,
+                    description: summary_and_description,
                     params,
                     body,
-                    embedding,
                 };
-                info!("adding uri={path} method={method}");
-                diesel::insert_into(toi_server::schema::openapi::table)
+                let parent_id = diesel::insert_into(toi_server::schema::openapi::table)
                     .values(&new_openapi_path)
-                    .execute(&mut conn)?;
+                    .returning(toi_server::schema::openapi::id)
+                    .get_result(&mut conn)?;
+                for description in descriptions {
+                    // Embed the endpoint's query.
+                    let embedding_request = toi_server::models::client::EmbeddingRequest {
+                        input: description.clone(),
+                    };
+                    let embedding = state
+                        .model_client
+                        .embed(embedding_request)
+                        .await
+                        .map_err(|(_, err)| err)?;
+
+                    // Store all the details.
+                    let new_searchable_openapi_path =
+                        toi_server::models::openapi::NewSearchableOpenApiPathItem {
+                            parent_id,
+                            description,
+                            embedding,
+                        };
+                    diesel::insert_into(toi_server::schema::searchable_openapi::table)
+                        .values(&new_searchable_openapi_path)
+                        .execute(&mut conn)?;
+                }
             }
         }
     }

@@ -139,11 +139,9 @@ pub async fn search_participants(
     Ok((event, contacts))
 }
 
-/// Add participants.
+/// Add and return participants.
 ///
-/// Adds and returns the added participants' details.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for adding participants using this endpoint:
 /// - Add participant to...
 /// - Remember this participant for...
 /// - Make a participant for...
@@ -182,11 +180,9 @@ pub async fn add_participants(
     Ok(Json(participants))
 }
 
-/// Delete participants.
+/// Delete and return participants.
 ///
-/// Remove and return participants that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for deleting participants using this endpoint:
 /// - Delete all participants with...
 /// - Erase all participants that...
 /// - Remove participants with...
@@ -233,9 +229,7 @@ pub async fn delete_matching_participants(
 
 /// Get participants.
 ///
-/// Get participants that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for getting participants using this endpoint:
 /// - Get all participants where...
 /// - List all participants...
 /// - What participants do I have on...

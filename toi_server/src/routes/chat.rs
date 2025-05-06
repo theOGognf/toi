@@ -8,7 +8,7 @@ use crate::{
     models::{
         chat::{GeneratedRequest, parse_generated_response},
         client::{EmbeddingPromptTemplate, EmbeddingRequest, ModelClientError, RerankRequest},
-        openapi::OpenApiPathItem,
+        openapi::{OpenApiPathItem, SearchableOpenApiPathItem},
         prompts::{HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
         state::ToiState,
     },
@@ -55,29 +55,46 @@ async fn chat(
         let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
 
-        let mut items: Vec<OpenApiPathItem> = {
+        let items: Vec<SearchableOpenApiPathItem> = {
             use diesel::{QueryDsl, SelectableHelper};
             use diesel_async::RunQueryDsl;
             use pgvector::VectorExpressionMethods;
 
             // There should always be some items returned here.
-            schema::openapi::table
-                .select(OpenApiPathItem::as_select())
-                .order(schema::openapi::embedding.cosine_distance(embedding))
-                .limit(5)
+            schema::searchable_openapi::table
+                .select(SearchableOpenApiPathItem::as_select())
+                .order(schema::searchable_openapi::embedding.cosine_distance(embedding))
+                .limit(16)
                 .load(&mut conn)
                 .await
                 .expect("no APi items found")
         };
         // Rerank the results and reevaluate to see if they're relevant.
         debug!("reranking API search results for relevance");
+        let (mut ids, documents): (Vec<i32>, Vec<String>) = items
+            .into_iter()
+            .map(|item| (item.parent_id, item.description))
+            .unzip();
         let rerank_request = RerankRequest {
             query: message.content.clone(),
-            documents: items.iter().map(|item| item.description.clone()).collect(),
+            documents,
         };
         let rerank_response = state.model_client.rerank(rerank_request).await?;
         let most_relevant_result = &rerank_response.results[0];
-        let item = items.remove(most_relevant_result.index);
+        let parent_id = ids.swap_remove(most_relevant_result.index);
+        let item: OpenApiPathItem = {
+            use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
+            use diesel_async::RunQueryDsl;
+
+            // There should always be some items returned here.
+            schema::openapi::table
+                .select(OpenApiPathItem::as_select())
+                .filter(schema::openapi::id.eq(parent_id))
+                .get_result(&mut conn)
+                .await
+                .expect("APi item found")
+        };
+
         info!(
             "most relevant API (uri={} method={}) scored at {:.3}",
             item.path, item.method, most_relevant_result.relevance_score

@@ -17,7 +17,7 @@ pub struct ToiConfig {
     embedding_api_config: models::client::HttpClientConfig,
     generation_api_config: models::client::HttpClientConfig,
     reranking_api_config: models::client::HttpClientConfig,
-    user_agent: String,
+    user_agent: models::state::UserAgent,
 }
 
 pub async fn init(

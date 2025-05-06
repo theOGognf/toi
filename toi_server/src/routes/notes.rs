@@ -142,11 +142,9 @@ async fn search_notes(
     Ok(ids)
 }
 
-/// Add a note.
+/// Add and return a note.
 ///
-/// Adds and returns the added note's details.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for adding notes using this endpoint:
 /// - Add a note saying...
 /// - Add a note that...
 /// - Keep note on...
@@ -184,11 +182,9 @@ pub async fn add_note(
     Ok(Json(res))
 }
 
-/// Delete notes.
+/// Delete and return notes.
 ///
-/// Remove and return notes that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for deleting notes using this endpoint:
 /// - Delete all notes related to...
 /// - Erase all notes about...
 /// - Remove notes there are on...
@@ -221,9 +217,7 @@ pub async fn delete_matching_notes(
 
 /// Get notes.
 ///
-/// Get notes that match a search criteria.
-///
-/// Useful for answering phrases that start with the following:
+/// Example queries for getting notes using this endpoint:
 /// - Get all notes related to...
 /// - List all notes about...
 /// - What notes are there on...
