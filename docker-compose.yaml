@@ -36,7 +36,8 @@ services:
   embedding:
     image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
     command: >
-      --model ${EMBEDDING_MODEL:-BAAI/bge-reranker-v2-m3}
+      --model ${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
+      --task embed
       --dtype ${EMBEDDING_DTYPE:-auto}
       --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
     volumes:
@@ -58,6 +59,7 @@ services:
     image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
     command: >
       --model ${GENERATION_MODEL:-Qwen/Qwen3-1.7B}
+      --task generate
       --dtype ${GENERATION_DTYPE:-half}
       --gpu-memory-utilization ${GENERATION_MEM:-0.7}
       --max-model-len ${GENERATION_LEN:-8000}
@@ -79,9 +81,10 @@ services:
   reranking:
     image: vllm/vllm-openai:${RERANKING_IMAGE_VERSION:-latest}
     command: >
-      --model ${RERANKING_MODEL:-cross-encoder/ms-marco-MiniLM-L6-v2}
+      --model ${RERANKING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      --task score
       --dtype ${RERANKING_DTYPE:-auto}
-      --gpu-memory-utilization ${RERANKING_MEM:-0.1}
+      --gpu-memory-utilization ${RERANKING_MEM:-0.05}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
