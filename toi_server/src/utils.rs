@@ -28,7 +28,7 @@ pub fn default_distance_threshold() -> f64 {
 }
 
 pub fn default_similarity_threshold() -> f64 {
-    0.50
+    0.45
 }
 
 pub fn default_server_binding_addr() -> String {
