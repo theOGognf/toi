@@ -26,7 +26,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router =
         OpenApiRouter::new().nest("/todos", toi_server::routes::todos::router(state.clone()));
     let (router, _) = openapi_router.split_for_parts();
-    let listener = TcpListener::bind(&state.binding_addr).await?;
+    let listener = TcpListener::bind(&state.server_config.binding_addr).await?;
 
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
@@ -40,7 +40,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     let todo1 = client
-        .post(format!("{}/todos", state.binding_addr))
+        .post(format!("{}/todos", state.server_config.binding_addr))
         .json(&body)
         .send()
         .await?
@@ -59,7 +59,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_todos1 = client
-        .get(format!("{}/todos", state.binding_addr))
+        .get(format!("{}/todos", state.server_config.binding_addr))
         .query(&query)
         .send()
         .await?
@@ -70,7 +70,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the todo using search.
     let vec_todos2 = client
-        .delete(format!("{}/todos", state.binding_addr))
+        .delete(format!("{}/todos", state.server_config.binding_addr))
         .query(&query)
         .send()
         .await?

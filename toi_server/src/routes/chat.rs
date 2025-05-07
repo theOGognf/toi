@@ -127,7 +127,7 @@ async fn chat(
                 parse_generated_response::<GeneratedRequest>(&generated_request)?;
 
             // Add the HTTP request to the context as an assistant message.
-            let http_request = generated_request.to_http_request(&state.binding_addr);
+            let http_request = generated_request.to_http_request(&state.server_config.binding_addr);
             let assistant_message = generated_request.into_assistant_message();
             request.messages.push(assistant_message);
 

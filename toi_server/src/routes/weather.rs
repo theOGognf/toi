@@ -12,7 +12,8 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     models::{
         client::ApiClientError,
-        state::{ToiState, UserAgent},
+        config::ServerConfig,
+        state::ToiState,
         weather::{
             GeocodingResult, GridpointForecast, Point, WeatherAlerts, WeatherQueryParams,
             ZoneForecast,
@@ -124,12 +125,12 @@ async fn geocode(
 )]
 #[axum::debug_handler]
 pub async fn get_weather_alerts(
-    State(user_agent): State<UserAgent>,
+    State(server_config): State<ServerConfig>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<WeatherAlerts>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&user_agent.to_string()).map_err(utils::internal_error)?;
+    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
+        .map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)
@@ -176,12 +177,12 @@ pub async fn get_weather_alerts(
 )]
 #[axum::debug_handler]
 pub async fn get_gridpoint_weather_forecast(
-    State(user_agent): State<UserAgent>,
+    State(server_config): State<ServerConfig>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<GridpointForecast>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&user_agent.to_string()).map_err(utils::internal_error)?;
+    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
+        .map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)
@@ -221,12 +222,12 @@ pub async fn get_gridpoint_weather_forecast(
 )]
 #[axum::debug_handler]
 pub async fn get_zone_weather_forecast(
-    State(user_agent): State<UserAgent>,
+    State(server_config): State<ServerConfig>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<ZoneForecast>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&user_agent.to_string()).map_err(utils::internal_error)?;
+    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
+        .map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)

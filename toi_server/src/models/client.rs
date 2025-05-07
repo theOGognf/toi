@@ -1,8 +1,10 @@
+use crate::utils;
 use axum::http::StatusCode;
 use bon::Builder;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::default;
 use std::fmt;
 use toi::Message;
 
@@ -132,71 +134,14 @@ impl ApiClientError {
     }
 }
 
-#[derive(Debug)]
-pub enum LoadConfigError {
-    Deserialization(serde_json::Error),
-    EnvVarSubstitution(envsubst::Error),
-}
-
-impl fmt::Display for LoadConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let repr = match self {
-            Self::Deserialization(err) => err.to_string(),
-            Self::EnvVarSubstitution(err) => err.to_string(),
-        };
-        write!(f, "{repr}")
-    }
-}
-
-fn substitute<'de, D>(value: &mut Value, vars: &HashMap<String, String>) -> Result<(), D::Error>
-where
-    D: Deserializer<'de>,
-{
-    match value {
-        Value::String(s) => {
-            *s = envsubst::substitute(s.clone(), vars)
-                .map_err(LoadConfigError::EnvVarSubstitution)
-                .map_err(serde::de::Error::custom)?;
-        }
-        Value::Array(arr) => {
-            for item in arr {
-                substitute::<D>(item, vars)?;
-            }
-        }
-        Value::Object(map) => {
-            for (_, val) in map {
-                substitute::<D>(val, vars)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-pub fn deserialize_with_envsubst<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    let json_str: &str = Deserialize::deserialize(deserializer)?;
-    let mut value: Value = serde_json::from_str(json_str)
-        .map_err(LoadConfigError::Deserialization)
-        .map_err(serde::de::Error::custom)?;
-    let vars: HashMap<String, String> = std::env::vars().collect();
-    substitute::<D>(&mut value, &vars)?;
-    T::deserialize(value)
-        .map_err(LoadConfigError::Deserialization)
-        .map_err(serde::de::Error::custom)
-}
-
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct HttpClientConfig {
     pub base_url: String,
-    #[serde(deserialize_with = "deserialize_with_envsubst")]
+    #[serde(deserialize_with = "utils::deserialize_with_envsubst")]
     pub headers: HashMap<String, String>,
-    #[serde(deserialize_with = "deserialize_with_envsubst")]
+    #[serde(deserialize_with = "utils::deserialize_with_envsubst")]
     pub params: HashMap<String, String>,
-    #[serde(deserialize_with = "deserialize_with_envsubst")]
+    #[serde(deserialize_with = "utils::deserialize_with_envsubst")]
     pub json: HashMap<String, String>,
 }

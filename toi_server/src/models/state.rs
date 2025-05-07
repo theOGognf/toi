@@ -1,23 +1,14 @@
-use crate::{client::ModelClient, utils};
+use crate::{client::ModelClient, models::config::ServerConfig, utils};
 use axum::extract::FromRef;
 use serde::Deserialize;
+use std::default;
 use std::fmt;
-
-#[derive(Clone, Deserialize)]
-pub struct UserAgent(String);
-
-impl fmt::Display for UserAgent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 #[derive(Clone)]
 pub struct ToiState {
-    pub binding_addr: String,
+    pub server_config: ServerConfig,
     pub model_client: ModelClient,
     pub pool: utils::Pool,
-    pub user_agent: UserAgent,
 }
 
 impl FromRef<ToiState> for ModelClient {
@@ -32,8 +23,8 @@ impl FromRef<ToiState> for utils::Pool {
     }
 }
 
-impl FromRef<ToiState> for UserAgent {
-    fn from_ref(state: &ToiState) -> UserAgent {
-        state.user_agent.clone()
+impl FromRef<ToiState> for ServerConfig {
+    fn from_ref(state: &ToiState) -> ServerConfig {
+        state.server_config.clone()
     }
 }

@@ -184,8 +184,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
         .layer(TraceLayer::new_for_http());
 
-    info!("serving at {}", state.binding_addr);
-    let listener = TcpListener::bind(state.binding_addr).await?;
+    info!("serving at {}", state.server_config.binding_addr);
+    let listener = TcpListener::bind(state.server_config.binding_addr).await?;
     axum::serve(listener, router).await?;
     Ok(())
 }
