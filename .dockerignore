@@ -1,5 +1,6 @@
 */tests
 .dockerignore
+.env
 .git*
 assets
 docker-compose.yaml

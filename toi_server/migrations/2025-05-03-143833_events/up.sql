@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS events (
-    id SERIAL PRIMARY KEY,
+    id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     description TEXT NOT NULL,
     embedding VECTOR NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

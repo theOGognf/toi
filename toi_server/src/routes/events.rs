@@ -224,7 +224,7 @@ pub async fn search_events(
     // Rerank and filter items once more.
     let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
         let rerank_request = RerankRequest {
-            query: similarity_search_params.query.to_string(),
+            query: similarity_search_params.query.clone(),
             documents,
         };
         let rerank_response = state.model_client.rerank(rerank_request).await?;
