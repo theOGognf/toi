@@ -21,15 +21,19 @@ impl fmt::Display for UserAgent {
 #[derive(Clone, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "utils::default_server_binding_addr")]
-    pub binding_addr: String,
+    pub bind_addr: String,
     #[serde(deserialize_with = "utils::deserialize_with_envsubst")]
     pub user_agent: UserAgent,
+    #[serde(default = "utils::default_distance_threshold")]
+    pub distance_threshold: f64,
+    #[serde(default = "utils::default_similarity_threshold")]
+    pub similarity_threshold: f64,
 }
 
 #[derive(Deserialize)]
 pub struct ToiConfig {
-    pub server_config: ServerConfig,
-    pub embedding_api_config: HttpClientConfig,
-    pub generation_api_config: HttpClientConfig,
-    pub reranking_api_config: HttpClientConfig,
+    pub server: ServerConfig,
+    pub embedding: HttpClientConfig,
+    pub generation: HttpClientConfig,
+    pub reranking: HttpClientConfig,
 }

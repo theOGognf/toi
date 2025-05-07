@@ -101,9 +101,11 @@ async fn search_notes(
                 let embedding = state.model_client.embed(embedding_request).await?;
                 query = query
                     .filter(
-                        schema::notes::embedding
-                            .l2_distance(embedding.clone())
-                            .le(similarity_search_params.distance_threshold),
+                        schema::notes::embedding.l2_distance(embedding.clone()).le(
+                            similarity_search_params
+                                .distance_threshold
+                                .unwrap_or(state.server_config.distance_threshold),
+                        ),
                     )
                     .order(schema::notes::embedding.l2_distance(embedding));
             }
@@ -132,7 +134,12 @@ async fn search_notes(
         rerank_response
             .results
             .into_iter()
-            .filter(|item| item.relevance_score > similarity_search_params.similarity_threshold)
+            .filter(|item| {
+                item.relevance_score
+                    > similarity_search_params
+                        .similarity_threshold
+                        .unwrap_or(state.server_config.similarity_threshold)
+            })
             .map(|item| ids[item.index])
             .collect()
     } else {

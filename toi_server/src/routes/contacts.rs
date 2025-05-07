@@ -189,7 +189,9 @@ pub async fn search_contacts(
                     .filter(
                         schema::contacts::embedding
                             .l2_distance(embedding.clone())
-                            .le(similarity_search_params.distance_threshold),
+                            .le(similarity_search_params
+                                .distance_threshold
+                                .unwrap_or(state.server_config.distance_threshold)),
                     )
                     .order(schema::contacts::embedding.l2_distance(embedding));
             }
@@ -238,7 +240,12 @@ pub async fn search_contacts(
         rerank_response
             .results
             .into_iter()
-            .filter(|item| item.relevance_score > similarity_search_params.similarity_threshold)
+            .filter(|item| {
+                item.relevance_score
+                    >= similarity_search_params
+                        .similarity_threshold
+                        .unwrap_or(state.server_config.similarity_threshold)
+            })
             .map(|item| ids[item.index])
             .collect()
     } else {

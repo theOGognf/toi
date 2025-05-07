@@ -3,8 +3,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::utils;
-
 #[derive(Builder, Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
 pub struct SimilaritySearchParams {
     /// User query string to compare embeddings against. Basically,
@@ -16,18 +14,16 @@ pub struct SimilaritySearchParams {
     /// compared to. Only return items whose distance is less than
     /// or equal this value. A lower number restricts the search to
     /// more similar items, while a higher number allows for more
-    /// dissimilar items. The default value for this is usually fine
-    /// for most scenarios.
-    #[serde(default = "utils::default_distance_threshold")]
+    /// dissimilar items. This defaults to the server-configured
+    /// value if left null, which is usually fine for most scenarios.
     #[schema(minimum = 0.01, maximum = 0.95)]
-    pub distance_threshold: f64,
+    pub distance_threshold: Option<f64>,
     /// Measure of similarity between the query and string it's being
     /// compared to. Only return items whose distance is greater than
     /// or equal this value. A higher number restricts the search to
     /// more similar items, while a lower number allows for more
-    /// dissimilar items. The default value for this is usually fine
-    /// for most scenarios.
-    #[serde(default = "utils::default_similarity_threshold")]
+    /// dissimilar items. This defaults to the server-configured
+    /// value if left null, which is usually fine for most scenarios.
     #[schema(minimum = 0.01, maximum = 0.95)]
-    pub similarity_threshold: f64,
+    pub similarity_threshold: Option<f64>,
 }

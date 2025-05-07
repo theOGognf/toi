@@ -99,7 +99,7 @@ async fn chat(
             "most relevant API (uri={} method={}) scored at {:.3}",
             item.path, item.method, most_relevant_result.relevance_score
         );
-        if most_relevant_result.relevance_score >= utils::default_similarity_threshold() {
+        if most_relevant_result.relevance_score >= state.server_config.similarity_threshold {
             debug!("API passes similarity threshold");
 
             // Convert user request into HTTP request.
@@ -127,7 +127,7 @@ async fn chat(
                 parse_generated_response::<GeneratedRequest>(&generated_request)?;
 
             // Add the HTTP request to the context as an assistant message.
-            let http_request = generated_request.to_http_request(&state.server_config.binding_addr);
+            let http_request = generated_request.to_http_request(&state.server_config.bind_addr);
             let assistant_message = generated_request.into_assistant_message();
             request.messages.push(assistant_message);
 

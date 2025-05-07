@@ -26,7 +26,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router =
         OpenApiRouter::new().nest("/notes", toi_server::routes::notes::router(state.clone()));
     let (router, _) = openapi_router.split_for_parts();
-    let listener = TcpListener::bind(&state.server_config.binding_addr).await?;
+    let listener = TcpListener::bind(&state.server_config.bind_addr).await?;
 
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
@@ -40,7 +40,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     let note1 = client
-        .post(format!("{}/notes", state.server_config.binding_addr))
+        .post(format!("{}/notes", state.server_config.bind_addr))
         .json(&body)
         .send()
         .await?
@@ -59,7 +59,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_notes1 = client
-        .get(format!("{}/notes", state.server_config.binding_addr))
+        .get(format!("{}/notes", state.server_config.bind_addr))
         .query(&query)
         .send()
         .await?
@@ -70,7 +70,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the note using search.
     let vec_notes2 = client
-        .delete(format!("{}/notes", state.server_config.binding_addr))
+        .delete(format!("{}/notes", state.server_config.bind_addr))
         .query(&query)
         .send()
         .await?

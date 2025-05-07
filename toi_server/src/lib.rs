@@ -20,10 +20,10 @@ pub async fn init(
     let config_file = File::open(config_path)?;
     let config: models::config::ToiConfig = serde_json::from_reader(config_file)?;
     let models::config::ToiConfig {
-        server_config,
-        embedding_api_config,
-        generation_api_config,
-        reranking_api_config,
+        server: server_config,
+        embedding: embedding_api_config,
+        generation: generation_api_config,
+        reranking: reranking_api_config,
     } = config;
 
     // Shared state components. A client is used for interacting with supporting
