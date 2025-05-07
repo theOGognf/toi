@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::default;
 use std::fmt;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct UserAgent(String);
 
 impl default::Default for UserAgent {
@@ -30,7 +30,7 @@ fn default_server_bind_addr() -> String {
     "127.0.0.1:6969".to_string()
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ServerConfig {
     #[serde(default = "default_server_bind_addr")]
     pub bind_addr: String,
@@ -42,7 +42,7 @@ pub struct ServerConfig {
     pub similarity_threshold: f64,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ToiConfig {
     pub server: ServerConfig,
     pub embedding: HttpClientConfig,

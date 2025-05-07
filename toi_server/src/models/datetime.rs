@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(Default, Deserialize, JsonSchema, IntoParams, Serialize)]
+#[derive(Default, Deserialize, IntoParams, JsonSchema, Serialize)]
 #[serde(default)]
 pub struct DateTimeWeekdayParams {
     /// Datetime in ISO format. Defaults to now.

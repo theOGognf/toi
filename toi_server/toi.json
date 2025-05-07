@@ -1,6 +1,6 @@
 {
     "server": {
-        "addr": "0.0.0.0:6969",
+        "bind_addr": "0.0.0.0:6969",
         "user_agent": "${USER_AGENT}"
     },
     "embedding": {

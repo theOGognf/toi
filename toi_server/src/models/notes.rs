@@ -34,7 +34,7 @@ pub struct NewNoteRequest {
     pub content: String,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
 pub struct NoteQueryParams {
     /// Parameters for performing similarity search against notes.
     #[serde(flatten)]

@@ -44,7 +44,7 @@ pub struct NewTodoRequest {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct CompleteTodoRequest {
     /// Optional datetime the todo was completed in ISO format.
     ///
@@ -68,7 +68,7 @@ pub struct CompleteTodoRequest {
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, IntoParams)]
 pub struct TodoQueryParams {
     /// Parameters for performing similarity search against todos.
     #[serde(flatten)]

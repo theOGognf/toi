@@ -2,6 +2,7 @@ use std::fs::File;
 
 use ctrlc::set_handler;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use tracing::info;
 
 mod client;
 pub mod models;
@@ -19,6 +20,7 @@ pub async fn init(
     let config_path = dotenvy::var("TOI_CONFIG_PATH")?;
     let config_file = File::open(config_path)?;
     let config: models::config::ToiConfig = serde_json::from_reader(config_file)?;
+    info!("initializing with {config:?}");
     let models::config::ToiConfig {
         server: server_config,
         embedding: embedding_api_config,

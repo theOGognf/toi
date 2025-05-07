@@ -23,7 +23,7 @@ pub struct Participants {
     pub contacts: Vec<Contact>,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct ParticipantQueryParams {
     /// User query string to compare embeddings against. Basically,
     /// if the user is asking something like "what color is my jacket?",

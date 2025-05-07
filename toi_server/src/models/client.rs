@@ -89,12 +89,12 @@ impl StreamingGenerationRequest {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Choice {
     pub message: Message,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct GenerationResponse {
     pub choices: Vec<Choice>,
 }
@@ -132,7 +132,7 @@ impl ApiClientError {
     }
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct HttpClientConfig {
     pub base_url: String,

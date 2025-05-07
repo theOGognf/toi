@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Builder, Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Builder, Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct SimilaritySearchParams {
     /// User query string to compare embeddings against. Basically,
     /// if the user is asking something like "what color is my jacket?",

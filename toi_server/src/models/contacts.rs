@@ -67,7 +67,7 @@ pub struct NewContact {
     pub embedding: Vector,
 }
 
-#[derive(Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewContactRequest {
     /// Contact's first name.
     pub first_name: String,
@@ -100,7 +100,7 @@ impl fmt::Display for NewContactRequest {
     }
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
 pub struct ContactDeleteParams {
     /// Parameters for performing similarity search against contacts.
     #[serde(flatten)]
@@ -116,7 +116,7 @@ pub struct ContactDeleteParams {
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct BirthdayFallsOnSearchParams {
     /// Birthday search parameter. What kind of search depends on
     /// the `falls_on` field.
@@ -128,7 +128,7 @@ pub struct BirthdayFallsOnSearchParams {
     pub falls_on: utils::DateFallsOn,
 }
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams, ToSchema)]
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct ContactQueryParams {
     /// Parameters for performing a search against contact birthdays.
     #[serde(flatten)]
@@ -147,7 +147,7 @@ pub struct ContactQueryParams {
     pub limit: Option<i64>,
 }
 
-#[derive(Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct ContactUpdates {
     /// Contact's first name.
     pub first_name: Option<String>,
@@ -163,7 +163,7 @@ pub struct ContactUpdates {
     pub relationship: Option<String>,
 }
 
-#[derive(Builder, Clone, Deserialize, Serialize, JsonSchema, ToSchema)]
+#[derive(Builder, Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct UpdateContactRequest {
     /// Things to update about a contact.
     pub contact_updates: ContactUpdates,

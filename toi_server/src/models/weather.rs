@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(Builder, Deserialize, Serialize, JsonSchema, IntoParams)]
+#[derive(Builder, Deserialize, JsonSchema, IntoParams, Serialize)]
 pub struct WeatherQueryParams {
     /// Free-form query of where to get weather for. Can be a city, county, zip code, state, or any combination thereof.
     pub query: String,
