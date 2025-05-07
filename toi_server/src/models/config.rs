@@ -18,15 +18,27 @@ impl fmt::Display for UserAgent {
     }
 }
 
+fn default_distance_threshold() -> f64 {
+    0.85
+}
+
+fn default_similarity_threshold() -> f64 {
+    0.45
+}
+
+fn default_server_bind_addr() -> String {
+    "127.0.0.1:6969".to_string()
+}
+
 #[derive(Clone, Deserialize)]
 pub struct ServerConfig {
-    #[serde(default = "utils::default_server_binding_addr")]
+    #[serde(default = "default_server_bind_addr")]
     pub bind_addr: String,
     #[serde(deserialize_with = "utils::deserialize_with_envsubst")]
     pub user_agent: UserAgent,
-    #[serde(default = "utils::default_distance_threshold")]
+    #[serde(default = "default_distance_threshold")]
     pub distance_threshold: f64,
-    #[serde(default = "utils::default_similarity_threshold")]
+    #[serde(default = "default_similarity_threshold")]
     pub similarity_threshold: f64,
 }
 

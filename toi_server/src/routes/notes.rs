@@ -136,7 +136,7 @@ async fn search_notes(
             .into_iter()
             .filter(|item| {
                 item.relevance_score
-                    > similarity_search_params
+                    >= similarity_search_params
                         .similarity_threshold
                         .unwrap_or(state.server_config.similarity_threshold)
             })

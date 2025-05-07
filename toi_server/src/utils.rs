@@ -84,18 +84,6 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-pub fn default_distance_threshold() -> f64 {
-    0.85
-}
-
-pub fn default_similarity_threshold() -> f64 {
-    0.45
-}
-
-pub fn default_server_binding_addr() -> String {
-    "127.0.0.1:6969".to_string()
-}
-
 /// Map Diesel errors into a specific response.
 pub fn diesel_error(err: diesel::result::Error) -> (StatusCode, String) {
     match err {
