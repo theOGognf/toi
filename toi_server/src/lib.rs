@@ -2,7 +2,6 @@ use std::fs::File;
 
 use ctrlc::set_handler;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
-use serde::Deserialize;
 
 mod client;
 pub mod models;

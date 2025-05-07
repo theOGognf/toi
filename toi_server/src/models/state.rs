@@ -1,8 +1,5 @@
 use crate::{client::ModelClient, models::config::ServerConfig, utils};
 use axum::extract::FromRef;
-use serde::Deserialize;
-use std::default;
-use std::fmt;
 
 #[derive(Clone)]
 pub struct ToiState {

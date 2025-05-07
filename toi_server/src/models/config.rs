@@ -1,5 +1,4 @@
-use crate::{client::ModelClient, models::client::HttpClientConfig, utils};
-use axum::extract::FromRef;
+use crate::{models::client::HttpClientConfig, utils};
 use serde::Deserialize;
 use std::default;
 use std::fmt;
