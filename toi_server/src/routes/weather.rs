@@ -129,8 +129,8 @@ pub async fn get_weather_alerts(
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<WeatherAlerts>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
-        .map_err(utils::internal_error)?;
+    let user_agent =
+        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)
@@ -181,8 +181,8 @@ pub async fn get_gridpoint_weather_forecast(
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<GridpointForecast>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
-        .map_err(utils::internal_error)?;
+    let user_agent =
+        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)
@@ -226,8 +226,8 @@ pub async fn get_zone_weather_forecast(
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<ZoneForecast>, (StatusCode, String)> {
     let mut headers = header::HeaderMap::new();
-    let user_agent = header::HeaderValue::from_str(&server_config.user_agent.to_string())
-        .map_err(utils::internal_error)?;
+    let user_agent =
+        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
     headers.insert("User-Agent", user_agent);
     let client = reqwest::Client::builder()
         .default_headers(headers)
