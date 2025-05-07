@@ -90,3 +90,33 @@ pub struct ZoneForecastProperties {
 pub struct ZoneForecast {
     properties: ZoneForecastProperties,
 }
+
+#[derive(Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AlertProperties {
+    area_desc: String,
+    sent: DateTime<Utc>,
+    effective: DateTime<Utc>,
+    onset: DateTime<Utc>,
+    expires: DateTime<Utc>,
+    ends: DateTime<Utc>,
+    status: String,
+    message_type: String,
+    category: String,
+    severity: String,
+    urgency: String,
+    event: String,
+    headline: String,
+    description: String,
+    instruction: String,
+}
+
+#[derive(Deserialize, Serialize, ToSchema)]
+pub struct AlertFeatures {
+    properties: AlertProperties,
+}
+
+#[derive(Deserialize, Serialize, ToSchema)]
+pub struct WeatherAlerts {
+    features: Vec<AlertFeatures>,
+}

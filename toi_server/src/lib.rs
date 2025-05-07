@@ -17,6 +17,7 @@ pub struct ToiConfig {
     embedding_api_config: models::client::HttpClientConfig,
     generation_api_config: models::client::HttpClientConfig,
     reranking_api_config: models::client::HttpClientConfig,
+    #[serde(deserialize_with = "models::client::deserialize_with_envsubst")]
     user_agent: models::state::UserAgent,
 }
 

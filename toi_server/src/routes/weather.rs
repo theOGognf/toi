@@ -11,15 +11,19 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        client::ModelClientError,
+        client::ApiClientError,
         state::{ToiState, UserAgent},
-        weather::{GeocodingResult, GridpointForecast, Point, WeatherQueryParams, ZoneForecast},
+        weather::{
+            GeocodingResult, GridpointForecast, Point, WeatherAlerts, WeatherQueryParams,
+            ZoneForecast,
+        },
     },
     utils,
 };
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
+        .routes(routes!(get_weather_alerts))
         .routes(routes!(get_gridpoint_weather_forecast))
         .routes(routes!(get_zone_weather_forecast))
         .with_state(state);
@@ -33,6 +37,15 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     let extensions = ExtensionsBuilder::new()
         .add("x-json-schema-params", json_schema)
         .build();
+    paths
+        .get_mut("/alerts")
+        .expect("doesn't exist")
+        .get
+        .as_mut()
+        .expect("GET doesn't exist")
+        .extensions
+        .get_or_insert(extensions.clone());
+
     paths
         .get_mut("/forecast/gridpoint")
         .expect("doesn't exist")
@@ -70,10 +83,10 @@ async fn geocode(
         .query(&geocoding_params)
         .send()
         .await
-        .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
         .json::<Vec<GeocodingResult>>()
         .await
-        .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))?;
+        .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
     let most_relevant_result = results.swap_remove(0);
     let (latitude, longitude) = (most_relevant_result.lat, most_relevant_result.lon);
 
@@ -84,12 +97,64 @@ async fn geocode(
         ))
         .send()
         .await
-        .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
         .json::<Point>()
         .await
-        .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))?;
+        .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
 
     Ok(point)
+}
+
+/// Get weather alerts for an area.
+///
+/// Example queries for getting weather alerts from this endpoint:
+/// - Are there any weather alerts for...
+/// - Is there a weather alert I should be worried about in...
+/// - What're the weather warnings for...
+#[utoipa::path(
+    get,
+    path = "/alerts",
+    params(WeatherQueryParams),
+    responses(
+        (status = 200, description = "Successfully got weather alerts", body = [WeatherAlerts]),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 422, description = "Error when parsing a response from a model API"),
+        (status = 502, description = "Error when forwarding request to model APIs")
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_weather_alerts(
+    State(user_agent): State<UserAgent>,
+    Query(params): Query<WeatherQueryParams>,
+) -> Result<Json<WeatherAlerts>, (StatusCode, String)> {
+    let mut headers = header::HeaderMap::new();
+    let user_agent =
+        header::HeaderValue::from_str(&user_agent.to_string()).map_err(utils::internal_error)?;
+    headers.insert("User-Agent", user_agent);
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()
+        .map_err(utils::internal_error)?;
+
+    // Get metadata about the latitude/longitude point.
+    let point = geocode(&params, &client).await?;
+
+    // Get the forecast zone and the weather alerts for that zone
+    // from the returned metadata.
+    let zone_id = point.properties.forecast_zone.split('/').last().ok_or(
+        ApiClientError::EmptyResponse.into_response(&"forecast zone not found".to_string()),
+    )?;
+    let alerts = client
+        .get(format!(
+            "https://api.weather.gov/alerts/active/zone/{zone_id}"
+        ))
+        .send()
+        .await
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
+        .json::<WeatherAlerts>()
+        .await
+        .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
+    Ok(Json(alerts))
 }
 
 /// Get a detailed weather forecast for an area.
@@ -131,10 +196,10 @@ pub async fn get_gridpoint_weather_forecast(
         .get(point.properties.forecast)
         .send()
         .await
-        .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
         .json::<GridpointForecast>()
         .await
-        .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))?;
+        .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
     Ok(Json(forecast))
 }
 
@@ -176,9 +241,9 @@ pub async fn get_zone_weather_forecast(
         .get(format!("{}/forecast", point.properties.forecast_zone))
         .send()
         .await
-        .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
         .json::<ZoneForecast>()
         .await
-        .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))?;
+        .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
     Ok(Json(forecast))
 }

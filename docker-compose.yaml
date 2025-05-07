@@ -2,6 +2,8 @@ services:
   api:
     build:
       context: .
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgres://self:hosted@db:5432/toi}
       - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}

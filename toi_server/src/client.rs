@@ -5,7 +5,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use toi::GenerationRequest;
 
 use crate::models::client::{
-    EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig, ModelClientError,
+    ApiClientError, EmbeddingRequest, EmbeddingResponse, GenerationResponse, HttpClientConfig,
     RerankRequest, RerankResponse, StreamingGenerationRequest,
 };
 
@@ -25,13 +25,15 @@ impl ModelClient {
         request: Request,
     ) -> Result<serde_json::Value, (StatusCode, String)> {
         let mut value = serde_json::to_value(request)
-            .map_err(|err| ModelClientError::RequestJson.into_response(&err.to_string()))?;
+            .map_err(|err| ApiClientError::RequestJson.into_response(&err))?;
         let request = value.as_object_mut().expect("empty request value");
-        if let Some(json) = serde_json::to_value(&config.json)
-            .map_err(|err| ModelClientError::DefaultJson.into_response(&err.to_string()))?
-            .as_object()
-        {
-            request.extend(json.clone());
+        if !config.json.is_empty() {
+            if let Some(json) = serde_json::to_value(&config.json)
+                .map_err(|err| ApiClientError::DefaultJson.into_response(&err))?
+                .as_object()
+            {
+                request.extend(json.clone());
+            }
         }
         Ok(value)
     }
@@ -46,7 +48,8 @@ impl ModelClient {
         .await?;
         match response.data.into_iter().next() {
             Some(data) => Ok(Vector::from(data.embedding)),
-            None => Err(ModelClientError::ResponseJson.into_response("invalid embedding response")),
+            None => Err(ApiClientError::ResponseJson
+                .into_response(&"invalid embedding response".to_string())),
         }
     }
 
@@ -63,9 +66,8 @@ impl ModelClient {
         .await?;
         match response.choices.into_iter().next() {
             Some(choice) => Ok(choice.message.content),
-            None => {
-                Err(ModelClientError::ResponseJson.into_response("invalid generation response"))
-            }
+            None => Err(ApiClientError::ResponseJson
+                .into_response(&"invalid generation response".to_string())),
         }
     }
 
@@ -83,7 +85,7 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?;
+            .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;
         let stream = response.bytes_stream();
         Ok(Body::from_stream(stream))
     }
@@ -130,10 +132,10 @@ impl ModelClient {
             .json(&request)
             .send()
             .await
-            .map_err(|err| ModelClientError::ApiConnection.into_response(&format!("{err:?}")))?
+            .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
             .json::<ResponseModel>()
             .await
-            .map_err(|err| ModelClientError::ResponseJson.into_response(&format!("{err:?}")))
+            .map_err(|err| ApiClientError::ResponseJson.into_response(&err))
     }
 
     pub async fn rerank(

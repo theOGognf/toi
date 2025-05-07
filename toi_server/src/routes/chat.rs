@@ -7,7 +7,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     models::{
         chat::{GeneratedRequest, parse_generated_response},
-        client::{EmbeddingPromptTemplate, EmbeddingRequest, ModelClientError, RerankRequest},
+        client::{ApiClientError, EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         openapi::{OpenApiPathItem, SearchableOpenApiPathItem},
         prompts::{HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
         state::ToiState,
@@ -133,9 +133,10 @@ async fn chat(
 
             // Execute the HTTP request.
             debug!("sending proxy API request");
-            let response = Client::new().execute(http_request).await.map_err(|err| {
-                ModelClientError::ApiConnection.into_response(&format!("{err:?}"))
-            })?;
+            let response = Client::new()
+                .execute(http_request)
+                .await
+                .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;
             debug!("receiving proxy API response");
             let content = response
                 .text()

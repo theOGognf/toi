@@ -1,7 +1,9 @@
 use axum::http::StatusCode;
 use bon::Builder;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
+use std::fmt;
 use toi::Message;
 
 #[derive(Builder, Clone, Deserialize)]
@@ -97,42 +99,104 @@ pub struct GenerationResponse {
     pub choices: Vec<Choice>,
 }
 
-pub enum ModelClientError {
+pub enum ApiClientError {
     ApiConnection,
     DefaultJson,
+    EmptyResponse,
     RequestJson,
     ResponseJson,
 }
 
-impl ModelClientError {
+impl ApiClientError {
     #[must_use]
-    pub fn into_response(self, err: &str) -> (StatusCode, String) {
+    pub fn into_response<T: fmt::Debug>(self, err: &T) -> (StatusCode, String) {
         match self {
             Self::ApiConnection => (
                 StatusCode::BAD_GATEWAY,
-                format!("connection error when getting response: {err}"),
+                format!("connection error when getting response: {err:?}"),
             ),
             Self::DefaultJson => (
                 StatusCode::BAD_REQUEST,
-                format!("couldn't serialize default JSON: {err}"),
+                format!("couldn't serialize default JSON: {err:?}"),
             ),
+            Self::EmptyResponse => (StatusCode::NOT_FOUND, format!("item not found: {err:?}")),
             Self::RequestJson => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                format!("couldn't serialize request: {err}"),
+                format!("couldn't serialize request: {err:?}"),
             ),
             Self::ResponseJson => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                format!("couldn't deserialize response: {err}"),
+                format!("couldn't deserialize response: {err:?}"),
             ),
         }
     }
+}
+
+#[derive(Debug)]
+pub enum LoadConfigError {
+    Deserialization(serde_json::Error),
+    EnvVarSubstitution(envsubst::Error),
+}
+
+impl fmt::Display for LoadConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repr = match self {
+            Self::Deserialization(err) => err.to_string(),
+            Self::EnvVarSubstitution(err) => err.to_string(),
+        };
+        write!(f, "{repr}")
+    }
+}
+
+fn substitute<'de, D>(value: &mut Value, vars: &HashMap<String, String>) -> Result<(), D::Error>
+where
+    D: Deserializer<'de>,
+{
+    match value {
+        Value::String(s) => {
+            *s = envsubst::substitute(s.clone(), vars)
+                .map_err(LoadConfigError::EnvVarSubstitution)
+                .map_err(serde::de::Error::custom)?;
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                substitute::<D>(item, vars)?;
+            }
+        }
+        Value::Object(map) => {
+            for (_, val) in map {
+                substitute::<D>(val, vars)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+pub fn deserialize_with_envsubst<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let json_str: &str = Deserialize::deserialize(deserializer)?;
+    let mut value: Value = serde_json::from_str(json_str)
+        .map_err(LoadConfigError::Deserialization)
+        .map_err(serde::de::Error::custom)?;
+    let vars: HashMap<String, String> = std::env::vars().collect();
+    substitute::<D>(&mut value, &vars)?;
+    T::deserialize(value)
+        .map_err(LoadConfigError::Deserialization)
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct HttpClientConfig {
     pub base_url: String,
+    #[serde(deserialize_with = "deserialize_with_envsubst")]
     pub headers: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_with_envsubst")]
     pub params: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_with_envsubst")]
     pub json: HashMap<String, String>,
 }

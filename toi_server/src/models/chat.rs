@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use toi::{Message, MessageRole};
 
-use crate::models::client::ModelClientError;
+use crate::models::client::ApiClientError;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -63,6 +63,5 @@ impl GeneratedRequest {
 }
 
 pub fn parse_generated_response<T: DeserializeOwned>(s: &str) -> Result<T, (StatusCode, String)> {
-    serde_json::from_str::<T>(s)
-        .map_err(|err| ModelClientError::ResponseJson.into_response(&err.to_string()))
+    serde_json::from_str::<T>(s).map_err(|err| ApiClientError::ResponseJson.into_response(&err))
 }
