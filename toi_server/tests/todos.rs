@@ -1,11 +1,12 @@
 use serde_json::json;
 use serial_test::serial;
-use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::search::SimilaritySearchParams;
 use toi_server::models::todos::{Todo, TodoQueryParams};
+
+mod utils;
 
 #[tokio::test]
 #[serial]
@@ -14,12 +15,7 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
     assert!(db_connection_url.ends_with("/test"));
-
-    // Reset the test database.
-    Command::new("diesel")
-        .args(["database", "reset"])
-        .output()
-        .expect("failed to reset test database");
+    utils::reset_database()?;
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
@@ -40,13 +36,9 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
             "item": item
         }
     );
-    let todo1 = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await?
-        .json::<Todo>()
-        .await?;
+    let response = client.post(&url).json(&body).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let todo1 = response.json::<Todo>().await?;
     assert_eq!(todo1.item, item);
 
     // Retrieve the todo using search.
@@ -59,24 +51,16 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
                 .build(),
         )
         .build();
-    let vec_todos1 = client
-        .get(&url)
-        .query(&query)
-        .send()
-        .await?
-        .json::<Vec<Todo>>()
-        .await?;
+    let response = client.get(&url).query(&query).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let vec_todos1 = response.json::<Vec<Todo>>().await?;
     assert_eq!(vec_todos1.len(), 1);
     assert_eq!(vec_todos1.first().unwrap().item, item);
 
     // Delete the todo using search.
-    let vec_todos2 = client
-        .delete(&url)
-        .query(&query)
-        .send()
-        .await?
-        .json::<Vec<Todo>>()
-        .await?;
+    let response = client.delete(&url).query(&query).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let vec_todos2 = response.json::<Vec<Todo>>().await?;
     assert_eq!(vec_todos2.len(), 1);
     assert_eq!(vec_todos2.first().unwrap().item, item);
     Ok(())

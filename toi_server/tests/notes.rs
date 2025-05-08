@@ -1,11 +1,12 @@
 use serde_json::json;
 use serial_test::serial;
-use std::process::Command;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::notes::{Note, NoteQueryParams};
 use toi_server::models::search::SimilaritySearchParams;
+
+mod utils;
 
 #[tokio::test]
 #[serial]
@@ -14,12 +15,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
     assert!(db_connection_url.ends_with("/test"));
-
-    // Reset the test database.
-    Command::new("diesel")
-        .args(["database", "reset"])
-        .output()
-        .expect("failed to reset test database");
+    utils::reset_database()?;
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
@@ -40,13 +36,9 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
             "content": content
         }
     );
-    let note1 = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await?
-        .json::<Note>()
-        .await?;
+    let response = client.post(&url).json(&body).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let note1 = response.json::<Note>().await?;
     assert_eq!(note1.content, content);
 
     // Retrieve the note using search.
@@ -59,24 +51,16 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
                 .build(),
         )
         .build();
-    let vec_notes1 = client
-        .get(&url)
-        .query(&query)
-        .send()
-        .await?
-        .json::<Vec<Note>>()
-        .await?;
+    let response = client.get(&url).query(&query).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let vec_notes1 = response.json::<Vec<Note>>().await?;
     assert_eq!(vec_notes1.len(), 1);
     assert_eq!(vec_notes1.first().unwrap().content, content);
 
     // Delete the note using search.
-    let vec_notes2 = client
-        .delete(&url)
-        .query(&query)
-        .send()
-        .await?
-        .json::<Vec<Note>>()
-        .await?;
+    let response = client.delete(&url).query(&query).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let vec_notes2 = response.json::<Vec<Note>>().await?;
     assert_eq!(vec_notes2.len(), 1);
     assert_eq!(vec_notes2.first().unwrap().content, content);
     Ok(())
