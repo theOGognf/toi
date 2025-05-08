@@ -29,6 +29,9 @@ pub struct ParticipantQueryParams {
     /// if the user is asking something like "what color is my jacket?",
     /// then the query string should be something like "jacket color" or
     /// the user's original question.
+    /// This can be left empty or null to ignore similarity search
+    /// in cases where the user wants to filter by other params
+    /// (e.g., get items by date or get all items).
     pub event_query: String,
     /// Measure of distance between the query and string it's being
     /// compared to. Only return items whose distance is less than
@@ -64,6 +67,9 @@ pub struct ParticipantQueryParams {
     /// if the user is asking something like "what color is my jacket?",
     /// then the query string should be something like "jacket color" or
     /// the user's original question.
+    /// This can be left empty or null to ignore similarity search
+    /// in cases where the user wants to filter by other params
+    /// (e.g., get items by date or get all items).
     pub contact_query: String,
     /// Measure of distance between the query and string it's being
     /// compared to. Only return items whose distance is less than

@@ -205,6 +205,10 @@ pub async fn search_contacts(
 
     // Get all the items that match the query.
     let contacts: Vec<Contact> = query.load(conn).await.map_err(utils::diesel_error)?;
+    if contacts.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no contacts found".to_string()));
+    }
+
     let (ids, documents): (Vec<i32>, Vec<String>) = contacts
         .into_iter()
         .map(|contact| {

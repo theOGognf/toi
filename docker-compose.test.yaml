@@ -1,0 +1,79 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://self:hosted@db:5432/test}
+      - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}
+    ports:
+      - "6969:6969"
+    volumes:
+      - ./toi_server/toi.json:/usr/app/toi.json
+    depends_on:
+      db:
+        condition: service_healthy
+      embedding:
+        condition: service_healthy
+      reranking:
+        condition: service_healthy
+
+  db:
+    image: pgvector/pgvector:${POSTGRES_IAMGE_VERSION:-pg17}
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-self}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hosted}
+      - POSTGRES_DB=${POSTGRES_DB:-test}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER:-self} -d ${POSTGRES_DB:-test}'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  embedding:
+    image: vllm/vllm-openai:${EMBEDDING_IMAGE_VERSION:-latest}
+    command: >
+      --model ${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
+      --task embed
+      --dtype ${EMBEDDING_DTYPE:-auto}
+      --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${EMBEDDING_NUM_GPUS:-all}
+              capabilities: [gpu]
+
+  reranking:
+    image: vllm/vllm-openai:${RERANKING_IMAGE_VERSION:-latest}
+    command: >
+      --model ${RERANKING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
+      --task score
+      --dtype ${RERANKING_DTYPE:-auto}
+      --gpu-memory-utilization ${RERANKING_MEM:-0.05}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${RERANKING_NUM_GPUS:-all}
+              capabilities: [gpu]

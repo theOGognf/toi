@@ -118,7 +118,11 @@ async fn search_notes(
     }
 
     // Get all the items that match the query.
-    let notes = query.load(conn).await.map_err(utils::diesel_error)?;
+    let notes: Vec<Note> = query.load(conn).await.map_err(utils::diesel_error)?;
+    if notes.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no notes found".to_string()));
+    }
+
     let (ids, documents): (Vec<i32>, Vec<String>) = notes
         .into_iter()
         .map(|note| (note.id, note.content))

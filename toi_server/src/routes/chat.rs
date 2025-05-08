@@ -125,6 +125,7 @@ async fn chat(
             debug!("parsing proxy API request");
             let generated_request =
                 parse_generated_response::<GeneratedRequest>(&generated_request)?;
+            debug!("proxy API request={:?}", generated_request);
 
             // Add the HTTP request to the context as an assistant message.
             let http_request = generated_request.to_http_request(&state.server_config.bind_addr);

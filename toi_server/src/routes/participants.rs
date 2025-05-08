@@ -110,7 +110,7 @@ pub async fn search_participants(
         .await?
         .into_iter()
         .next()
-        .ok_or((StatusCode::NOT_FOUND, "Event not found".to_string()))?;
+        .ok_or((StatusCode::NOT_FOUND, "event not found".to_string()))?;
     let event = schema::events::table
         .select(Event::as_select())
         .filter(schema::events::id.eq(event_id))

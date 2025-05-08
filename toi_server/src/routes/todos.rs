@@ -147,7 +147,11 @@ async fn search_todos(
     }
 
     // Get all the items that match the query.
-    let todos = query.load(conn).await.map_err(utils::diesel_error)?;
+    let todos: Vec<Todo> = query.load(conn).await.map_err(utils::diesel_error)?;
+    if todos.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no todos found".to_string()));
+    }
+
     let (ids, documents): (Vec<i32>, Vec<String>) =
         todos.into_iter().map(|todo| (todo.id, todo.item)).unzip();
 

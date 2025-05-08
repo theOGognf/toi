@@ -216,6 +216,10 @@ pub async fn search_events(
 
     // Get all the items that match the query.
     let events: Vec<Event> = query.load(conn).await.map_err(utils::diesel_error)?;
+    if events.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no events found".to_string()));
+    }
+
     let (ids, documents): (Vec<i32>, Vec<String>) = events
         .into_iter()
         .map(|event| (event.id, event.description))

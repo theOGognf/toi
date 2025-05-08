@@ -71,6 +71,9 @@ pub struct CompleteTodoRequest {
 #[derive(Builder, Deserialize, JsonSchema, Serialize, IntoParams)]
 pub struct TodoQueryParams {
     /// Parameters for performing similarity search against todos.
+    /// This can be left empty or null to ignore similarity search
+    /// in cases where the user wants to filter by other params
+    /// (e.g., get items by date or get all items).
     #[serde(flatten)]
     pub similarity_search_params: Option<SimilaritySearchParams>,
     /// Filter on todos created after this ISO formatted datetime.

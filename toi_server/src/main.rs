@@ -2,7 +2,7 @@ use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -62,8 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Go through and embed all OpenAPI path specs so they can be used as
     // context for generating HTTP requests within the /chat endpoint.
     // Start by deleting all the pre-existing OpenAPI path specs just in
-    // case.
+    // case there are any updates.
     info!("preparing OpenAPI endpoints for automation");
+    let mut new_searchable_openapi_path_items = vec![];
     diesel::delete(toi_server::schema::openapi::table).execute(&mut conn)?;
     for (path, item) in &mut openapi.paths.paths {
         for (method, op) in [
@@ -118,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                // Make sure the JSON schema params match the params in the OpenAPI spec.
+                // Make sure the JSON schema bodies match the bodies in the OpenAPI spec.
                 match (&op.request_body, &body) {
                     (Some(_), Some(_)) | (None, None) => {}
                     (Some(_), None) => {
@@ -135,9 +136,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Assuming that each line in the endpoint's docstring has
                 // a more unique string that might better match up to a user's
-                // query.
+                // query, each line in an endpoint's docstring is used as a
+                // separate embedding.
                 info!("adding uri={path} method={method}");
-                let new_openapi_path = toi_server::models::openapi::OpenApiPathItem {
+                let new_openapi_path_item = toi_server::models::openapi::OpenApiPathItem {
                     path: path.to_string(),
                     method: method.to_string(),
                     description: summary_and_description,
@@ -145,11 +147,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     body,
                 };
                 let parent_id = diesel::insert_into(toi_server::schema::openapi::table)
-                    .values(&new_openapi_path)
+                    .values(&new_openapi_path_item)
                     .returning(toi_server::schema::openapi::id)
                     .get_result(&mut conn)?;
                 for description in descriptions {
-                    // Embed the endpoint's query.
+                    debug!("processing line='{description}'");
                     let embedding_request = toi_server::models::client::EmbeddingRequest {
                         input: description.clone(),
                     };
@@ -158,21 +160,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .embed(embedding_request)
                         .await
                         .map_err(|(_, err)| err)?;
-
-                    // Store all the details.
-                    let new_searchable_openapi_path =
+                    new_searchable_openapi_path_items.push(
                         toi_server::models::openapi::NewSearchableOpenApiPathItem {
                             parent_id,
                             description,
                             embedding,
-                        };
-                    diesel::insert_into(toi_server::schema::searchable_openapi::table)
-                        .values(&new_searchable_openapi_path)
-                        .execute(&mut conn)?;
+                        },
+                    );
                 }
             }
         }
     }
+    diesel::insert_into(toi_server::schema::searchable_openapi::table)
+        .values(&new_searchable_openapi_path_items)
+        .execute(&mut conn)?;
 
     // Add the main assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
