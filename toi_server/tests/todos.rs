@@ -31,6 +31,7 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
+    let url = format!("http://{}/todos", state.server_config.bind_addr);
 
     // Make a todo and get its database-generated ID back.
     let item = "Change my car oil";
@@ -40,7 +41,7 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     let todo1 = client
-        .post(format!("{}/todos", state.server_config.bind_addr))
+        .post(&url)
         .json(&body)
         .send()
         .await?
@@ -59,7 +60,7 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_todos1 = client
-        .get(format!("{}/todos", state.server_config.bind_addr))
+        .get(&url)
         .query(&query)
         .send()
         .await?
@@ -70,7 +71,7 @@ async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the todo using search.
     let vec_todos2 = client
-        .delete(format!("{}/todos", state.server_config.bind_addr))
+        .delete(&url)
         .query(&query)
         .send()
         .await?

@@ -21,11 +21,12 @@ async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
+    let url = format!("http://{}/datetime", state.server_config.bind_addr);
 
     // Get current time and check that the day is correct.
     let now = chrono::offset::Utc::now();
     let datetime1 = client
-        .get(format!("{}/datetime/now", state.server_config.bind_addr))
+        .get(format!("{url}/now"))
         .send()
         .await?
         .json::<DateTime<Utc>>()
@@ -38,7 +39,7 @@ async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
         .days(2)
         .build();
     let datetime2 = client
-        .post(format!("{}/datetime/shift", state.server_config.bind_addr))
+        .post(format!("{url}/shift"))
         .json(&body)
         .send()
         .await?
@@ -48,10 +49,7 @@ async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Finally, check the weekday of today.
     let weekday = client
-        .post(format!(
-            "{}/datetime/weekday",
-            state.server_config.bind_addr
-        ))
+        .post(format!("{url}/weekday"))
         .send()
         .await?
         .json::<String>()

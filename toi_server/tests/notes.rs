@@ -31,6 +31,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
+    let url = format!("http://{}/notes", state.server_config.bind_addr);
 
     // Make a note and get its database-generated ID back.
     let content = "My car takes OW-20 oil";
@@ -40,7 +41,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
         }
     );
     let note1 = client
-        .post(format!("{}/notes", state.server_config.bind_addr))
+        .post(&url)
         .json(&body)
         .send()
         .await?
@@ -59,7 +60,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
     let vec_notes1 = client
-        .get(format!("{}/notes", state.server_config.bind_addr))
+        .get(&url)
         .query(&query)
         .send()
         .await?
@@ -70,7 +71,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the note using search.
     let vec_notes2 = client
-        .delete(format!("{}/notes", state.server_config.bind_addr))
+        .delete(&url)
         .query(&query)
         .send()
         .await?
