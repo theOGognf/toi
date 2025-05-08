@@ -1,9 +1,11 @@
-use chrono::{DateTime, Datelike, Duration, Utc};
+use chrono::{DateTime, Datelike, Duration, Utc, Weekday};
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::datetime::DateTimeShiftRequest;
+
+mod utils;
 
 #[tokio::test]
 #[serial]
@@ -25,12 +27,9 @@ async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get current time and check that the day is correct.
     let now = chrono::offset::Utc::now();
-    let datetime1 = client
-        .get(format!("{url}/now"))
-        .send()
-        .await?
-        .json::<DateTime<Utc>>()
-        .await?;
+    let response = client.get(format!("{url}/now")).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let datetime1 = response.json::<DateTime<Utc>>().await?;
     assert_eq!(datetime1.day(), now.day());
 
     // Shift the time by a couple of days and then check the day again.
@@ -38,22 +37,19 @@ async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
         .datetime(now)
         .days(2)
         .build();
-    let datetime2 = client
+    let response = client
         .post(format!("{url}/shift"))
         .json(&body)
         .send()
-        .await?
-        .json::<DateTime<Utc>>()
         .await?;
+    let response = utils::assert_ok_response(response).await?;
+    let datetime2 = response.json::<DateTime<Utc>>().await?;
     assert_eq!(datetime2.day(), (now + Duration::days(2)).day());
 
     // Finally, check the weekday of today.
-    let weekday = client
-        .post(format!("{url}/weekday"))
-        .send()
-        .await?
-        .json::<String>()
-        .await?;
-    assert_eq!(weekday, now.weekday().to_string());
+    let response = client.get(format!("{url}/weekday")).send().await?;
+    let response = utils::assert_ok_response(response).await?;
+    let weekday = response.json::<Weekday>().await?;
+    assert_eq!(weekday, now.weekday());
     Ok(())
 }

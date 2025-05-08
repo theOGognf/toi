@@ -1,5 +1,5 @@
 use axum::{extract::Query, http::StatusCode, response::Json};
-use chrono::{DateTime, Datelike, Duration, Utc};
+use chrono::{DateTime, Datelike, Duration, Utc, Weekday};
 use schemars::schema_for;
 use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -118,7 +118,7 @@ pub async fn shift(
 #[axum::debug_handler]
 pub async fn weekday(
     Query(params): Query<DateTimeWeekdayParams>,
-) -> Result<String, (StatusCode, String)> {
+) -> Result<Json<Weekday>, (StatusCode, String)> {
     let res = params.datetime.weekday();
-    Ok(res.to_string())
+    Ok(Json(res))
 }
