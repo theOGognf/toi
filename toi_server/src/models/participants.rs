@@ -17,9 +17,9 @@ pub struct Participant {
 
 #[derive(Deserialize, Serialize, ToSchema)]
 pub struct Participants {
-    /// Unique contact ID.
+    /// Matching event.
     pub event: Event,
-    /// Contact's first name.
+    /// Matching contacts.
     pub contacts: Vec<Contact>,
 }
 
@@ -87,7 +87,7 @@ pub struct ParticipantQueryParams {
     /// value if left null, which is usually fine for most scenarios.
     #[schema(minimum = 0.01, maximum = 0.95)]
     pub contact_similarity_threshold: Option<f64>,
-    /// Max number of contacts to return from the search.
+    /// Limit the max number of contacts to return from the search.
     #[param(minimum = 1)]
     pub contact_limit: Option<i64>,
 }

@@ -48,7 +48,7 @@ pub struct NoteQueryParams {
     pub created_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved notes.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of notes to return from the search.
+    /// Limit the max number of notes to return from the search.
     #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

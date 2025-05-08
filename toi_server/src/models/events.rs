@@ -84,7 +84,7 @@ pub struct EventQueryParams {
     pub ends_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved events.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of events to return from the search.
+    /// Limit the max number of events to return from the search.
     #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

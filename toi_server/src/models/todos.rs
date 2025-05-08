@@ -64,7 +64,7 @@ pub struct CompleteTodoRequest {
     pub due_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of todos to return from the search.
+    /// Limit the max number of todos to return from the search.
     pub limit: Option<i64>,
 }
 
@@ -90,7 +90,7 @@ pub struct TodoQueryParams {
     pub completed_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
-    /// Max number of todos to return from the search.
+    /// Limit the max number of todos to return from the search.
     #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
