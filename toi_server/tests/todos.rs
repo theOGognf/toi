@@ -9,7 +9,7 @@ use toi_server::models::todos::{Todo, TodoQueryParams};
 
 #[tokio::test]
 #[serial]
-async fn route() -> Result<(), Box<dyn std::error::Error>> {
+async fn todos_route() -> Result<(), Box<dyn std::error::Error>> {
     // Make sure there's a database URL and it points to a test database so
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
@@ -29,7 +29,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(&state.server_config.bind_addr).await?;
 
     // Spawn server and create a client for all test requests.
-    let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
+    let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
 
     // Make a todo and get its database-generated ID back.

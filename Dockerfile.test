@@ -37,7 +37,7 @@ COPY . .
 
 RUN ./build.sh "test" ${RELEASE}
 
-FROM debian:bookworm-slim AS runtime
+FROM rust:slim-bookworm AS runtime
 
 RUN apt-get update \
     && apt-get install -y \
@@ -46,10 +46,10 @@ RUN apt-get update \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-ENV RUST_LOG=info,tower_http=trace
+ENV RUST_LOG=debug,tower_http=trace
 
 WORKDIR /usr/app
 
-COPY --from=builder /usr/app/target /usr/app/target
+COPY --from=builder /usr/app/ /usr/app/
 
-CMD ["cargo", "test"]
+ENTRYPOINT ["cargo", "test"]

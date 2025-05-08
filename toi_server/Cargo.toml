@@ -33,5 +33,5 @@ utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.0", features = ["axum", "vendored"] }
 
 [dev-dependencies]
-diesel_cli = "2.2.9"
+diesel_cli = { version = "2.2.9", default-features = false, features = ["postgres"] }
 serial_test = "3.2.0"

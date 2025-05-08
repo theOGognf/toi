@@ -7,7 +7,7 @@ use toi_server::models::datetime::DateTimeShiftRequest;
 
 #[tokio::test]
 #[serial]
-async fn route() -> Result<(), Box<dyn std::error::Error>> {
+async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
     // An explicit database URL is required for setup.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
 
@@ -19,7 +19,7 @@ async fn route() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(state.server_config.bind_addr.clone()).await?;
 
     // Spawn server and create a client for all test requests.
-    let _ = tokio::spawn(async move { axum::serve(listener, router).await }).await?;
+    let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
 
     // Get current time and check that the day is correct.
