@@ -53,4 +53,4 @@ WORKDIR /usr/app
 
 COPY --from=builder /usr/app/ /usr/app/
 
-ENTRYPOINT ["cargo", "test"]
+ENTRYPOINT ["cargo", "test", "--test=*"]

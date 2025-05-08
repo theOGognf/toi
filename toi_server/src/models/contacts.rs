@@ -153,7 +153,7 @@ pub struct ContactQueryParams {
     pub limit: Option<i64>,
 }
 
-#[derive(Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
+#[derive(Builder, Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct ContactUpdates {
     /// Contact's first name.
     pub first_name: Option<String>,

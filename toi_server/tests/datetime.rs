@@ -9,7 +9,7 @@ mod utils;
 
 #[tokio::test]
 #[serial]
-async fn datetime_route() -> Result<(), Box<dyn std::error::Error>> {
+async fn datetime_routes() -> Result<(), Box<dyn std::error::Error>> {
     // An explicit database URL is required for setup.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
 

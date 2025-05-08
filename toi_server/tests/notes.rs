@@ -10,7 +10,7 @@ mod utils;
 
 #[tokio::test]
 #[serial]
-async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
+async fn notes_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Make sure there's a database URL and it points to a test database so
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
@@ -29,7 +29,7 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let url = format!("http://{}/notes", state.server_config.bind_addr);
 
-    // Make a note and get its database-generated ID back.
+    // Make a note.
     let content = "My car takes OW-20 oil";
     let body = json!(
         {
@@ -46,8 +46,6 @@ async fn notes_route() -> Result<(), Box<dyn std::error::Error>> {
         .similarity_search_params(
             SimilaritySearchParams::builder()
                 .query("what's my car's oil type?".to_string())
-                .distance_threshold(0.5)
-                .similarity_threshold(0.5)
                 .build(),
         )
         .build();
