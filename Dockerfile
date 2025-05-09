@@ -35,7 +35,7 @@ RUN ./build.sh "cook" ${RELEASE}
 
 COPY . .
 
-RUN ./build.sh "build" ${RELEASE}
+RUN ./build.sh "bin" ${RELEASE}
 
 FROM debian:bookworm-slim AS runtime
 

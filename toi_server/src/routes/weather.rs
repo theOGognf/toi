@@ -147,9 +147,7 @@ pub async fn get_weather_alerts(
         .forecast_zone
         .split('/')
         .next_back()
-        .ok_or(
-            (StatusCode::NOT_FOUND, "forecast zone not found".to_string()),
-        )?;
+        .ok_or((StatusCode::NOT_FOUND, "forecast zone not found".to_string()))?;
     let alerts = client
         .get(format!(
             "https://api.weather.gov/alerts/active/zone/{zone_id}"

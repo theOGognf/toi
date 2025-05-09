@@ -11,7 +11,7 @@ if [[ "$release" == "true" || "$release" == "1" || "$release" == "yes" ]]; then
 fi
 
 case "${command}" in
-    "build")
+    "bin")
         cargo build ${release_flag} -p toi_server
         mv /usr/app/target/${build_type}/toi_server /usr/local/bin/toi_server
         ;;
