@@ -436,7 +436,7 @@ pub async fn update_matching_contact(
         .await?
         .into_iter()
         .next()
-        .ok_or((StatusCode::NOT_FOUND, "Contact not found".to_string()))?;
+        .ok_or((StatusCode::NOT_FOUND, "contact not found".to_string()))?;
     let mut contact = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq(id))

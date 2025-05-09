@@ -148,7 +148,7 @@ pub async fn get_weather_alerts(
         .split('/')
         .next_back()
         .ok_or(
-            ApiClientError::EmptyResponse.into_response(&"forecast zone not found".to_string()),
+            (StatusCode::NOT_FOUND, "forecast zone not found".to_string()),
         )?;
     let alerts = client
         .get(format!(
