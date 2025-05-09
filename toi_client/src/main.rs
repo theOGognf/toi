@@ -79,7 +79,7 @@ async fn client(
                                                                     tx.send(message).await.expect("server response channel full");
                                                                 }
                                                                 Err(err) => {
-                                                                    let message = ServerResponse::Error(err.to_string());
+                                                                    let message = ServerResponse::Error(format!("{err:?}"));
                                                                     tx.send(message).await.expect("server response channel full");
                                                                     break
                                                                 }
@@ -91,12 +91,12 @@ async fn client(
                                             // This shouldn't get hit in a streaming response because streaming responses
                                             // end with the '[DONE]' string before returning no lines.
                                             Ok(None) => {
-                                                let message = ServerResponse::Error("server resposne didn't end on [DONE]".to_string());
+                                                let message = ServerResponse::Error("server response didn't end on [DONE]".to_string());
                                                 tx.send(message).await.expect("server response channel full");
                                                 break
                                             },
                                             Err(err) => {
-                                                let message = ServerResponse::Error(err.to_string());
+                                                let message = ServerResponse::Error(format!("{err:?}"));
                                                 tx.send(message).await.expect("server response channel full");
                                                 break
                                             },
@@ -370,6 +370,7 @@ FLAGS:
     start_repl_sender.send(()).await?;
 
     // Main loop.
+    let mut stdout = io::stdout();
     let mut history = History::new(context_limit);
     loop {
         tokio::select! {
@@ -388,8 +389,8 @@ FLAGS:
                     ServerResponse::Chunk(chunk) => {
                         if let Some(choice) = chunk.choices.into_iter().next() {
                             print!("{}", choice.delta.content);
+                            stdout.flush()?;
                             history.push_assistant_chunk(choice.delta.content);
-                            io::stdout().flush()?;
                         }
                         if let Some(usage) = chunk.usage {
                             history.push_assistant_and_token_usage(usage);
@@ -416,7 +417,7 @@ FLAGS:
                         if history.len() % 2 == 1 {
                             history.pop_back();
                         }
-                        println!("Error: {err}");
+                        println!("{err}");
                         start_repl_sender.send(()).await?;
                     }
                 }
