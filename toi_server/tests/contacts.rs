@@ -16,8 +16,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Make sure there's a database URL and it points to a test database so
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
-    assert!(db_connection_url.ends_with("/test"));
-    utils::reset_database()?;
+    utils::reset_database(&db_connection_url)?;
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
@@ -66,10 +65,8 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_contacts1 = response.json::<Vec<Contact>>().await?;
-    let contact3 = vec_contacts1.first().unwrap();
     assert_eq!(vec_contacts1.len(), 1);
-    assert_eq!(contact3.first_name, first_name);
-    assert_eq!(contact3.phone, Some(phone.to_string()));
+    assert_eq!(vec_contacts1.first(), Some(contact2).as_ref());
 
     // Delete the contact using search.
     let query = ContactDeleteParams::builder()
@@ -82,9 +79,6 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.delete(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_contacts2 = response.json::<Vec<Contact>>().await?;
-    let contact4 = vec_contacts2.first().unwrap();
-    assert_eq!(vec_contacts2.len(), 1);
-    assert_eq!(contact4.first_name, first_name);
-    assert_eq!(contact4.phone, Some(phone.to_string()));
+    assert_eq!(vec_contacts2, vec_contacts1);
     Ok(())
 }

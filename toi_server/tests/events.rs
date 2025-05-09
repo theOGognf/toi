@@ -14,8 +14,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Make sure there's a database URL and it points to a test database so
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
-    assert!(db_connection_url.ends_with("/test"));
-    utils::reset_database()?;
+    utils::reset_database(&db_connection_url)?;
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
@@ -55,13 +54,12 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let response = utils::assert_ok_response(response).await?;
     let vec_events1 = response.json::<Vec<Event>>().await?;
     assert_eq!(vec_events1.len(), 1);
-    assert_eq!(vec_events1.first().unwrap().description, description);
+    assert_eq!(vec_events1.first(), Some(event1).as_ref());
 
     // Delete the event using search.
     let response = client.delete(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_events2 = response.json::<Vec<Event>>().await?;
-    assert_eq!(vec_events2.len(), 1);
-    assert_eq!(vec_events2.first().unwrap().description, description);
+    assert_eq!(vec_events2, vec_events1);
     Ok(())
 }

@@ -13,7 +13,8 @@ pub async fn assert_ok_response(response: Response) -> Result<Response, String> 
     }
 }
 
-pub fn reset_database() -> Result<Output, String> {
+pub fn reset_database(db_connection_url: &str) -> Result<Output, String> {
+    assert!(db_connection_url.ends_with("/test"));
     let migrations_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("migrations");
     Command::new("diesel")
         .args([

@@ -15,7 +15,7 @@ pub struct Participant {
     pub contact_id: i32,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, ToSchema)]
 pub struct Participants {
     /// Matching event.
     pub event: Event,

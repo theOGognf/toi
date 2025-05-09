@@ -8,7 +8,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::{models::search::SimilaritySearchParams, utils};
 
-#[derive(Deserialize, Queryable, Selectable, Serialize, ToSchema)]
+#[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::events)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Event {

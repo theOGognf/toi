@@ -14,8 +14,7 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Make sure there's a database URL and it points to a test database so
     // prod isn't goofed during testing.
     let db_connection_url = dotenvy::var("DATABASE_URL")?;
-    assert!(db_connection_url.ends_with("/test"));
-    utils::reset_database()?;
+    utils::reset_database(&db_connection_url)?;
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
@@ -53,13 +52,12 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
     let response = utils::assert_ok_response(response).await?;
     let vec_todos1 = response.json::<Vec<Todo>>().await?;
     assert_eq!(vec_todos1.len(), 1);
-    assert_eq!(vec_todos1.first().unwrap().item, item);
+    assert_eq!(vec_todos1.first(), Some(todo1).as_ref());
 
     // Delete the todo using search.
     let response = client.delete(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_todos2 = response.json::<Vec<Todo>>().await?;
-    assert_eq!(vec_todos2.len(), 1);
-    assert_eq!(vec_todos2.first().unwrap().item, item);
+    assert_eq!(vec_todos2, vec_todos1);
     Ok(())
 }

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Datelike, Duration, Utc, Weekday};
+use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
@@ -26,7 +27,7 @@ async fn datetime_routes() -> Result<(), Box<dyn std::error::Error>> {
     let url = format!("http://{}/datetime", state.server_config.bind_addr);
 
     // Get current time and check that the day is correct.
-    let now = chrono::offset::Utc::now();
+    let now = Utc::now();
     let response = client.get(format!("{url}/now")).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let datetime1 = response.json::<DateTime<Utc>>().await?;
@@ -47,7 +48,16 @@ async fn datetime_routes() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(datetime2.day(), (now + Duration::days(2)).day());
 
     // Finally, check the weekday of today.
-    let response = client.get(format!("{url}/weekday")).send().await?;
+    let params = json!(
+        {
+            "datetime": now
+        }
+    );
+    let response = client
+        .get(format!("{url}/weekday"))
+        .query(&params)
+        .send()
+        .await?;
     let response = utils::assert_ok_response(response).await?;
     let weekday = response.json::<Weekday>().await?;
     assert_eq!(weekday, now.weekday());
