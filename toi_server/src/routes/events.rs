@@ -177,7 +177,7 @@ pub async fn search_events(
                     .or(schema::events::ends_at
                         .ge(day_of_event_start_time)
                         .and(schema::events::ends_at.le(day_of_event_end_time))),
-                )
+                );
             }
         }
     }

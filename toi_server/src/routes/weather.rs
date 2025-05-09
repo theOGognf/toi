@@ -142,9 +142,14 @@ pub async fn get_weather_alerts(
 
     // Get the forecast zone and the weather alerts for that zone
     // from the returned metadata.
-    let zone_id = point.properties.forecast_zone.split('/').last().ok_or(
-        ApiClientError::EmptyResponse.into_response(&"forecast zone not found".to_string()),
-    )?;
+    let zone_id = point
+        .properties
+        .forecast_zone
+        .split('/')
+        .next_back()
+        .ok_or(
+            ApiClientError::EmptyResponse.into_response(&"forecast zone not found".to_string()),
+        )?;
     let alerts = client
         .get(format!(
             "https://api.weather.gov/alerts/active/zone/{zone_id}"

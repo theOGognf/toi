@@ -165,8 +165,9 @@ pub async fn search_contacts(
                 );
             }
             utils::DateFallsOn::Day => {
-                query = query
-                    .filter(schema::contacts::birthday.eq(birthday_falls_on_search_params.birthday))
+                query = query.filter(
+                    schema::contacts::birthday.eq(birthday_falls_on_search_params.birthday),
+                );
             }
         }
     }
