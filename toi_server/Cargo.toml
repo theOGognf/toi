@@ -18,6 +18,7 @@ diesel-async = { version = "0.5.2", features = ["bb8", "postgres"] }
 diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 dotenvy = "0.15.7"
 envsubst = "0.2.1"
+petname = { version = "2.0.2", default-features = false, features = ["default-rng", "default-words"] }
 pgvector = { version = "0.4.0", features = ["diesel", "serde"] }
 reqwest = { version = "0.12.14", features = ["json", "rustls-tls", "stream"] }
 schemars = { version = "0.8.22", features = ["chrono"] }

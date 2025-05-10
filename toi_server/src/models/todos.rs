@@ -62,6 +62,10 @@ pub struct CompleteTodoRequest {
     pub due_from: Option<DateTime<Utc>>,
     /// Filter on todos due before this ISO formatted datetime.
     pub due_to: Option<DateTime<Utc>>,
+    /// Whether to include or exclude todos that are incomplete.
+    pub incomplete: Option<utils::Scope>,
+    /// Whether to include or exclude todos that are never due.
+    pub never_due: Option<utils::Scope>,
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of todos to return from the search.
@@ -88,6 +92,10 @@ pub struct TodoQueryParams {
     pub completed_from: Option<DateTime<Utc>>,
     /// Filter on todos completed before this ISO formatted datetime.
     pub completed_to: Option<DateTime<Utc>>,
+    /// Whether to include or exclude todos that are incomplete.
+    pub incomplete: Option<utils::Scope>,
+    /// Whether to include or exclude todos that are never due.
+    pub never_due: Option<utils::Scope>,
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of todos to return from the search.

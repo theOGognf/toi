@@ -114,6 +114,22 @@ async fn search_todos(
         query = query.filter(schema::todos::completed_at.le(completed_to));
     }
 
+    // Filter incomplete todos.
+    if let Some(scope) = &params.incomplete {
+        match scope {
+            utils::Scope::In => query = query.or_filter(schema::todos::completed_at.is_null()),
+            utils::Scope::Out => query = query.filter(schema::todos::completed_at.is_not_null()),
+        }
+    }
+
+    // Filter never due todos.
+    if let Some(scope) = &params.never_due {
+        match scope {
+            utils::Scope::In => query = query.or_filter(schema::todos::due_at.is_null()),
+            utils::Scope::Out => query = query.filter(schema::todos::due_at.is_not_null()),
+        }
+    }
+
     // Order items.
     match params.order_by {
         Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
@@ -257,6 +273,8 @@ pub async fn complete_matching_todos(
         created_to,
         due_from,
         due_to,
+        incomplete,
+        never_due,
         order_by,
         limit,
     } = body;
@@ -268,6 +286,8 @@ pub async fn complete_matching_todos(
         due_to,
         completed_from: None,
         completed_to: None,
+        incomplete,
+        never_due,
         order_by,
         limit,
     };

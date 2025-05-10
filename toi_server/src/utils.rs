@@ -27,6 +27,12 @@ pub enum OrderBy {
     Newest,
 }
 
+#[derive(Clone, Deserialize, JsonSchema, PartialEq, Serialize, ToSchema)]
+pub enum Scope {
+    In,
+    Out,
+}
+
 #[derive(Debug)]
 pub enum DeserializeWithEnvSubstError {
     Deserialization(serde_json::Error),
