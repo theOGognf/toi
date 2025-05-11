@@ -47,8 +47,9 @@ diesel::table! {
 
     news (alias) {
         alias -> Text,
+        tinyurl -> Text,
         url -> Nullable<Text>,
-        description -> Nullable<Text>,
+        title -> Nullable<Text>,
         updated_at -> Nullable<Timestamptz>,
     }
 }

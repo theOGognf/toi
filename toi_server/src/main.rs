@@ -1,8 +1,8 @@
-use diesel::{Connection, PgConnection, RunQueryDsl};
+use diesel::{Connection, PgConnection};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, info, warn};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -50,6 +50,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "/participants",
                 toi_server::routes::participants::router(state.clone()),
             ),
+        )
+        .nest(
+            "/news",
+            toi_server::routes::news::router(state.clone()).await?,
         )
         .nest("/notes", toi_server::routes::notes::router(state.clone()))
         .nest("/todos", toi_server::routes::todos::router(state.clone()))

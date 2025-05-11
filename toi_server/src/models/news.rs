@@ -1,56 +1,97 @@
 use bon::Builder;
 use chrono::{DateTime, Utc};
-use diesel::{Insertable, Queryable, Selectable};
+use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{models::search::SimilaritySearchParams, utils};
-
-#[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
-#[diesel(table_name = crate::schema::notes)]
+#[derive(Insertable, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::news)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct News {
-    /// Unique note ID.
-    pub id: i32,
-    /// Note content.
-    pub content: String,
-    /// Datetime the note was created in ISO format.
-    pub created_at: DateTime<Utc>,
+    pub alias: String,
+    pub tinyurl: String,
+    pub title: Option<String>,
+    pub url: Option<String>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = crate::schema::news)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Alias {
+    pub alias: String,
+    pub tinyurl: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
+#[diesel(table_name = crate::schema::news)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewRedirect {
+    pub tinyurl: String,
+    pub title: Option<String>,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::news)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewNews {
+pub struct NewAlias {
     pub alias: String,
+    pub tinyurl: String,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl NewNews {
-    pub fn new(alias: String) -> Self {
+impl NewAlias {
+    pub fn new(alias: String, bind_addr: &str) -> Self {
+        let tinyurl = format!("http://{bind_addr}/news/{alias}");
         Self {
             alias,
+            tinyurl,
             updated_at: None,
         }
     }
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
-pub struct NoteQueryParams {
-    /// Parameters for performing similarity search against notes.
-    /// This can be left empty or null to ignore similarity search
-    /// in cases where the user wants to filter by other params
-    /// (e.g., get items by date or get all items).
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
-    /// Filter on notes created after this ISO formatted datetime.
-    pub created_from: Option<DateTime<Utc>>,
-    /// Filter on notes created before this ISO formatted datetime.
-    pub created_to: Option<DateTime<Utc>>,
-    /// How to order results for retrieved notes.
-    pub order_by: Option<utils::OrderBy>,
-    /// Limit the max number of notes to return from the search.
-    #[param(minimum = 1)]
-    pub limit: Option<i64>,
+#[derive(AsChangeset, Default)]
+#[diesel(table_name = crate::schema::news)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct ExpiredRedirect {
+    pub title: Option<String>,
+    pub url: Option<String>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
+pub struct GetNewsRequest {
+    /// Limit the search to titles/descriptions matching this query.
+    pub query: Option<String>,
+    /// Limit the search to articles published up to this many hours in the past.
+    #[param(minimum = 1, maximum = 24)]
+    #[schemars(range(min = 1, max = 24))]
+    pub when: Option<u8>,
+}
+
+impl From<GetNewsRequest> for (&'static str, Value) {
+    fn from(value: GetNewsRequest) -> Self {
+        let mut s = vec![];
+        if let Some(search) = value.query {
+            s.push(search);
+        }
+        if let Some(when) = value.when {
+            s.push(format!("when:{when}h"));
+        }
+        if s.is_empty() {
+            ("https://news.google.com/rss", json!({}))
+        } else {
+            (
+                "https://news.google.com/rss/search",
+                json!(
+                    {
+                        "q": s.join("+")
+                    }
+                ),
+            )
+        }
+    }
 }

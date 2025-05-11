@@ -1,76 +1,79 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::{Json, Redirect},
 };
 use chrono::{Duration, Utc};
-use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
-use diesel_async::RunQueryDsl;
+use diesel::{ExpressionMethods, PgSortExpressionMethods, QueryDsl, SelectableHelper};
+use diesel_async::{AsyncConnection, RunQueryDsl, scoped_futures::ScopedFutureExt};
+use rand::seq::SliceRandom;
 use schemars::schema_for;
-use std::io::BufReader;
-use std::{fs, io::BufRead};
+use tracing::debug;
 use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        news::{NewNews, NewNewsRequest, News, NewsQueryParams},
+        client::ApiClientError,
+        news::{Alias, ExpiredRedirect, GetNewsRequest, NewAlias, NewRedirect, News},
         state::ToiState,
     },
     schema, utils,
 };
 
-// Prefixes are used for embedding instructions.
-const INSTRUCTION_PREFIX: &str =
-    "Instruction: Given a user query, find news headlines similar to the one the user mentions";
-const QUERY_PREFIX: &str = "Query: ";
+const ALIASES: &str = include_str!("../../data/aliases.txt");
 
 pub async fn router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {
-    let file = fs::File::open("names.txt")?;
-    let new_news_items: Vec<NewNews> = BufReader::new(file)
+    let mut new_aliases: Vec<String> = ALIASES
         .lines()
-        .flatten()
-        .map(|name| NewNews::new(name))
+        .filter_map(|item| {
+            if item.is_empty() {
+                None
+            } else {
+                Some(item.to_string())
+            }
+        })
+        .collect();
+    new_aliases.sort();
+    new_aliases.dedup();
+    new_aliases.shuffle(&mut rand::rng());
+    let new_aliases: Vec<NewAlias> = new_aliases
+        .into_iter()
+        .map(|alias| NewAlias::new(alias, &state.server_config.bind_addr))
         .collect();
     let mut conn = state.pool.get().await?;
     diesel::delete(schema::news::table)
         .execute(&mut conn)
         .await?;
     diesel::insert_into(schema::news::table)
-        .values(&new_news_items)
+        .values(&new_aliases)
         .execute(&mut conn)
         .await?;
+    drop(conn);
     let mut router = OpenApiRouter::new()
-        .routes(routes!(get_news_article, update_news,))
+        .routes(routes!(get_news_article, get_news))
         .with_state(state);
 
     let openapi = router.get_openapi_mut();
     let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
 
     // Update POST /news extensions
-    let update_news_json_schema = schema_for!(NewNewsRequest);
-    let update_news_json_schema =
-        serde_json::to_value(update_news_json_schema).expect("schema unserializable");
-    let update_news_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", update_news_json_schema)
+    let get_news = schema_for!(GetNewsRequest);
+    let get_news_json_schema = serde_json::to_value(get_news).expect("schema unserializable");
+    let get_news_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", get_news_json_schema)
         .build();
     paths
         .post
         .as_mut()
         .expect("POST doesn't exist")
         .extensions
-        .get_or_insert(update_news_extensions);
+        .get_or_insert(get_news_extensions);
 
     Ok(router)
 }
 
-/// Get news.
-///
-/// Example queries for getting news using this endpoint:
-/// - Get all news related to...
-/// - List all news about...
-/// - What news are there on...
-/// - How many news are there about...
+/// Get a specific news article by its alias.
 #[utoipa::path(
     get,
     path = "/{alias}",
@@ -85,10 +88,19 @@ pub async fn get_news_article(
 ) -> Result<Redirect, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let cutoff = Utc::now() - Duration::hours(24);
-    diesel::delete(schema::news::table.filter(schema::news::updated_at.lt(cutoff)))
-        .execute(&mut conn)
+    let aliases: Vec<String> = schema::news::table
+        .select(schema::news::alias)
+        .filter(schema::news::updated_at.lt(cutoff))
+        .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
+    if !aliases.is_empty() {
+        diesel::update(schema::news::table.filter(schema::news::alias.eq_any(aliases)))
+            .set(ExpiredRedirect::default())
+            .execute(&mut conn)
+            .await
+            .map_err(utils::diesel_error)?;
+    }
     let url: Option<String> = schema::news::table
         .select(schema::news::url)
         .filter(schema::news::alias.eq(alias))
@@ -101,43 +113,113 @@ pub async fn get_news_article(
     }
 }
 
-/// Add and return a new.
+/// Get news, returning news article titles with the links to the articles together.
 ///
-/// Example queries for adding news using this endpoint:
-/// - Add a new saying...
-/// - Add a new that...
-/// - Keep new on...
-/// - Remember that...
-/// - Make a new...
+/// Example queries for getting news using this endpoint:
+/// - Get news from apnews.com.
+/// - Get news from the past 10 hours.
+/// - Show me good news.
+/// - What's the news saying today?
+/// - Any news on good stuff?
 #[utoipa::path(
     post,
     path = "",
-    request_body = UpdateNewsRequest,
+    request_body = GetNewsRequest,
     responses(
-        (status = 201, description = "Successfully added a new", body = News),
+        (status = 201, description = "Successfully got news", body = [NewRedirect]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn update_news(
+pub async fn get_news(
     State(state): State<ToiState>,
-    Json(body): Json<NewNewsRequest>,
-) -> Result<Json<News>, (StatusCode, String)> {
+    Json(body): Json<GetNewsRequest>,
+) -> Result<Json<Vec<NewRedirect>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    // First, expire old links.
     let cutoff = Utc::now() - Duration::hours(24);
-    diesel::delete(schema::news::table.filter(schema::news::updated_at.lt(cutoff)))
-        .execute(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    // Get results using quick_xml serde feature
-    // Update table, returning the localhost URL for the redirect and the article description for all results
-    let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
-        .set(schema::todos::completed_at.eq(completed_at))
-        .returning(Todo::as_returning())
+    let aliases: Vec<String> = schema::news::table
+        .select(schema::news::alias)
+        .filter(schema::news::updated_at.lt(cutoff))
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    if !aliases.is_empty() {
+        diesel::update(schema::news::table.filter(schema::news::alias.eq_any(aliases)))
+            .set(ExpiredRedirect::default())
+            .execute(&mut conn)
+            .await
+            .map_err(utils::diesel_error)?;
+    }
+    // Get the RSS query from the body.
+    let (url, params) = body.into();
+    debug!("getting rss feed with {params:?}");
+    // Get RSS items from the feed.
+    let content = reqwest::Client::new()
+        .get(url)
+        .query(&params)
+        .send()
+        .await
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
+        .bytes()
+        .await
+        .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;
+    let channel = rss::Channel::read_from(&content[..]).map_err(utils::internal_error)?;
+    let items: Vec<rss::Item> = channel
+        .items
+        .into_iter()
+        .filter(|item| item.title.is_some() && item.link.is_some())
+        .collect();
+    debug!("got {} news items", items.len());
+    // Convert the items into redirects that're sent to the client.
+    let redirects = conn
+        .transaction(|mut conn| {
+            async move {
+                // Get all the aliases used as redirects for the RSS items.
+                let aliases: Vec<String> = schema::news::table
+                    .select(schema::news::alias)
+                    .order_by(schema::news::updated_at.asc().nulls_first())
+                    .limit(
+                        items
+                            .len()
+                            .try_into()
+                            .expect("news items length doesn't fit in i64"),
+                    )
+                    .load(&mut conn)
+                    .await?;
+                // Delete all the selected aliases. Have to do this because we
+                // can't batch update. Instead of batch updating, we batch delete
+                // and then batch insert in one transaction.
+                let aliases = diesel::delete(
+                    schema::news::table.filter(schema::news::alias.eq_any(&aliases)),
+                )
+                .returning(Alias::as_returning())
+                .load(&mut conn)
+                .await?;
+                // Insert the new news items, filling back in the deleted aliases.
+                let news: Vec<News> = aliases
+                    .into_iter()
+                    .zip(items.into_iter())
+                    .map(|(alias, item)| News {
+                        alias: alias.alias,
+                        tinyurl: alias.tinyurl,
+                        url: item.link,
+                        title: item.title,
+                        updated_at: Some(Utc::now()),
+                    })
+                    .collect();
+                let redirects = diesel::insert_into(schema::news::table)
+                    .values(news)
+                    .returning(NewRedirect::as_returning())
+                    .load(&mut conn)
+                    .await?;
+                Ok(redirects)
+            }
+            .scope_boxed()
+        })
+        .await
+        .map_err(utils::diesel_error)?;
+    Ok(Json(redirects))
 }

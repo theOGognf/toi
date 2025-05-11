@@ -2,7 +2,7 @@ use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::Client;
 use toi::{GenerationRequest, Message, MessageRole};
 use tracing::{debug, info, warn};
-use utoipa::openapi::{OpenApi, path::ParameterIn};
+use utoipa::openapi::OpenApi;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -38,14 +38,7 @@ pub async fn router(
         .await?;
     for (path, item) in &mut openapi.paths.paths {
         // Parameterized paths are not supported by the /chat endpoint.
-        let has_parameter_in_path = if let Some(parameters) = &item.parameters {
-            parameters
-                .iter()
-                .any(|param| param.parameter_in == ParameterIn::Path)
-        } else {
-            false
-        };
-        if !has_parameter_in_path {
+        if !path.contains("{") {
             for (method, op) in [
                 ("DELETE", &mut item.delete),
                 ("GET", &mut item.get),
