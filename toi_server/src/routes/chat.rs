@@ -2,13 +2,14 @@ use axum::{body::Body, extract::State, http::StatusCode, response::Json};
 use reqwest::Client;
 use toi::{GenerationRequest, Message, MessageRole};
 use tracing::{debug, info, warn};
+use utoipa::openapi::{OpenApi, path::ParameterIn};
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
         chat::{GeneratedRequest, parse_generated_response},
         client::{ApiClientError, EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        openapi::{OpenApiPathItem, SearchableOpenApiPathItem},
+        openapi::{NewSearchableOpenApiPathItem, OpenApiPathItem, SearchableOpenApiPathItem},
         prompts::{HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
         state::ToiState,
     },
@@ -19,8 +20,145 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
-    OpenApiRouter::new().routes(routes!(chat)).with_state(state)
+pub async fn router(
+    openapi: &mut OpenApi,
+    state: ToiState,
+) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {
+    use diesel_async::RunQueryDsl;
+    let mut conn = state.pool.get().await?;
+
+    // Go through and embed all OpenAPI path specs so they can be used as
+    // context for generating HTTP requests within the /chat endpoint.
+    // Start by deleting all the pre-existing OpenAPI path specs just in
+    // case there are any updates.
+    info!("preparing OpenAPI endpoints for automation");
+    let mut new_searchable_openapi_path_items = vec![];
+    diesel::delete(schema::openapi::table)
+        .execute(&mut conn)
+        .await?;
+    for (path, item) in &mut openapi.paths.paths {
+        // Parameterized paths are not supported by the /chat endpoint.
+        let has_parameter_in_path = if let Some(parameters) = &item.parameters {
+            parameters
+                .iter()
+                .any(|param| param.parameter_in == ParameterIn::Path)
+        } else {
+            false
+        };
+        if !has_parameter_in_path {
+            for (method, op) in [
+                ("DELETE", &mut item.delete),
+                ("GET", &mut item.get),
+                ("POST", &mut item.post),
+                ("PUT", &mut item.put),
+            ] {
+                if let Some(op) = op {
+                    // Split the docstring according to newlines.
+                    let summary_and_description = [op.summary.clone(), op.description.clone()]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<String>>()
+                        .join("\n\n");
+                    let descriptions: Vec<String> = summary_and_description
+                        .lines()
+                        .filter(|line| !line.trim().is_empty())
+                        .map(|line| line.to_string())
+                        .collect();
+
+                    if descriptions.is_empty() {
+                        warn!(
+                            "skipping uri={path} method={method} due to missing context from doc string"
+                        );
+                        continue;
+                    }
+
+                    // Get params and body from OpenAPI extensions.
+                    let (params, body) = match op.extensions {
+                        Some(ref mut extensions) => (
+                            extensions.remove("x-json-schema-params"),
+                            extensions.remove("x-json-schema-body"),
+                        ),
+                        None => (None, None),
+                    };
+
+                    // Make sure the JSON schema params match the params in the OpenAPI spec.
+                    match (&op.parameters, &params) {
+                        (Some(_), Some(_)) | (None, None) => {}
+                        (Some(_), None) => {
+                            warn!(
+                                "skipping uri={path} method={method} due to missing JSON schema parameters"
+                            );
+                            continue;
+                        }
+                        (None, Some(_)) => {
+                            warn!(
+                                "skipping uri={path} method={method} due to extra JSON schema parameters"
+                            );
+                            continue;
+                        }
+                    }
+
+                    // Make sure the JSON schema bodies match the bodies in the OpenAPI spec.
+                    match (&op.request_body, &body) {
+                        (Some(_), Some(_)) | (None, None) => {}
+                        (Some(_), None) => {
+                            warn!(
+                                "skipping uri={path} method={method} due to missing JSON schema body"
+                            );
+                            continue;
+                        }
+                        (None, Some(_)) => {
+                            warn!(
+                                "skipping uri={path} method={method} due to extra JSON schema body"
+                            );
+                            continue;
+                        }
+                    }
+
+                    // Assuming that each line in the endpoint's docstring has
+                    // a more unique string that might better match up to a user's
+                    // query, each line in an endpoint's docstring is used as a
+                    // separate embedding.
+                    info!("adding uri={path} method={method}");
+                    let new_openapi_path_item = OpenApiPathItem {
+                        path: path.to_string(),
+                        method: method.to_string(),
+                        description: summary_and_description,
+                        params,
+                        body,
+                    };
+                    let parent_id = diesel::insert_into(schema::openapi::table)
+                        .values(&new_openapi_path_item)
+                        .returning(schema::openapi::id)
+                        .get_result(&mut conn)
+                        .await?;
+                    for description in descriptions {
+                        debug!("processing line='{description}'");
+                        let embedding_request = EmbeddingRequest {
+                            input: description.clone(),
+                        };
+                        let embedding = state
+                            .model_client
+                            .embed(embedding_request)
+                            .await
+                            .map_err(|(_, err)| err)?;
+                        new_searchable_openapi_path_items.push(NewSearchableOpenApiPathItem {
+                            parent_id,
+                            description,
+                            embedding,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    diesel::insert_into(schema::searchable_openapi::table)
+        .values(&new_searchable_openapi_path_items)
+        .execute(&mut conn)
+        .await?;
+    drop(conn);
+
+    Ok(OpenApiRouter::new().routes(routes!(chat)).with_state(state))
 }
 
 #[utoipa::path(

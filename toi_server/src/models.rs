@@ -4,6 +4,7 @@ pub mod config;
 pub mod contacts;
 pub mod datetime;
 pub mod events;
+pub mod news;
 pub mod notes;
 pub mod openapi;
 pub mod participants;

@@ -45,6 +45,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
+    news (alias) {
+        alias -> Text,
+        url -> Nullable<Text>,
+        description -> Nullable<Text>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
     notes (id) {
         id -> Int4,
         content -> Text,
@@ -101,6 +113,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     contacts,
     event_participants,
     events,
+    news,
     notes,
     openapi,
     searchable_openapi,
