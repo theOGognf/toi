@@ -3,23 +3,17 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use reqwest::header;
 use schemars::schema_for;
 use serde_json::json;
 use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
-use crate::{
-    models::{
-        client::ApiClientError,
-        config::ServerConfig,
-        state::ToiState,
-        weather::{
-            GeocodingResult, GridpointForecast, Point, WeatherAlerts, WeatherQueryParams,
-            ZoneForecast,
-        },
+use crate::models::{
+    client::ApiClientError,
+    state::ToiState,
+    weather::{
+        GeocodingResult, GridpointForecast, Point, WeatherAlerts, WeatherQueryParams, ZoneForecast,
     },
-    utils,
 };
 
 pub fn router(state: ToiState) -> OpenApiRouter {
@@ -125,18 +119,9 @@ async fn geocode(
 )]
 #[axum::debug_handler]
 pub async fn get_weather_alerts(
-    State(server_config): State<ServerConfig>,
+    State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<WeatherAlerts>, (StatusCode, String)> {
-    let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
-    headers.insert("User-Agent", user_agent);
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .map_err(utils::internal_error)?;
-
     // Get metadata about the latitude/longitude point.
     let point = geocode(&params, &client).await?;
 
@@ -148,10 +133,9 @@ pub async fn get_weather_alerts(
         .split('/')
         .next_back()
         .ok_or((StatusCode::NOT_FOUND, "forecast zone not found".to_string()))?;
+    let url = format!("https://api.weather.gov/alerts/active/zone/{zone_id}");
     let alerts = client
-        .get(format!(
-            "https://api.weather.gov/alerts/active/zone/{zone_id}"
-        ))
+        .get(url)
         .send()
         .await
         .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?
@@ -180,18 +164,9 @@ pub async fn get_weather_alerts(
 )]
 #[axum::debug_handler]
 pub async fn get_gridpoint_weather_forecast(
-    State(server_config): State<ServerConfig>,
+    State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<GridpointForecast>, (StatusCode, String)> {
-    let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
-    headers.insert("User-Agent", user_agent);
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .map_err(utils::internal_error)?;
-
     // Get metadata about the latitude/longitude point.
     let point = geocode(&params, &client).await?;
 
@@ -225,18 +200,9 @@ pub async fn get_gridpoint_weather_forecast(
 )]
 #[axum::debug_handler]
 pub async fn get_zone_weather_forecast(
-    State(server_config): State<ServerConfig>,
+    State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<ZoneForecast>, (StatusCode, String)> {
-    let mut headers = header::HeaderMap::new();
-    let user_agent =
-        header::HeaderValue::from_str(&server_config.user_agent).map_err(utils::internal_error)?;
-    headers.insert("User-Agent", user_agent);
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .map_err(utils::internal_error)?;
-
     // Get metadata about the latitude/longitude point.
     let point = geocode(&params, &client).await?;
 

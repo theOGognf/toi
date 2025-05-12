@@ -4,8 +4,15 @@ use axum::extract::FromRef;
 #[derive(Clone)]
 pub struct ToiState {
     pub server_config: ServerConfig,
+    pub api_client: reqwest::Client,
     pub model_client: ModelClient,
     pub pool: utils::Pool,
+}
+
+impl FromRef<ToiState> for reqwest::Client {
+    fn from_ref(state: &ToiState) -> reqwest::Client {
+        state.api_client.clone()
+    }
 }
 
 impl FromRef<ToiState> for ModelClient {

@@ -65,6 +65,9 @@ pub struct ExpiredRedirect {
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct GetNewsRequest {
     /// Limit the search to titles/descriptions matching this query.
+    /// E.g., if the user says "get news for apnews.com", then this
+    /// should be "apnews.com". This should be null if the user isn't
+    /// requesting something specific.
     pub query: Option<String>,
     /// Limit the search to articles published up to this many hours in the past.
     #[param(minimum = 1, maximum = 24)]

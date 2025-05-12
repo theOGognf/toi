@@ -1,5 +1,4 @@
 use axum::{body::Body, extract::State, http::StatusCode, response::Json};
-use reqwest::Client;
 use toi::{GenerationRequest, Message, MessageRole};
 use tracing::{debug, info, warn};
 use utoipa::openapi::OpenApi;
@@ -38,7 +37,7 @@ pub async fn router(
         .await?;
     for (path, item) in &mut openapi.paths.paths {
         // Parameterized paths are not supported by the /chat endpoint.
-        if !path.contains("{") {
+        if !path.contains('{') {
             for (method, op) in [
                 ("DELETE", &mut item.delete),
                 ("GET", &mut item.get),
@@ -55,7 +54,7 @@ pub async fn router(
                     let descriptions: Vec<String> = summary_and_description
                         .lines()
                         .filter(|line| !line.trim().is_empty())
-                        .map(|line| line.to_string())
+                        .map(str::to_string)
                         .collect();
 
                     if descriptions.is_empty() {
@@ -259,13 +258,15 @@ async fn chat(
             debug!("proxy API request={:?}", generated_request);
 
             // Add the HTTP request to the context as an assistant message.
-            let http_request = generated_request.to_http_request(&state.server_config.bind_addr);
+            let http_request = generated_request
+                .to_http_request(&state.api_client, &state.server_config.bind_addr);
             let assistant_message = generated_request.into_assistant_message();
             request.messages.push(assistant_message);
 
             // Execute the HTTP request.
             debug!("sending proxy API request");
-            let response = Client::new()
+            let response = state
+                .api_client
                 .execute(http_request)
                 .await
                 .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;

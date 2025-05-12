@@ -2,6 +2,7 @@ use std::fs::File;
 
 use ctrlc::set_handler;
 use diesel_async::{AsyncPgConnection, pooled_connection::AsyncDieselConnectionManager};
+use reqwest::header;
 use tracing::info;
 
 mod client;
@@ -28,6 +29,13 @@ pub async fn init(
         reranking: reranking_api_config,
     } = config;
 
+    let mut headers = header::HeaderMap::new();
+    let user_agent = header::HeaderValue::from_str(&server_config.user_agent)?;
+    headers.insert("User-Agent", user_agent);
+    let api_client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()?;
+
     // Shared state components. A client is used for interacting with supporting
     // API services, while a pool is used for interacting with the database.
     let model_client = client::ModelClient::new(
@@ -42,6 +50,7 @@ pub async fn init(
     // the OpenAPI spec.
     let state = models::state::ToiState {
         server_config,
+        api_client,
         model_client,
         pool,
     };

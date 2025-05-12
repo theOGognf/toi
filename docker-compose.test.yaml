@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+      args:
+        - RELEASE=${RELEASE:-false}
     env_file:
       - .env
     environment:

@@ -2,6 +2,8 @@ services:
   api:
     build:
       context: .
+      args:
+        - RELEASE=${RELEASE:-false}
     env_file:
       - .env
     environment:

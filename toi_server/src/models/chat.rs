@@ -44,8 +44,8 @@ impl GeneratedRequest {
     }
 
     #[must_use]
-    pub fn to_http_request(&self, binding_addr: &str) -> Request {
-        let mut request_builder = Client::new().request(
+    pub fn to_http_request(&self, api_client: &Client, binding_addr: &str) -> Request {
+        let mut request_builder = api_client.request(
             self.method.clone().into(),
             format!("http://{binding_addr}{}", self.path),
         );

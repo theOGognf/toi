@@ -157,7 +157,8 @@ pub async fn get_news(
     let (url, params) = body.into();
     debug!("getting rss feed with {params:?}");
     // Get RSS items from the feed.
-    let content = reqwest::Client::new()
+    let content = state
+        .api_client
         .get(url)
         .query(&params)
         .send()
