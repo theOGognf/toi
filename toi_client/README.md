@@ -21,7 +21,7 @@ with an OpenAI-compliant streaming API.
 
 ## Acknowledgements
 
-- The streaming is largely based on [this demo][7]
+- The streaming functionality is largely based on [this demo][7]
 
 [0]: https://crates.io/crates/ctrlc
 [1]: https://crates.io/crates/pico-args
