@@ -3,7 +3,7 @@
 A proof-of-concept for a personal assistant server with type-safe tool search
 and tool usage via HTTP API endpoints.
 
-## Requirements
+# Requirements
 
 The server requires the following supporting services:
 
@@ -15,7 +15,7 @@ The server requires the following supporting services:
 The server binary also has some native dependencies, so the Docker image
 is the easiest way to get started.
 
-## Configuration
+# Configuration
 
 At least two environment variables are required for configuration:
 
@@ -52,7 +52,7 @@ If you decide to use different models from the ones provided by the project's
 Docker Compose file, then be sure to tune/set the embedding distance and
 reranking similarity threshold values referenced by the [configuration struct][6].
 
-## Notable Dependencies
+# Notable dependencies
 
 - [axum][7] for HTTP endpoint definitions
 - [Diesel][8] for type-safe database interactions
@@ -62,7 +62,7 @@ reranking similarity threshold values referenced by the [configuration struct][6
 - [tokio][13] for async stuff
 - [Utoipa][14] for OpenAPI docs generation
 
-## How It Works
+# How it works
 
 Generally, the flow of a user's request goes as follows:
 
@@ -77,10 +77,10 @@ a generation API
 context
 - The generated HTTP request is sent to the top endpoint
 - The HTTP response is added as a user message to the local context
-- A generation API is used to stream the summarization of the response
+- A generation API is used to stream a summarization of the response
 back to the user
 
-## Motivation
+# Motivation
 
 In addition to wanting to learn some of the dependencies I used in this project,
 I've been thinking about making a self-hosted personal assistant that I could 

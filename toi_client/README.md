@@ -1,16 +1,16 @@
 # toi_client
 
 A proof-of-concept for a minimal, terminal-based chat client for interacting
-with an OpenAI-compliant streaming API.
+with the personal assistant server.
 
-## Features
+# Features
 
 - Basic context size management based on token usage
 - CTRL+C to interrupt the response stream during a response
 - CTRL+C to clear the input buffer when it isn't empty
 - CTRL+C to exit when the input buffer is empty
 
-## Notable Dependencies
+# Notable dependencies
 
 - [ctrlc][0] for some CTRL+C signal handling
 - [pico-args][1] for the CLI argument parser
@@ -19,7 +19,7 @@ with an OpenAI-compliant streaming API.
 - [serde][4] and [serde_json][5] for the serialization/deserialization stuff
 - [tokio][6] for async stuff
 
-## Acknowledgements
+# Acknowledgements
 
 - The streaming functionality is largely based on [this demo][7]
 
