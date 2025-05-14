@@ -92,6 +92,11 @@ tools using plain ol' HTTP endpoints, OpenAPI schemas, and JSON Schemas"*.
 
 And so that's what this is.
 
+# Related artifacts
+
+- [A library dependency][15]
+- [A client for interacting with the server][16]
+
 [0]: https://github.com/postgres/postgres
 [1]: https://github.com/pgvector/pgvector
 [2]: https://platform.openai.com/docs/api-reference/embeddings
@@ -107,3 +112,5 @@ And so that's what this is.
 [12]: https://crates.io/crates/serde_json
 [13]: https://crates.io/crates/tokio
 [14]: https://crates.io/crates/utoipa
+[15]: https://github.com/theOGognf/toi/tree/main/toi
+[16]: https://github.com/theOGognf/toi/tree/main/toi_client

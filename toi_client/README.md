@@ -19,6 +19,11 @@ with the personal assistant server.
 - [serde][4] and [serde_json][5] for the serialization/deserialization stuff
 - [tokio][6] for async stuff
 
+# Related artifacts
+
+- [A library dependency][8]
+- [A server to interact with][9]
+
 # Acknowledgements
 
 - The streaming functionality is largely based on [this demo][7]
@@ -31,3 +36,5 @@ with the personal assistant server.
 [5]: https://crates.io/crates/serde_json
 [6]: https://crates.io/crates/tokio
 [7]: https://github.com/a-poor/openai-stream-rust-demo
+[8]: https://github.com/theOGognf/toi/tree/main/toi
+[9]: https://github.com/theOGognf/toi/tree/main/toi_server
