@@ -2428,7 +2428,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "toi"
-version = "0.1.1-alpha.1"
+version = "0.1.1-alpha.2"
 dependencies = [
  "bon",
  "serde",
@@ -2438,7 +2438,7 @@ dependencies = [
 
 [[package]]
 name = "toi_client"
-version = "0.1.1-alpha.1"
+version = "0.1.1-alpha.2"
 dependencies = [
  "ctrlc",
  "dirs-next",
@@ -2455,7 +2455,7 @@ dependencies = [
 
 [[package]]
 name = "toi_server"
-version = "0.1.1-alpha.1"
+version = "0.1.1-alpha.2"
 dependencies = [
  "axum",
  "bb8",
