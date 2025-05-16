@@ -7,9 +7,7 @@ RUN apt-get update \
         curl \
         gcc \
         libpq-dev \
-        libssl-dev \
         musl-dev \
-        openssl \
         pkg-config \
     && rm -rf /var/lib/apt/lists/* \
     && cargo install cargo-chef
@@ -41,8 +39,8 @@ FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
     && apt-get install -y \
-        libpq-dev \
         ca-certificates \
+        libpq5 \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

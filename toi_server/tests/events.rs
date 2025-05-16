@@ -46,8 +46,8 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let query = EventQueryParams::builder()
         .similarity_search_params(
             SimilaritySearchParams::builder()
-                .query("oil service".to_string())
-                .use_reranking_filter(true)
+                .query("oil change".to_string())
+                .use_reranking_filter(false)
                 .build(),
         )
         .build();

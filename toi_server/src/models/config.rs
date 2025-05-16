@@ -6,7 +6,7 @@ fn default_bind_addr() -> String {
 }
 
 fn default_distance_threshold() -> f64 {
-    0.50
+    0.75
 }
 
 fn default_similarity_threshold() -> f64 {

@@ -12,7 +12,7 @@ The server requires the following supporting services:
 - An [OpenAI-compliant chat completions API][3]
 - A [vLLM reranking API][4]
 
-The server binary also has some native dependencies, so the Docker image
+The server binary also has some native dependencies, so the [Docker image][5]
 is the easiest way to get started.
 
 # Configuration
@@ -23,7 +23,7 @@ At least two environment variables are required for configuration:
 - `TOI_CONFIG_PATH`: path to the server configuration file
 
 The actual server configuration file at the path defined by `TOI_CONFIG_PATH`
-should have [HTTP client options][5] for the embedding, generation, and
+should have [HTTP client options][6] for the embedding, generation, and
 reranking APIs. It also supports environment variable interpolation for some
 values, so you can put something like this to keep API secrets safe:
 
@@ -50,17 +50,17 @@ values, so you can put something like this to keep API secrets safe:
 
 If you decide to use different models from the ones provided by the project's
 Docker Compose file, then be sure to tune/set the embedding distance and
-reranking similarity threshold values referenced by the [configuration struct][6].
+reranking similarity threshold values referenced by the [configuration struct][7].
 
 # Notable dependencies
 
-- [axum][7] for HTTP endpoint definitions
-- [Diesel][8] for type-safe database interactions
-- [pgvector-rust][9] for pgvector Rust support
-- [schemars][10] for JSON Schema generation
-- [serde][11] and [serde_json][12] for the serialization/deserialization stuff
-- [tokio][13] for async stuff
-- [Utoipa][14] for OpenAPI docs generation
+- [axum][8] for HTTP endpoint definitions
+- [Diesel][9] for type-safe database interactions
+- [pgvector-rust][10] for pgvector Rust support
+- [schemars][11] for JSON Schema generation
+- [serde][12] and [serde_json][13] for the serialization/deserialization stuff
+- [tokio][14] for async stuff
+- [Utoipa][15] for OpenAPI docs generation
 
 # How it works
 
@@ -94,23 +94,24 @@ And so that's what this is.
 
 # Related artifacts
 
-- [A library dependency][15]
-- [A client for interacting with the server][16]
+- [A library dependency][16]
+- [A client for interacting with the server][17]
 
 [0]: https://github.com/postgres/postgres
 [1]: https://github.com/pgvector/pgvector
 [2]: https://platform.openai.com/docs/api-reference/embeddings
 [3]: https://platform.openai.com/docs/api-reference/chat/create
 [4]: https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#re-rank-api
-[5]: https://github.com/theOGognf/toi/blob/4bb2d008de56e4fcd8be1af51e819028e41cbddb/toi_server/src/models/client.rs#L137
-[6]: https://github.com/theOGognf/toi/blob/4bb2d008de56e4fcd8be1af51e819028e41cbddb/toi_server/src/models/config.rs#L21
-[7]: https://crates.io/crates/axum
-[8]: https://crates.io/crates/diesel
-[9]: https://crates.io/crates/pgvector
-[10]: https://crates.io/crates/schemars
-[11]: https://crates.io/crates/serde
-[12]: https://crates.io/crates/serde_json
-[13]: https://crates.io/crates/tokio
-[14]: https://crates.io/crates/utoipa
-[15]: https://github.com/theOGognf/toi/tree/main/toi
-[16]: https://github.com/theOGognf/toi/tree/main/toi_client
+[5]: https://hub.docker.com/r/ognf/toi
+[6]: https://github.com/theOGognf/toi/blob/4bb2d008de56e4fcd8be1af51e819028e41cbddb/toi_server/src/models/client.rs#L137
+[7]: https://github.com/theOGognf/toi/blob/4bb2d008de56e4fcd8be1af51e819028e41cbddb/toi_server/src/models/config.rs#L21
+[8]: https://crates.io/crates/axum
+[9]: https://crates.io/crates/diesel
+[10]: https://crates.io/crates/pgvector
+[11]: https://crates.io/crates/schemars
+[12]: https://crates.io/crates/serde
+[13]: https://crates.io/crates/serde_json
+[14]: https://crates.io/crates/tokio
+[15]: https://crates.io/crates/utoipa
+[16]: https://github.com/theOGognf/toi/tree/main/toi
+[17]: https://github.com/theOGognf/toi/tree/main/toi_client
