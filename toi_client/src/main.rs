@@ -55,7 +55,7 @@ async fn client(
                         Ok(response) if response.status() == 200 => {
                             let stream = response
                                 .bytes_stream()
-                                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err));
+                                .map_err(std::io::Error::other);
                             let reader = StreamReader::new(stream);
                             let mut lines = reader.lines();
                             loop {
