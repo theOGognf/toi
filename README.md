@@ -71,6 +71,6 @@ the following (and probably other things) are out of scope:
 - Additional tool calling -like endpoints similar to the `/chat` endpoint
 - UIs beyond the provided REPL
 
-[0]: assets/demo.png?raw=true
+[0]: assets/demo.gif?raw=true
 [1]: https://github.com/theOGognf/toi/tree/main/toi_client
 [2]: https://github.com/theOGognf/toi/tree/main/toi_server

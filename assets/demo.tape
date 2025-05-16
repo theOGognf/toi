@@ -60,8 +60,8 @@ Output assets/demo.gif
 Require echo
 
 Set Shell "bash"
-Set FontSize 16
-Set Width 1200
+Set FontSize 32
+Set Width 800
 Set Height 600
 
 Type "toi_client" Sleep 500ms Enter
@@ -70,24 +70,20 @@ Sleep 1s
 
 Type "hello!" Sleep 500ms Enter
 
-Sleep 10s
+Sleep 5s
 
 Type "what time is it?" Sleep 500ms Enter
 
-Sleep 15s
+Sleep 5s
 
 Type "what's the weather in new york city?" Sleep 500ms Enter
 
-Sleep 15s
+Sleep 10s
 
-Type "add a note that says 'coffee:water 1:15 ratio'" Sleep 500ms Enter
+Type "add a note that says '1:15 coffee:water ratio'" Sleep 500ms Enter
 
 Sleep 15s
 
 Type "add a todo item to pick up more puerto rican coffee beans" Sleep 500ms Enter
-
-Sleep 15s
-
-Type "what's the capital of nigeria?" Sleep 500ms Enter
 
 Sleep 15s
