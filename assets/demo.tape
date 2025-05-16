@@ -60,8 +60,8 @@ Output assets/demo.gif
 Require echo
 
 Set Shell "bash"
-Set FontSize 32
-Set Width 800
+Set FontSize 16
+Set Width 900
 Set Height 600
 
 Type "toi_client" Sleep 500ms Enter
@@ -84,6 +84,6 @@ Type "add a note that says '1:15 coffee:water ratio'" Sleep 500ms Enter
 
 Sleep 15s
 
-Type "add a todo item to pick up more puerto rican coffee beans" Sleep 500ms Enter
+Type "add a todo item to pick up more puerto rican coffee beans by the end of tomorrow" Sleep 500ms Enter
 
 Sleep 15s
