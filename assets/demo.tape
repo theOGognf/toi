@@ -62,7 +62,7 @@ Require echo
 Set Shell "bash"
 Set FontSize 16
 Set Width 900
-Set Height 600
+Set Height 400
 
 Type "toi_client" Sleep 500ms Enter
 
@@ -74,11 +74,11 @@ Sleep 5s
 
 Type "what time is it?" Sleep 500ms Enter
 
-Sleep 5s
+Sleep 10s
 
 Type "what's the weather in new york city?" Sleep 500ms Enter
 
-Sleep 10s
+Sleep 15s
 
 Type "add a note that says '1:15 coffee:water ratio'" Sleep 500ms Enter
 
