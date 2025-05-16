@@ -74,7 +74,7 @@ Sleep 5s
 
 Type "what time is it?" Sleep 500ms Enter
 
-Sleep 10s
+Sleep 5s
 
 Type "what's the weather in new york city?" Sleep 500ms Enter
 
