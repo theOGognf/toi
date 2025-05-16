@@ -6,11 +6,11 @@ fn default_bind_addr() -> String {
 }
 
 fn default_distance_threshold() -> f64 {
-    0.85
+    0.50
 }
 
 fn default_similarity_threshold() -> f64 {
-    0.45
+    0.50
 }
 
 fn default_user_agent() -> String {

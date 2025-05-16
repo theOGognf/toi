@@ -119,8 +119,6 @@ pub async fn get_news_article(
 /// - Get news from apnews.com.
 /// - Get news from the past 10 hours.
 /// - Show me good news.
-/// - What's the news saying today?
-/// - Any news on good stuff?
 #[utoipa::path(
     post,
     path = "",

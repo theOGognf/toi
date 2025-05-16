@@ -190,9 +190,7 @@ pub async fn search_contacts(
                     .filter(
                         schema::contacts::embedding
                             .l2_distance(embedding.clone())
-                            .le(similarity_search_params
-                                .distance_threshold
-                                .unwrap_or(state.server_config.distance_threshold)),
+                            .le(state.server_config.distance_threshold),
                     )
                     .order(schema::contacts::embedding.l2_distance(embedding));
             }
@@ -237,22 +235,21 @@ pub async fn search_contacts(
 
     // Rerank and filter items once more.
     let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        let rerank_request = RerankRequest {
-            query: similarity_search_params.query.clone(),
-            documents,
-        };
-        let rerank_response = state.model_client.rerank(rerank_request).await?;
-        rerank_response
-            .results
-            .into_iter()
-            .filter(|item| {
-                item.relevance_score
-                    >= similarity_search_params
-                        .similarity_threshold
-                        .unwrap_or(state.server_config.similarity_threshold)
-            })
-            .map(|item| ids[item.index])
-            .collect()
+        if similarity_search_params.use_reranking_filter {
+            let rerank_request = RerankRequest {
+                query: similarity_search_params.query.clone(),
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
+        } else {
+            ids
+        }
     } else {
         ids
     };
@@ -263,9 +260,9 @@ pub async fn search_contacts(
 /// Add and return a contact.
 ///
 /// Example queries for adding contacts using this endpoint:
-/// - Add a contact with...
-/// - Remember this contact...
-/// - Make a contact...
+/// - Add a contact
+/// - Remember this contact
+/// - Make a contact
 #[utoipa::path(
     post,
     path = "",
@@ -316,10 +313,9 @@ pub async fn add_contact(
 /// Delete and return contacts.
 ///
 /// Example queries for deleting contacts using this endpoint:
-/// - Delete all contacts with...
-/// - Erase all contacts whom...
-/// - Remove contacts with...
-/// - Delete contacts whom...
+/// - Delete all contacts
+/// - Erase all contacts
+/// - Remove contacts
 #[utoipa::path(
     delete,
     path = "",
@@ -364,10 +360,10 @@ pub async fn delete_matching_contacts(
 /// Get contacts.
 ///
 /// Example queries for getting contacts using this endpoint:
-/// - Get all contacts whom...
-/// - List all contacts...
-/// - What contacts do I have whom...
-/// - How many contacts do I have...
+/// - Get all contacts
+/// - List all contacts
+/// - What contacts
+/// - How many contacts
 #[utoipa::path(
     get,
     path = "",
@@ -398,10 +394,10 @@ pub async fn get_matching_contacts(
 /// Update and return a contact.
 ///
 /// Example queries for updating a contact using this endpoint:
-/// - Update my contact for...
-/// - Update the birthday for...
-/// - Update the email for...
-/// - An update on my relationship with...
+/// - Update my contact
+/// - Update the birthday
+/// - Update the email
+/// - An update on my relationship
 #[utoipa::path(
     put,
     path = "",

@@ -45,6 +45,7 @@ async fn notes_routes() -> Result<(), Box<dyn std::error::Error>> {
         .similarity_search_params(
             SimilaritySearchParams::builder()
                 .query("what's my car's oil type?".to_string())
+                .use_reranking_filter(true)
                 .build(),
         )
         .build();

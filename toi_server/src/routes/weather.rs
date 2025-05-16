@@ -82,6 +82,10 @@ async fn geocode(
         .json::<Vec<GeocodingResult>>()
         .await
         .map_err(|err| ApiClientError::ResponseJson.into_response(&err))?;
+    if results.is_empty() {
+        let err = format!("couldn't geocode {}", params.query);
+        return Err(ApiClientError::EmptyResponse.into_response(&err));
+    }
     let most_relevant_result = results.swap_remove(0);
     let (latitude, longitude) = (most_relevant_result.lat, most_relevant_result.lon);
 
@@ -103,9 +107,9 @@ async fn geocode(
 /// Get weather alerts for an area.
 ///
 /// Example queries for getting weather alerts from this endpoint:
-/// - Are there any weather alerts for...
-/// - Is there a weather alert I should be worried about in...
-/// - What're the weather warnings for...
+/// - Are there any weather alerts for
+/// - Is there a weather alert I should be worried about in
+/// - What're the weather warnings for
 #[utoipa::path(
     get,
     path = "/alerts",
@@ -148,15 +152,15 @@ pub async fn get_weather_alerts(
 /// Get a detailed weather forecast for an area.
 ///
 /// Example queries for getting detailed weather forecast from this endpoint:
-/// - What's the detailed weather like tonight in...
-/// - What're the odds of raining today in...
-/// - What's the temperature looking like tomorrow in...
+/// - What's the detailed weather like
+/// - What're the odds of raining today
+/// - What's the temperature looking like tomorrow
 #[utoipa::path(
     get,
     path = "/forecast/gridpoint",
     params(WeatherQueryParams),
     responses(
-        (status = 200, description = "Successfully got daily weather forecast", body = [GridpointForecast]),
+        (status = 200, description = "Successfully got gridpoint weather forecast", body = [GridpointForecast]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
@@ -185,14 +189,14 @@ pub async fn get_gridpoint_weather_forecast(
 /// Get a high-level weather forecast for a broad area.
 ///
 /// Example queries for getting a high-level weather forecast from this endpoint:
-/// - What's the weather in the area of...
-/// - Is it sunny in the area of...
+/// - What's the weather in the area
+/// - Is it sunny in the area
 #[utoipa::path(
     get,
     path = "/forecast/zone",
     params(WeatherQueryParams),
     responses(
-        (status = 200, description = "Successfully got hourly weather forecast", body = [ZoneForecast]),
+        (status = 200, description = "Successfully got zone weather forecast", body = [ZoneForecast]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")

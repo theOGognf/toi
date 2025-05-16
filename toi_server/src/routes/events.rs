@@ -198,11 +198,9 @@ pub async fn search_events(
                 let embedding = state.model_client.embed(embedding_request).await?;
                 query = query
                     .filter(
-                        schema::events::embedding.l2_distance(embedding.clone()).le(
-                            similarity_search_params
-                                .distance_threshold
-                                .unwrap_or(state.server_config.distance_threshold),
-                        ),
+                        schema::events::embedding
+                            .l2_distance(embedding.clone())
+                            .le(state.server_config.distance_threshold),
                     )
                     .order(schema::events::embedding.l2_distance(embedding));
             }
@@ -227,22 +225,21 @@ pub async fn search_events(
 
     // Rerank and filter items once more.
     let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        let rerank_request = RerankRequest {
-            query: similarity_search_params.query.clone(),
-            documents,
-        };
-        let rerank_response = state.model_client.rerank(rerank_request).await?;
-        rerank_response
-            .results
-            .into_iter()
-            .filter(|item| {
-                item.relevance_score
-                    >= similarity_search_params
-                        .similarity_threshold
-                        .unwrap_or(state.server_config.similarity_threshold)
-            })
-            .map(|item| ids[item.index])
-            .collect()
+        if similarity_search_params.use_reranking_filter {
+            let rerank_request = RerankRequest {
+                query: similarity_search_params.query.clone(),
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
+        } else {
+            ids
+        }
     } else {
         ids
     };
@@ -253,9 +250,9 @@ pub async fn search_events(
 /// Add and return an event.
 ///
 /// Example queries for adding an event using this endpoint:
-/// - Add an event with...
-/// - Remember this event...
-/// - Make an event...
+/// - Add an event with
+/// - Remember this event
+/// - Make an event
 #[utoipa::path(
     post,
     path = "",
@@ -300,10 +297,10 @@ pub async fn add_event(
 /// Delete and return events.
 ///
 /// Example queries for deleting events using this endpoint:
-/// - Delete all events with...
-/// - Erase all events that...
-/// - Remove events with...
-/// - Delete events...
+/// - Delete all events with
+/// - Erase all events that
+/// - Remove events with
+/// - Delete events
 #[utoipa::path(
     delete,
     path = "",
@@ -333,10 +330,10 @@ pub async fn delete_matching_events(
 /// Get events.
 ///
 /// Example queries for getting events using this endpoint:
-/// - Get all events where...
-/// - List all events...
-/// - What events do I have on...
-/// - How many events do I have...
+/// - Get all events where
+/// - List all events
+/// - What events do I have on
+/// - How many events do I have
 #[utoipa::path(
     get,
     path = "",

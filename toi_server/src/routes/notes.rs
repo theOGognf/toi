@@ -101,11 +101,9 @@ async fn search_notes(
                 let embedding = state.model_client.embed(embedding_request).await?;
                 query = query
                     .filter(
-                        schema::notes::embedding.l2_distance(embedding.clone()).le(
-                            similarity_search_params
-                                .distance_threshold
-                                .unwrap_or(state.server_config.distance_threshold),
-                        ),
+                        schema::notes::embedding
+                            .l2_distance(embedding.clone())
+                            .le(state.server_config.distance_threshold),
                     )
                     .order(schema::notes::embedding.l2_distance(embedding));
             }
@@ -130,22 +128,21 @@ async fn search_notes(
 
     // Rerank and filter items once more.
     let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        let rerank_request = RerankRequest {
-            query: similarity_search_params.query.clone(),
-            documents,
-        };
-        let rerank_response = state.model_client.rerank(rerank_request).await?;
-        rerank_response
-            .results
-            .into_iter()
-            .filter(|item| {
-                item.relevance_score
-                    >= similarity_search_params
-                        .similarity_threshold
-                        .unwrap_or(state.server_config.similarity_threshold)
-            })
-            .map(|item| ids[item.index])
-            .collect()
+        if similarity_search_params.use_reranking_filter {
+            let rerank_request = RerankRequest {
+                query: similarity_search_params.query.clone(),
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
+        } else {
+            ids
+        }
     } else {
         ids
     };
@@ -156,11 +153,11 @@ async fn search_notes(
 /// Add and return a note.
 ///
 /// Example queries for adding notes using this endpoint:
-/// - Add a note saying...
-/// - Add a note that...
-/// - Keep note on...
-/// - Remember that...
-/// - Make a note...
+/// - Add a note saying
+/// - Add a note that
+/// - Keep note on
+/// - Remember that
+/// - Make a note
 #[utoipa::path(
     post,
     path = "",
@@ -196,10 +193,10 @@ pub async fn add_note(
 /// Delete and return notes.
 ///
 /// Example queries for deleting notes using this endpoint:
-/// - Delete all notes related to...
-/// - Erase all notes about...
-/// - Remove notes there are on...
-/// - Delete as many notes there are about...
+/// - Delete all notes
+/// - Erase all notes
+/// - Remove notes
+/// - Delete as many notes
 #[utoipa::path(
     delete,
     path = "",
@@ -229,10 +226,10 @@ pub async fn delete_matching_notes(
 /// Get notes.
 ///
 /// Example queries for getting notes using this endpoint:
-/// - Get all notes related to...
-/// - List all notes about...
-/// - What notes are there on...
-/// - How many notes are there about...
+/// - Get all notes
+/// - List all notes
+/// - What notes are there
+/// - How many notes are there
 #[utoipa::path(
     get,
     path = "",

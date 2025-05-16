@@ -6,6 +6,12 @@ use toi::{Message, MessageRole};
 
 use crate::models::client::ApiClientError;
 
+#[derive(Debug, Deserialize)]
+pub struct GeneratedCommandExtraction {
+    pub command: Option<String>,
+    pub target: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum GeneratedMethod {

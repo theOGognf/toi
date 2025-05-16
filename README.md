@@ -1,4 +1,4 @@
-![DEMO][0]
+![Demo][0]
 
 <div align="center">
     <i>A personal assistant server and client.</i>

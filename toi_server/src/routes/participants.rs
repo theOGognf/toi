@@ -76,8 +76,7 @@ pub async fn search_participants(
 ) -> Result<(Event, Vec<Contact>), (StatusCode, String)> {
     let ParticipantQueryParams {
         event_query,
-        event_distance_threshold,
-        event_similarity_threshold,
+        event_use_reranking_filter,
         event_created_from,
         event_created_to,
         event_starts_from,
@@ -86,16 +85,14 @@ pub async fn search_participants(
         event_ends_to,
         event_order_by,
         contact_query,
-        contact_distance_threshold,
-        contact_similarity_threshold,
+        contact_use_reranking_filter,
         contact_limit,
     } = params;
     let event_query_params = EventQueryParams {
         event_day_falls_on_search_params: None,
         similarity_search_params: Some(SimilaritySearchParams {
             query: event_query,
-            distance_threshold: event_distance_threshold,
-            similarity_threshold: event_similarity_threshold,
+            use_reranking_filter: event_use_reranking_filter,
         }),
         created_from: event_created_from,
         created_to: event_created_to,
@@ -121,8 +118,7 @@ pub async fn search_participants(
         birthday_falls_on_search_params: None,
         similarity_search_params: Some(SimilaritySearchParams {
             query: contact_query,
-            distance_threshold: contact_distance_threshold,
-            similarity_threshold: contact_similarity_threshold,
+            use_reranking_filter: contact_use_reranking_filter,
         }),
         created_from: None,
         created_to: None,
@@ -142,9 +138,9 @@ pub async fn search_participants(
 /// Add and return participants.
 ///
 /// Example queries for adding participants using this endpoint:
-/// - Add participant to...
-/// - Remember this participant for...
-/// - Make a participant for...
+/// - Add participant to
+/// - Remember this participant for
+/// - Make a participant for
 #[utoipa::path(
     post,
     path = "",
@@ -183,10 +179,10 @@ pub async fn add_participants(
 /// Delete and return participants.
 ///
 /// Example queries for deleting participants using this endpoint:
-/// - Delete all participants with...
-/// - Erase all participants that...
-/// - Remove participants with...
-/// - Delete participants...
+/// - Delete all participants with
+/// - Erase all participants that
+/// - Remove participants with
+/// - Delete participants
 #[utoipa::path(
     delete,
     path = "",
@@ -230,10 +226,10 @@ pub async fn delete_matching_participants(
 /// Get participants.
 ///
 /// Example queries for getting participants using this endpoint:
-/// - Get all participants where...
-/// - List all participants...
-/// - What participants do I have on...
-/// - How many participants do I have...
+/// - Get all participants where
+/// - List all participants
+/// - What participants do I have on
+/// - How many participants do I have
 #[utoipa::path(
     get,
     path = "",

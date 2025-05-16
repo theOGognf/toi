@@ -146,11 +146,9 @@ async fn search_todos(
                 let embedding = state.model_client.embed(embedding_request).await?;
                 query = query
                     .filter(
-                        schema::todos::embedding.l2_distance(embedding.clone()).le(
-                            similarity_search_params
-                                .distance_threshold
-                                .unwrap_or(state.server_config.distance_threshold),
-                        ),
+                        schema::todos::embedding
+                            .l2_distance(embedding.clone())
+                            .le(state.server_config.distance_threshold),
                     )
                     .order(schema::todos::embedding.l2_distance(embedding));
             }
@@ -173,22 +171,21 @@ async fn search_todos(
 
     // Rerank and filter items once more.
     let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        let rerank_request = RerankRequest {
-            query: similarity_search_params.query.clone(),
-            documents,
-        };
-        let rerank_response = state.model_client.rerank(rerank_request).await?;
-        rerank_response
-            .results
-            .into_iter()
-            .filter(|item| {
-                item.relevance_score
-                    >= similarity_search_params
-                        .similarity_threshold
-                        .unwrap_or(state.server_config.similarity_threshold)
-            })
-            .map(|item| ids[item.index])
-            .collect()
+        if similarity_search_params.use_reranking_filter {
+            let rerank_request = RerankRequest {
+                query: similarity_search_params.query.clone(),
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
+        } else {
+            ids
+        }
     } else {
         ids
     };
@@ -199,10 +196,9 @@ async fn search_todos(
 /// Add and return a todo.
 ///
 /// Example queries for adding todos using this endpoint:
-/// - Add a todo saying...
-/// - Add a todo that...
-/// - Make a task for...
-/// - Add a task that...
+/// - Add a todo
+/// - Make a task
+/// - Add a task
 #[utoipa::path(
     post,
     path = "",
@@ -247,10 +243,9 @@ pub async fn add_todo(
 /// Complete and return todos.
 ///
 /// Example queries for completing todos using this endpoint:
-/// - Complete all todos related to...
-/// - Complete all todos about...
-/// - Complete todos there are on...
-/// - Mark the todos on...
+/// - Complete all todos
+/// - Complete todos
+/// - Update the todos
 #[utoipa::path(
     put,
     path = "",
@@ -304,10 +299,10 @@ pub async fn complete_matching_todos(
 /// Delete and return todos.
 ///
 /// Example queries for deleting todos using this endpoint:
-/// - Delete all todos related to...
-/// - Erase all todos about...
-/// - Remove todos there are on...
-/// - Delete as many todos there are about...
+/// - Delete all todos
+/// - Erase all todos
+/// - Remove todos
+/// - Delete as many todos
 #[utoipa::path(
     delete,
     path = "",
@@ -337,10 +332,10 @@ pub async fn delete_matching_todos(
 /// Get todos.
 ///
 /// Example queries for getting todos using this endpoint:
-/// - Get all todos related to...
-/// - List all todos about...
-/// - What todos are there on...
-/// - How many todos are there about...
+/// - Get all todos related to
+/// - List all todos about
+/// - What todos are there on
+/// - How many todos are there about
 #[utoipa::path(
     get,
     path = "",

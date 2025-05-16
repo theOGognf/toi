@@ -75,7 +75,9 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     );
     let body = ParticipantQueryParams::builder()
         .event_query("birthday party".to_string())
+        .event_use_reranking_filter(true)
         .contact_query("marky".to_string())
+        .contact_use_reranking_filter(true)
         .build();
     let response = client.post(&url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
@@ -86,7 +88,9 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Retrieve the participants using search.
     let query = ParticipantQueryParams::builder()
         .event_query("birthday party".to_string())
+        .event_use_reranking_filter(true)
         .contact_query("marky".to_string())
+        .contact_use_reranking_filter(true)
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;

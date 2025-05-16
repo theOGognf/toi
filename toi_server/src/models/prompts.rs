@@ -29,6 +29,77 @@ pub trait SystemPrompt: fmt::Display {
 
 impl<T: fmt::Display> SystemPrompt for T {}
 
+pub struct CommandPrompt {}
+
+impl fmt::Display for CommandPrompt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            r"Your job is to extract the command and target of that command from a user's message using the following examples as guidance:
+
+Example 1:
+User message: `what's the weather like in nyc?`
+Extracted command: `what's the weather`
+Extracted target: `new york city`
+
+Example 2:
+User message: `what's up?`
+Extracted command: `what's up`
+Extracted target: null
+
+Example 3:
+User message: `remember to take out the trash tomorrow`
+Extracted command: `remember`
+Extracted target: `take out the trash tomorrow`
+
+Example 4:
+User message: `add joe schmoe to my contacts`
+Extracted command: `add a contact`
+Extracted target: `joe schmoe`
+
+Example 5:
+User message: `'1:15 coffee:water ratio' add that as a note
+Extracted command: `add a note`
+Extracted target: `'1:15 coffee:water ratio'
+
+Example 6:
+User message: 'hiiiiii'
+Extracted command: null
+Extracted target: null
+
+Respond concisely in JSON format."
+        )
+    }
+}
+
+impl CommandPrompt {
+    pub fn into_response_format(self) -> Value {
+        json!(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "extraction",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "command": {
+                                "type": ["string", "null"],
+                                "description": "User's intended commanding phrase, null if no command found"
+                            },
+                            "target": {
+                                "type": ["string", "null"],
+                                "description": "Target of the user's command, null if no target found"
+                            }
+                        },
+                        "additionalProperties": false,
+                        "required": ["command", "target"]
+                    }
+                }
+            }
+        )
+    }
+}
+
 pub struct SimplePrompt {}
 
 impl fmt::Display for SimplePrompt {
@@ -144,7 +215,7 @@ impl fmt::Display for HttpRequestPrompt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Your job is to construct an HTTP request. \
+            "Your job is to construct an HTTP request. Always replace all pronouns/abbreviations with proper nouns. \
             Respond concisely in JSON format."
         )
     }

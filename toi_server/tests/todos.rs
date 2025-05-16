@@ -45,6 +45,7 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
         .similarity_search_params(
             SimilaritySearchParams::builder()
                 .query("Change my car oil".to_string())
+                .use_reranking_filter(true)
                 .build(),
         )
         .build();

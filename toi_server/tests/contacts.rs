@@ -59,6 +59,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
         .similarity_search_params(
             SimilaritySearchParams::builder()
                 .query("who is marky mark".to_string())
+                .use_reranking_filter(true)
                 .build(),
         )
         .build();
@@ -73,6 +74,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
         .similarity_search_params(
             SimilaritySearchParams::builder()
                 .query("who is marky mark".to_string())
+                .use_reranking_filter(true)
                 .build(),
         )
         .build();

@@ -293,7 +293,7 @@ struct Args {
     context_limit: u32,
 }
 
-const DEFAULT_SERVER_CHAT_URL: &str = "127.0.0.1:6969/chat";
+const DEFAULT_SERVER_CHAT_URL: &str = "http://127.0.0.1:6969/chat";
 const DEFAULT_RESPONSE_TIMEOUT: u64 = 10;
 const DEFAULT_CONTEXT_LIMIT: u32 = 4000;
 
