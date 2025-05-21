@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -109,7 +107,10 @@ async fn search_todos(
         limit,
     } = params;
 
-    let mut query = schema::todos::table.select(Todo::as_select()).into_boxed();
+    let mut query = schema::todos::table
+        .select(Todo::as_select())
+        .distinct_on(schema::todos::id)
+        .into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
@@ -182,6 +183,11 @@ async fn search_todos(
         }
     }
 
+    // Filter items according to their ids.
+    if let Some(ids) = ids {
+        query = query.or_filter(schema::todos::id.eq_any(ids))
+    }
+
     // Limit number of items.
     if let Some(limit) = limit {
         query = query.limit(limit);
@@ -189,11 +195,14 @@ async fn search_todos(
 
     // Get all the items that match the query.
     let todos: Vec<Todo> = query.load(conn).await.map_err(utils::diesel_error)?;
-    let (selected_ids, documents): (Vec<i32>, Vec<String>) =
+    let (ids, documents): (Vec<i32>, Vec<String>) =
         todos.into_iter().map(|todo| (todo.id, todo.item)).unzip();
+    if ids.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no todos found".to_string()));
+    }
 
     // Rerank and filter items once more.
-    let selected_ids = match similarity_search_params {
+    let ids = match similarity_search_params {
         Some(similarity_search_params) => {
             if similarity_search_params.use_reranking_filter {
                 let rerank_request = RerankRequest {
@@ -205,30 +214,16 @@ async fn search_todos(
                     .results
                     .into_iter()
                     .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| selected_ids[item.index])
+                    .map(|item| ids[item.index])
                     .collect()
             } else {
-                selected_ids
+                ids
             }
         }
-        None => selected_ids,
+        None => ids,
     };
 
-    let ids = match ids {
-        Some(ids) => selected_ids
-            .into_iter()
-            .chain(ids)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-        None => selected_ids,
-    };
-
-    if ids.is_empty() {
-        Err((StatusCode::NOT_FOUND, "no todos found".to_string()))
-    } else {
-        Ok(ids)
-    }
+    Ok(ids)
 }
 
 /// Add and return a todo.

@@ -43,7 +43,7 @@ pub struct NewAlias {
 }
 
 impl NewAlias {
-    pub fn new(alias: String, bind_addr: &str) -> Self {
+    pub fn new(bind_addr: &str, alias: String) -> Self {
         let tinyurl = format!("http://{bind_addr}/news/{alias}");
         Self {
             alias,

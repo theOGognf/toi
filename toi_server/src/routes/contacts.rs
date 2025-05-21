@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -111,6 +109,7 @@ pub async fn search_contacts(
 
     let mut query = schema::contacts::table
         .select(Contact::as_select())
+        .distinct_on(schema::contacts::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -209,6 +208,11 @@ pub async fn search_contacts(
         }
     }
 
+    // Filter items according to their ids.
+    if let Some(ids) = ids {
+        query = query.or_filter(schema::contacts::id.eq_any(ids))
+    }
+
     // Limit number of items.
     if let Some(limit) = limit {
         query = query.limit(limit);
@@ -216,7 +220,7 @@ pub async fn search_contacts(
 
     // Get all the items that match the query.
     let contacts: Vec<Contact> = query.load(conn).await.map_err(utils::diesel_error)?;
-    let (selected_ids, documents): (Vec<i32>, Vec<String>) = contacts
+    let (ids, documents): (Vec<i32>, Vec<String>) = contacts
         .into_iter()
         .map(|contact| {
             let Contact {
@@ -240,9 +244,12 @@ pub async fn search_contacts(
             (id, new_contact_request.to_string())
         })
         .unzip();
+    if ids.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no contacts found".to_string()));
+    }
 
     // Rerank and filter items once more.
-    let selected_ids = match similarity_search_params {
+    let ids = match similarity_search_params {
         Some(similarity_search_params) => {
             if similarity_search_params.use_reranking_filter {
                 let rerank_request = RerankRequest {
@@ -254,30 +261,16 @@ pub async fn search_contacts(
                     .results
                     .into_iter()
                     .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| selected_ids[item.index])
+                    .map(|item| ids[item.index])
                     .collect()
             } else {
-                selected_ids
+                ids
             }
         }
-        None => selected_ids,
+        None => ids,
     };
 
-    let ids = match ids {
-        Some(ids) => selected_ids
-            .into_iter()
-            .chain(ids)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-        None => selected_ids,
-    };
-
-    if ids.is_empty() {
-        Err((StatusCode::NOT_FOUND, "no contacts found".to_string()))
-    } else {
-        Ok(ids)
-    }
+    Ok(ids)
 }
 
 /// Add and return a contact.

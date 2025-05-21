@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -93,6 +91,7 @@ pub async fn search_events(
 
     let mut query = schema::events::table
         .select(Event::as_select())
+        .distinct_on(schema::events::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -219,6 +218,11 @@ pub async fn search_events(
         }
     }
 
+    // Filter items according to their ids.
+    if let Some(ids) = ids {
+        query = query.or_filter(schema::events::id.eq_any(ids))
+    }
+
     // Limit number of items.
     if let Some(limit) = limit {
         query = query.limit(limit);
@@ -226,13 +230,16 @@ pub async fn search_events(
 
     // Get all the items that match the query.
     let events: Vec<Event> = query.load(conn).await.map_err(utils::diesel_error)?;
-    let (selected_ids, documents): (Vec<i32>, Vec<String>) = events
+    let (ids, documents): (Vec<i32>, Vec<String>) = events
         .into_iter()
         .map(|event| (event.id, event.description))
         .unzip();
+    if ids.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no events found".to_string()));
+    }
 
     // Rerank and filter items once more.
-    let selected_ids = match similarity_search_params {
+    let ids = match similarity_search_params {
         Some(similarity_search_params) => {
             if similarity_search_params.use_reranking_filter {
                 let rerank_request = RerankRequest {
@@ -244,30 +251,16 @@ pub async fn search_events(
                     .results
                     .into_iter()
                     .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| selected_ids[item.index])
+                    .map(|item| ids[item.index])
                     .collect()
             } else {
-                selected_ids
+                ids
             }
         }
-        None => selected_ids,
+        None => ids,
     };
 
-    let ids = match ids {
-        Some(ids) => selected_ids
-            .into_iter()
-            .chain(ids)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect(),
-        None => selected_ids,
-    };
-
-    if ids.is_empty() {
-        Err((StatusCode::NOT_FOUND, "no events found".to_string()))
-    } else {
-        Ok(ids)
-    }
+    Ok(ids)
 }
 
 /// Add and return an event.

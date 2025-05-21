@@ -40,7 +40,7 @@ pub async fn router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::error
     let server_addr = format!("127.0.0.1:{}", &state.server_config.bind_addr.port());
     let new_aliases: Vec<NewAlias> = new_aliases
         .into_iter()
-        .map(|alias| NewAlias::new(alias, &server_addr))
+        .map(|alias| NewAlias::new(&server_addr, alias))
         .collect();
     let mut conn = state.pool.get().await?;
     diesel::delete(schema::news::table)

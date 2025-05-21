@@ -1,7 +1,7 @@
 # toi_client
 
 A proof-of-concept for a minimal, terminal-based chat client for interacting
-with the personal assistant server.
+with a personal assistant server.
 
 # Features
 
