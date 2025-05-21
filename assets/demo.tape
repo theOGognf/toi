@@ -66,24 +66,36 @@ Set Height 400
 
 Type "toi_client" Sleep 500ms Enter
 
+Wait
+
 Sleep 1s
 
 Type "hello!" Sleep 500ms Enter
 
-Sleep 5s
+Wait
+
+Sleep 1s
 
 Type "what time is it?" Sleep 500ms Enter
 
-Sleep 5s
+Wait
+
+Sleep 1s
 
 Type "what's the weather in new york city?" Sleep 500ms Enter
 
-Sleep 15s
+Wait
+
+Sleep 1s
 
 Type "add a note that says '1:15 coffee:water ratio'" Sleep 500ms Enter
 
-Sleep 15s
+Wait
+
+Sleep 1s
 
 Type "add a todo item to pick up more puerto rican coffee beans by the end of tomorrow" Sleep 500ms Enter
 
-Sleep 15s
+Wait
+
+Sleep 1s

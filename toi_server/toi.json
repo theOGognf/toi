@@ -1,7 +1,6 @@
 {
     "server": {
-        "bind_addr": "0.0.0.0:6969",
-        "user_agent": "${USER_AGENT}"
+        "bind_addr": "0.0.0.0:6969"
     },
     "embedding": {
         "base_url": "http://embedding:8000"

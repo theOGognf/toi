@@ -75,35 +75,31 @@ pub async fn search_participants(
     conn: &mut utils::Conn<'_>,
 ) -> Result<(Event, Vec<Contact>), (StatusCode, String)> {
     let ParticipantQueryParams {
+        event_id,
         event_query,
         event_use_reranking_filter,
         event_created_from,
         event_created_to,
-        event_starts_from,
-        event_starts_to,
-        event_ends_from,
-        event_ends_to,
+        event_day_falls_on_search_params,
         event_order_by,
+        contact_ids,
         contact_query,
         contact_use_reranking_filter,
         contact_limit,
     } = params;
     let event_query_params = EventQueryParams {
-        event_day_falls_on_search_params: None,
-        similarity_search_params: Some(SimilaritySearchParams {
-            query: event_query,
+        ids: event_id.map(|i| vec![i]),
+        event_day_falls_on_search_params,
+        similarity_search_params: event_query.map(|query| SimilaritySearchParams {
+            query,
             use_reranking_filter: event_use_reranking_filter,
         }),
         created_from: event_created_from,
         created_to: event_created_to,
-        starts_from: event_starts_from,
-        starts_to: event_starts_to,
-        ends_from: event_ends_from,
-        ends_to: event_ends_to,
         order_by: event_order_by,
         limit: Some(1),
     };
-    let event_id = search_events(state, &event_query_params, conn)
+    let event_id = search_events(state, event_query_params, conn)
         .await?
         .into_iter()
         .next()
@@ -115,9 +111,10 @@ pub async fn search_participants(
         .await
         .map_err(utils::diesel_error)?;
     let contact_query_params = ContactQueryParams {
+        ids: contact_ids,
         birthday_falls_on_search_params: None,
-        similarity_search_params: Some(SimilaritySearchParams {
-            query: contact_query,
+        similarity_search_params: contact_query.map(|query| SimilaritySearchParams {
+            query,
             use_reranking_filter: contact_use_reranking_filter,
         }),
         created_from: None,
@@ -125,7 +122,7 @@ pub async fn search_participants(
         order_by: None,
         limit: contact_limit,
     };
-    let contact_ids = search_contacts(state, &contact_query_params, conn).await?;
+    let contact_ids = search_contacts(state, contact_query_params, conn).await?;
     let contacts = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq_any(contact_ids))

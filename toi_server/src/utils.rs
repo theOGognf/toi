@@ -6,6 +6,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::default;
 use std::fmt;
+use std::net::SocketAddr;
 use utoipa::ToSchema;
 
 pub type Pool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
@@ -88,6 +89,14 @@ where
     T::deserialize(value)
         .map_err(DeserializeWithEnvSubstError::Deserialization)
         .map_err(serde::de::Error::custom)
+}
+
+pub fn deserialize_socket_addr<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    value.parse().map_err(serde::de::Error::custom)
 }
 
 /// Map Diesel errors into a specific response.

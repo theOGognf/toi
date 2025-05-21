@@ -1,8 +1,11 @@
 use crate::{models::client::HttpClientConfig, utils};
 use serde::Deserialize;
+use std::net::SocketAddr;
 
-fn default_bind_addr() -> String {
-    "127.0.0.1:6969".to_string()
+fn default_bind_addr() -> SocketAddr {
+    "127.0.0.1:6969"
+        .parse()
+        .expect("invalid default bind address")
 }
 
 fn default_distance_threshold() -> f64 {
@@ -19,8 +22,11 @@ fn default_user_agent() -> String {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ServerConfig {
-    #[serde(default = "default_bind_addr")]
-    pub bind_addr: String,
+    #[serde(
+        default = "default_bind_addr",
+        deserialize_with = "utils::deserialize_socket_addr"
+    )]
+    pub bind_addr: SocketAddr,
     #[serde(
         default = "default_user_agent",
         deserialize_with = "utils::deserialize_with_envsubst"

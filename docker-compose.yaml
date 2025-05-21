@@ -4,6 +4,7 @@ services:
       context: .
       args:
         - RELEASE=${RELEASE:-false}
+    image: ognf/toi:latest
     env_file:
       - .env
     environment:

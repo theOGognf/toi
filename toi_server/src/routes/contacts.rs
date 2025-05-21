@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -94,25 +96,35 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 
 pub async fn search_contacts(
     state: &ToiState,
-    params: &ContactQueryParams,
+    params: ContactQueryParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
+    let ContactQueryParams {
+        ids,
+        birthday_falls_on_search_params,
+        similarity_search_params,
+        created_from,
+        created_to,
+        order_by,
+        limit,
+    } = params;
+
     let mut query = schema::contacts::table
         .select(Contact::as_select())
         .into_boxed();
 
     // Filter items created on or after date.
-    if let Some(created_from) = params.created_from {
+    if let Some(created_from) = created_from {
         query = query.filter(schema::contacts::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
-    if let Some(created_to) = params.created_to {
+    if let Some(created_to) = created_to {
         query = query.filter(schema::contacts::created_at.le(created_to));
     }
 
     // Filter items according to birthdays.
-    if let Some(birthday_falls_on_search_params) = &params.birthday_falls_on_search_params {
+    if let Some(birthday_falls_on_search_params) = birthday_falls_on_search_params {
         match birthday_falls_on_search_params.falls_on {
             utils::DateFallsOn::Month => {
                 let year = birthday_falls_on_search_params.birthday.year();
@@ -173,12 +185,12 @@ pub async fn search_contacts(
     }
 
     // Order items.
-    match params.order_by {
+    match order_by {
         Some(utils::OrderBy::Oldest) => query = query.order(schema::contacts::created_at),
         Some(utils::OrderBy::Newest) => query = query.order(schema::contacts::created_at.desc()),
         None => {
             // By default, filter items similar to a given query.
-            if let Some(similarity_search_params) = &params.similarity_search_params {
+            if let Some(ref similarity_search_params) = similarity_search_params {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
@@ -198,17 +210,13 @@ pub async fn search_contacts(
     }
 
     // Limit number of items.
-    if let Some(limit) = params.limit {
+    if let Some(limit) = limit {
         query = query.limit(limit);
     }
 
     // Get all the items that match the query.
     let contacts: Vec<Contact> = query.load(conn).await.map_err(utils::diesel_error)?;
-    if contacts.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no contacts found".to_string()));
-    }
-
-    let (ids, documents): (Vec<i32>, Vec<String>) = contacts
+    let (selected_ids, documents): (Vec<i32>, Vec<String>) = contacts
         .into_iter()
         .map(|contact| {
             let Contact {
@@ -234,27 +242,42 @@ pub async fn search_contacts(
         .unzip();
 
     // Rerank and filter items once more.
-    let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        if similarity_search_params.use_reranking_filter {
-            let rerank_request = RerankRequest {
-                query: similarity_search_params.query.clone(),
-                documents,
-            };
-            let rerank_response = state.model_client.rerank(rerank_request).await?;
-            rerank_response
-                .results
-                .into_iter()
-                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                .map(|item| ids[item.index])
-                .collect()
-        } else {
-            ids
+    let selected_ids = match similarity_search_params {
+        Some(similarity_search_params) => {
+            if similarity_search_params.use_reranking_filter {
+                let rerank_request = RerankRequest {
+                    query: similarity_search_params.query,
+                    documents,
+                };
+                let rerank_response = state.model_client.rerank(rerank_request).await?;
+                rerank_response
+                    .results
+                    .into_iter()
+                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                    .map(|item| selected_ids[item.index])
+                    .collect()
+            } else {
+                selected_ids
+            }
         }
-    } else {
-        ids
+        None => selected_ids,
     };
 
-    Ok(ids)
+    let ids = match ids {
+        Some(ids) => selected_ids
+            .into_iter()
+            .chain(ids)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+        None => selected_ids,
+    };
+
+    if ids.is_empty() {
+        Err((StatusCode::NOT_FOUND, "no contacts found".to_string()))
+    } else {
+        Ok(ids)
+    }
 }
 
 /// Add and return a contact.
@@ -334,6 +357,7 @@ pub async fn delete_matching_contacts(
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ContactDeleteParams {
+        ids,
         similarity_search_params,
         created_from,
         created_to,
@@ -341,6 +365,7 @@ pub async fn delete_matching_contacts(
         limit,
     } = params;
     let params = ContactQueryParams {
+        ids,
         birthday_falls_on_search_params: None,
         similarity_search_params,
         created_from,
@@ -348,7 +373,7 @@ pub async fn delete_matching_contacts(
         order_by,
         limit,
     };
-    let ids = search_contacts(&state, &params, &mut conn).await?;
+    let ids = search_contacts(&state, params, &mut conn).await?;
     let contacts = diesel::delete(schema::contacts::table.filter(schema::contacts::id.eq_any(ids)))
         .returning(Contact::as_returning())
         .load(&mut conn)
@@ -381,7 +406,7 @@ pub async fn get_matching_contacts(
     Query(params): Query<ContactQueryParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search_contacts(&state, &params, &mut conn).await?;
+    let ids = search_contacts(&state, params, &mut conn).await?;
     let contacts = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq_any(ids))
@@ -414,6 +439,7 @@ pub async fn update_matching_contact(
 ) -> Result<Json<Contact>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let UpdateContactRequest {
+        id,
         contact_updates,
         similarity_search_params,
         created_from,
@@ -421,6 +447,7 @@ pub async fn update_matching_contact(
         order_by,
     } = body;
     let params = ContactQueryParams {
+        ids: id.map(|i| vec![i]),
         birthday_falls_on_search_params: None,
         similarity_search_params,
         created_from,
@@ -428,7 +455,7 @@ pub async fn update_matching_contact(
         order_by,
         limit: Some(1),
     };
-    let id = search_contacts(&state, &params, &mut conn)
+    let id = search_contacts(&state, params, &mut conn)
         .await?
         .into_iter()
         .next()

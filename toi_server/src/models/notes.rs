@@ -36,6 +36,9 @@ pub struct NewNoteRequest {
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
 pub struct NoteQueryParams {
+    /// Select notes using their database-generated IDs rather than searching
+    /// for them.
+    pub ids: Option<Vec<i32>>,
     /// Parameters for performing similarity search against notes.
     /// This can be left empty or null to ignore similarity search
     /// in cases where the user wants to filter by other params

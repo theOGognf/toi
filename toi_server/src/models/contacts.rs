@@ -102,6 +102,9 @@ impl fmt::Display for NewContactRequest {
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
 pub struct ContactDeleteParams {
+    /// Select contacts according to their database-generated IDs rather
+    /// than searching for them.
+    pub ids: Option<Vec<i32>>,
     /// Parameters for performing similarity search against contacts.
     /// This can be left empty or null to ignore similarity search
     /// in cases where the user wants to filter by other params
@@ -133,6 +136,9 @@ pub struct BirthdayFallsOnSearchParams {
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct ContactQueryParams {
+    /// Select contacts according to their database-generated IDs rather
+    /// than searching for them.
+    pub ids: Option<Vec<i32>>,
     /// Parameters for performing a search against contact birthdays.
     #[serde(flatten)]
     pub birthday_falls_on_search_params: Option<BirthdayFallsOnSearchParams>,
@@ -171,6 +177,9 @@ pub struct ContactUpdates {
 
 #[derive(Builder, Clone, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct UpdateContactRequest {
+    /// Update a contact using their database-generated ID rather than
+    /// searching for them.
+    pub id: Option<i32>,
     /// Things to update about a contact.
     pub contact_updates: ContactUpdates,
     /// This can be left empty or null to ignore similarity search

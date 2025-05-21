@@ -58,6 +58,9 @@ pub struct EventFallsOnSearchParams {
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct EventQueryParams {
+    /// Select events using their database-generated IDs rather than searching
+    /// for them.
+    pub ids: Option<Vec<i32>>,
     /// Parameters for performing a search against event days.
     /// This can be left empty or null to ignore these search options
     /// in cases where the user wants to filter by other params
@@ -74,14 +77,6 @@ pub struct EventQueryParams {
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on events created before this ISO formatted datetime.
     pub created_to: Option<DateTime<Utc>>,
-    /// Filter on events starting after this ISO formatted datetime.
-    pub starts_from: Option<DateTime<Utc>>,
-    /// Filter on events starting before this ISO formatted datetime.
-    pub starts_to: Option<DateTime<Utc>>,
-    /// Filter on events ending after this ISO formatted datetime.
-    pub ends_from: Option<DateTime<Utc>>,
-    /// Filter on events ending before this ISO formatted datetime.
-    pub ends_to: Option<DateTime<Utc>>,
     /// How to order results for retrieved events.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of events to return from the search.

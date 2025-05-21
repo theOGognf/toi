@@ -5,7 +5,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{models::contacts::Contact, models::events::Event, utils};
+use crate::{
+    models::contacts::Contact,
+    models::events::{Event, EventFallsOnSearchParams},
+    utils,
+};
 
 #[derive(Insertable, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::event_participants)]
@@ -25,6 +29,9 @@ pub struct Participants {
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct ParticipantQueryParams {
+    /// Select an event using its database-generated IDs rather than
+    /// searching for it first.
+    pub event_id: Option<i32>,
     /// User query string to compare embeddings against. Basically,
     /// if the user is asking something like "what color is my jacket?",
     /// then the query string should be something like "jacket color" or
@@ -32,7 +39,7 @@ pub struct ParticipantQueryParams {
     /// This can be left empty or null to ignore similarity search
     /// in cases where the user wants to filter by other params
     /// (e.g., get items by date or get all items).
-    pub event_query: String,
+    pub event_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
@@ -42,16 +49,17 @@ pub struct ParticipantQueryParams {
     pub event_created_from: Option<DateTime<Utc>>,
     /// Filter on events created before this ISO formatted datetime.
     pub event_created_to: Option<DateTime<Utc>>,
-    /// Filter on events starting after this ISO formatted datetime.
-    pub event_starts_from: Option<DateTime<Utc>>,
-    /// Filter on events starting before this ISO formatted datetime.
-    pub event_starts_to: Option<DateTime<Utc>>,
-    /// Filter on events ending after this ISO formatted datetime.
-    pub event_ends_from: Option<DateTime<Utc>>,
-    /// Filter on events ending before this ISO formatted datetime.
-    pub event_ends_to: Option<DateTime<Utc>>,
+    /// Parameters for performing a search against event days.
+    /// This can be left empty or null to ignore these search options
+    /// in cases where the user wants to filter by other params
+    /// (e.g., get items by date or get all items).
+    #[serde(flatten)]
+    pub event_day_falls_on_search_params: Option<EventFallsOnSearchParams>,
     /// How to order results for retrieved events.
     pub event_order_by: Option<utils::OrderBy>,
+    /// Search contacts using their database-generated IDs rather than
+    /// searching for them first.
+    pub contact_ids: Option<Vec<i32>>,
     /// User query string to compare embeddings against. Basically,
     /// if the user is asking something like "what color is my jacket?",
     /// then the query string should be something like "jacket color" or
@@ -59,7 +67,7 @@ pub struct ParticipantQueryParams {
     /// This can be left empty or null to ignore similarity search
     /// in cases where the user wants to filter by other params
     /// (e.g., get items by date or get all items).
-    pub contact_query: String,
+    pub contact_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.

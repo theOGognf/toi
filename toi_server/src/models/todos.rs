@@ -46,6 +46,9 @@ pub struct NewTodoRequest {
 
 #[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct CompleteTodoRequest {
+    /// Complete todos using their database-generated IDs rather than
+    /// searching for them first.
+    pub ids: Option<Vec<i32>>,
     /// Optional datetime the todo was completed in ISO format.
     ///
     /// Defaults to current datetime.
@@ -74,6 +77,9 @@ pub struct CompleteTodoRequest {
 
 #[derive(Builder, Deserialize, JsonSchema, Serialize, IntoParams)]
 pub struct TodoQueryParams {
+    /// Select todos using their database-generated IDs rather than
+    /// searching for them.
+    pub ids: Option<Vec<i32>>,
     /// Parameters for performing similarity search against todos.
     /// This can be left empty or null to ignore similarity search
     /// in cases where the user wants to filter by other params

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -89,54 +91,79 @@ pub fn router(state: ToiState) -> OpenApiRouter {
 
 async fn search_todos(
     state: &ToiState,
-    params: &TodoQueryParams,
+    params: TodoQueryParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
+    let TodoQueryParams {
+        ids,
+        similarity_search_params,
+        created_from,
+        created_to,
+        due_from,
+        due_to,
+        completed_from,
+        completed_to,
+        incomplete,
+        never_due,
+        order_by,
+        limit,
+    } = params;
+
     let mut query = schema::todos::table.select(Todo::as_select()).into_boxed();
 
     // Filter items created on or after date.
-    if let Some(created_from) = params.created_from {
+    if let Some(created_from) = created_from {
         query = query.filter(schema::todos::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
-    if let Some(created_to) = params.created_to {
+    if let Some(created_to) = created_to {
         query = query.filter(schema::todos::created_at.le(created_to));
     }
 
+    // Filter items due on or after date.
+    if let Some(due_from) = due_from {
+        query = query.filter(schema::todos::due_at.ge(due_from));
+    }
+
+    // Filter items due on or before date.
+    if let Some(due_to) = due_to {
+        query = query.filter(schema::todos::due_at.le(due_to));
+    }
+
     // Filter todos completed on or after date.
-    if let Some(completed_from) = params.completed_from {
+    if let Some(completed_from) = completed_from {
         query = query.filter(schema::todos::completed_at.ge(completed_from));
     }
 
     // Filter todos completed on or before date.
-    if let Some(completed_to) = params.completed_to {
+    if let Some(completed_to) = completed_to {
         query = query.filter(schema::todos::completed_at.le(completed_to));
     }
 
     // Filter incomplete todos.
-    if let Some(scope) = &params.incomplete {
+    if let Some(scope) = incomplete {
         match scope {
-            utils::Scope::In => query = query.or_filter(schema::todos::completed_at.is_null()),
+            utils::Scope::In => query = query.filter(schema::todos::completed_at.is_null()),
             utils::Scope::Out => query = query.filter(schema::todos::completed_at.is_not_null()),
         }
     }
 
     // Filter never due todos.
-    if let Some(scope) = &params.never_due {
+    if let Some(scope) = never_due {
         match scope {
-            utils::Scope::In => query = query.or_filter(schema::todos::due_at.is_null()),
+            utils::Scope::In => query = query.filter(schema::todos::due_at.is_null()),
             utils::Scope::Out => query = query.filter(schema::todos::due_at.is_not_null()),
         }
     }
 
     // Order items.
-    match params.order_by {
+    match order_by {
         Some(utils::OrderBy::Oldest) => query = query.order(schema::todos::created_at),
         Some(utils::OrderBy::Newest) => query = query.order(schema::todos::created_at.desc()),
         None => {
             // By default, filter items similar to a given query.
-            if let Some(similarity_search_params) = &params.similarity_search_params {
+            if let Some(ref similarity_search_params) = similarity_search_params {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
@@ -156,41 +183,52 @@ async fn search_todos(
     }
 
     // Limit number of items.
-    if let Some(limit) = params.limit {
+    if let Some(limit) = limit {
         query = query.limit(limit);
     }
 
     // Get all the items that match the query.
     let todos: Vec<Todo> = query.load(conn).await.map_err(utils::diesel_error)?;
-    if todos.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no todos found".to_string()));
-    }
-
-    let (ids, documents): (Vec<i32>, Vec<String>) =
+    let (selected_ids, documents): (Vec<i32>, Vec<String>) =
         todos.into_iter().map(|todo| (todo.id, todo.item)).unzip();
 
     // Rerank and filter items once more.
-    let ids = if let Some(similarity_search_params) = &params.similarity_search_params {
-        if similarity_search_params.use_reranking_filter {
-            let rerank_request = RerankRequest {
-                query: similarity_search_params.query.clone(),
-                documents,
-            };
-            let rerank_response = state.model_client.rerank(rerank_request).await?;
-            rerank_response
-                .results
-                .into_iter()
-                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                .map(|item| ids[item.index])
-                .collect()
-        } else {
-            ids
+    let selected_ids = match similarity_search_params {
+        Some(similarity_search_params) => {
+            if similarity_search_params.use_reranking_filter {
+                let rerank_request = RerankRequest {
+                    query: similarity_search_params.query,
+                    documents,
+                };
+                let rerank_response = state.model_client.rerank(rerank_request).await?;
+                rerank_response
+                    .results
+                    .into_iter()
+                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                    .map(|item| selected_ids[item.index])
+                    .collect()
+            } else {
+                selected_ids
+            }
         }
-    } else {
-        ids
+        None => selected_ids,
     };
 
-    Ok(ids)
+    let ids = match ids {
+        Some(ids) => selected_ids
+            .into_iter()
+            .chain(ids)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+        None => selected_ids,
+    };
+
+    if ids.is_empty() {
+        Err((StatusCode::NOT_FOUND, "no todos found".to_string()))
+    } else {
+        Ok(ids)
+    }
 }
 
 /// Add and return a todo.
@@ -262,6 +300,7 @@ pub async fn complete_matching_todos(
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let CompleteTodoRequest {
+        ids,
         completed_at,
         similarity_search_params,
         created_from,
@@ -274,6 +313,7 @@ pub async fn complete_matching_todos(
         limit,
     } = body;
     let params = TodoQueryParams {
+        ids,
         similarity_search_params,
         created_from,
         created_to,
@@ -286,7 +326,7 @@ pub async fn complete_matching_todos(
         order_by,
         limit,
     };
-    let ids = search_todos(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, params, &mut conn).await?;
     let todos = diesel::update(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .set(schema::todos::completed_at.eq(completed_at))
         .returning(Todo::as_returning())
@@ -320,7 +360,7 @@ pub async fn delete_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search_todos(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, params, &mut conn).await?;
     let todos = diesel::delete(schema::todos::table.filter(schema::todos::id.eq_any(ids)))
         .returning(Todo::as_returning())
         .load(&mut conn)
@@ -353,7 +393,7 @@ pub async fn get_matching_todos(
     Query(params): Query<TodoQueryParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search_todos(&state, &params, &mut conn).await?;
+    let ids = search_todos(&state, params, &mut conn).await?;
     let todos = schema::todos::table
         .select(Todo::as_select())
         .filter(schema::todos::id.eq_any(ids))
