@@ -4,6 +4,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
+    bank_accounts (id) {
+        id -> Int4,
+        description -> Text,
+        embedding -> Vector,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
     contacts (id) {
         id -> Int4,
         first_name -> Text,
@@ -21,7 +33,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
-    event_participants (event_id, contact_id) {
+    event_attendees (event_id, contact_id) {
         event_id -> Int4,
         contact_id -> Int4,
     }
@@ -48,8 +60,8 @@ diesel::table! {
     news (alias) {
         alias -> Text,
         tinyurl -> Text,
-        url -> Nullable<Text>,
         title -> Nullable<Text>,
+        url -> Nullable<Text>,
         updated_at -> Nullable<Timestamptz>,
     }
 }
@@ -106,17 +118,34 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(event_participants -> contacts (contact_id));
-diesel::joinable!(event_participants -> events (event_id));
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
+    transactions (id) {
+        id -> Int4,
+        bank_account_id -> Nullable<Int4>,
+        description -> Text,
+        amount -> Float4,
+        embedding -> Vector,
+        posted_at -> Timestamptz,
+    }
+}
+
+diesel::joinable!(event_attendees -> contacts (contact_id));
+diesel::joinable!(event_attendees -> events (event_id));
 diesel::joinable!(searchable_openapi -> openapi (parent_id));
+diesel::joinable!(transactions -> bank_accounts (bank_account_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    bank_accounts,
     contacts,
-    event_participants,
+    event_attendees,
     events,
     news,
     notes,
     openapi,
     searchable_openapi,
     todos,
+    transactions,
 );

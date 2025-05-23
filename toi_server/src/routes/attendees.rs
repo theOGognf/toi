@@ -13,9 +13,9 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
+        attendees::{Attendee, AttendeeQueryParams, Attendees},
         contacts::{Contact, ContactQueryParams},
         events::{Event, EventQueryParams},
-        participants::{Participant, ParticipantQueryParams, Participants},
         search::SimilaritySearchParams,
         state::ToiState,
     },
@@ -26,55 +26,55 @@ use crate::{
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
-            add_participants,
-            delete_matching_participants,
-            get_matching_participants,
+            add_attendees,
+            delete_matching_attendees,
+            get_matching_attendees,
         ))
         .with_state(state);
 
     let openapi = router.get_openapi_mut();
     let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
 
-    // Update POST /participants extensions
-    let participant_json_schema = schema_for!(ParticipantQueryParams);
-    let participants_json_schema =
-        serde_json::to_value(participant_json_schema).expect("schema unserializable");
-    let participant_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", participants_json_schema.clone())
+    // Update POST /attendees extensions
+    let attendee_json_schema = schema_for!(AttendeeQueryParams);
+    let attendees_json_schema =
+        serde_json::to_value(attendee_json_schema).expect("schema unserializable");
+    let attendee_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", attendees_json_schema.clone())
         .build();
     paths
         .post
         .as_mut()
         .expect("POST doesn't exist")
         .extensions
-        .get_or_insert(participant_extensions);
+        .get_or_insert(attendee_extensions);
 
-    // Update DELETE and GET /participants extensions
-    let participants_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", participants_json_schema)
+    // Update DELETE and GET /attendees extensions
+    let attendees_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", attendees_json_schema)
         .build();
     paths
         .delete
         .as_mut()
         .expect("DELETE doesn't exist")
         .extensions
-        .get_or_insert(participants_extensions.clone());
+        .get_or_insert(attendees_extensions.clone());
     paths
         .get
         .as_mut()
         .expect("GET doesn't exist")
         .extensions
-        .get_or_insert(participants_extensions);
+        .get_or_insert(attendees_extensions);
 
     router
 }
 
-pub async fn search_participants(
+pub async fn search_attendees(
     state: &ToiState,
-    params: ParticipantQueryParams,
+    params: AttendeeQueryParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<(Event, Vec<Contact>), (StatusCode, String)> {
-    let ParticipantQueryParams {
+    let AttendeeQueryParams {
         event_id,
         event_query,
         event_use_reranking_filter,
@@ -132,137 +132,137 @@ pub async fn search_participants(
     Ok((event, contacts))
 }
 
-/// Add and return participants.
+/// Add and return attendees.
 ///
-/// Example queries for adding participants using this endpoint:
-/// - Add participant to
-/// - Remember this participant for
-/// - Make a participant for
+/// Example queries for adding attendees using this endpoint:
+/// - Add attendee to
+/// - Remember this attendee for
+/// - Make a attendee for
 #[utoipa::path(
     post,
     path = "",
-    request_body = ParticipantQueryParams,
+    request_body = AttendeeQueryParams,
     responses(
-        (status = 201, description = "Successfully added a participant", body = Participants),
+        (status = 201, description = "Successfully added a attendee", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn add_participants(
+pub async fn add_attendees(
     State(state): State<ToiState>,
-    Json(body): Json<ParticipantQueryParams>,
-) -> Result<Json<Participants>, (StatusCode, String)> {
+    Json(body): Json<AttendeeQueryParams>,
+) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_participants(&state, body, &mut conn).await?;
-    let new_participants: Vec<Participant> = contacts
+    let (event, contacts) = search_attendees(&state, body, &mut conn).await?;
+    let new_attendees: Vec<Attendee> = contacts
         .iter()
-        .map(|contact| Participant {
+        .map(|contact| Attendee {
             event_id: event.id,
             contact_id: contact.id,
         })
         .collect();
-    let _ = diesel::insert_into(schema::event_participants::table)
-        .values(new_participants)
-        .returning(Participant::as_returning())
+    let _ = diesel::insert_into(schema::event_attendees::table)
+        .values(new_attendees)
+        .returning(Attendee::as_returning())
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let participants = Participants { event, contacts };
-    Ok(Json(participants))
+    let attendees = Attendees { event, contacts };
+    Ok(Json(attendees))
 }
 
-/// Delete and return participants.
+/// Delete and return attendees.
 ///
-/// Example queries for deleting participants using this endpoint:
-/// - Delete all participants with
-/// - Erase all participants that
-/// - Remove participants with
-/// - Delete participants
+/// Example queries for deleting attendees using this endpoint:
+/// - Delete all attendees with
+/// - Erase all attendees that
+/// - Remove attendees with
+/// - Delete attendees
 #[utoipa::path(
     delete,
     path = "",
-    params(ParticipantQueryParams),
+    params(AttendeeQueryParams),
     responses(
-        (status = 200, description = "Successfully deleted participants", body = [Participants]),
+        (status = 200, description = "Successfully deleted attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_participants(
+pub async fn delete_matching_attendees(
     State(state): State<ToiState>,
-    Query(params): Query<ParticipantQueryParams>,
-) -> Result<Json<Participants>, (StatusCode, String)> {
+    Query(params): Query<AttendeeQueryParams>,
+) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_participants(&state, params, &mut conn).await?;
+    let (event, contacts) = search_attendees(&state, params, &mut conn).await?;
     let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let participants = diesel::delete(schema::event_participants::table)
+    let contact_ids = diesel::delete(schema::event_attendees::table)
         .filter(
-            schema::event_participants::event_id
+            schema::event_attendees::event_id
                 .eq(event.id)
-                .and(schema::event_participants::contact_id.eq_any(contact_ids)),
+                .and(schema::event_attendees::contact_id.eq_any(contact_ids)),
         )
-        .returning(schema::event_participants::contact_id)
+        .returning(schema::event_attendees::contact_id)
         .get_results(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let participants: HashSet<i32> = HashSet::from_iter(participants);
-    let participants = Participants {
+    let contact_ids: HashSet<i32> = HashSet::from_iter(contact_ids);
+    let attendees = Attendees {
         event,
         contacts: contacts
             .into_iter()
-            .filter(|contact| participants.contains(&contact.id))
+            .filter(|contact| contact_ids.contains(&contact.id))
             .collect(),
     };
-    Ok(Json(participants))
+    Ok(Json(attendees))
 }
 
-/// Get participants.
+/// Get attendees.
 ///
-/// Example queries for getting participants using this endpoint:
-/// - Get all participants where
-/// - List all participants
-/// - What participants do I have on
-/// - How many participants do I have
+/// Example queries for getting attendees using this endpoint:
+/// - Get all attendees where
+/// - List all attendees
+/// - What attendees do I have on
+/// - How many attendees do I have
 #[utoipa::path(
     get,
     path = "",
-    params(ParticipantQueryParams),
+    params(AttendeeQueryParams),
     responses(
-        (status = 200, description = "Successfully got participants", body = [Participants]),
+        (status = 200, description = "Successfully got attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_participants(
+pub async fn get_matching_attendees(
     State(state): State<ToiState>,
-    Query(params): Query<ParticipantQueryParams>,
-) -> Result<Json<Participants>, (StatusCode, String)> {
+    Query(params): Query<AttendeeQueryParams>,
+) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_participants(&state, params, &mut conn).await?;
+    let (event, contacts) = search_attendees(&state, params, &mut conn).await?;
     let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let participants = schema::event_participants::table
-        .select(schema::event_participants::contact_id)
+    let contact_ids = schema::event_attendees::table
+        .select(schema::event_attendees::contact_id)
         .filter(
-            schema::event_participants::event_id
+            schema::event_attendees::event_id
                 .eq(event.id)
-                .and(schema::event_participants::contact_id.eq_any(contact_ids)),
+                .and(schema::event_attendees::contact_id.eq_any(contact_ids)),
         )
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let participants: HashSet<i32> = HashSet::from_iter(participants);
-    let participants = Participants {
+    let contact_ids: HashSet<i32> = HashSet::from_iter(contact_ids);
+    let attendees = Attendees {
         event,
         contacts: contacts
             .into_iter()
-            .filter(|contact| participants.contains(&contact.id))
+            .filter(|contact| contact_ids.contains(&contact.id))
             .collect(),
     };
-    Ok(Json(participants))
+    Ok(Json(attendees))
 }

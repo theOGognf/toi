@@ -200,10 +200,10 @@ pub async fn search_contacts(
                 query = query
                     .filter(
                         schema::contacts::embedding
-                            .l2_distance(embedding.clone())
+                            .cosine_distance(embedding.clone())
                             .le(state.server_config.distance_threshold),
                     )
-                    .order(schema::contacts::embedding.l2_distance(embedding));
+                    .order(schema::contacts::embedding.cosine_distance(embedding));
             }
         }
     }

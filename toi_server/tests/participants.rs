@@ -4,9 +4,9 @@ use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::{
+    attendees::{AttendeeQueryParams, Attendees},
     contacts::Contact,
     events::Event,
-    participants::{ParticipantQueryParams, Participants},
 };
 
 mod utils;
@@ -29,8 +29,8 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
         .nest(
             "/events",
             toi_server::routes::events::router(state.clone()).nest(
-                "/participants",
-                toi_server::routes::participants::router(state.clone()),
+                "/attendees",
+                toi_server::routes::attendees::router(state.clone()),
             ),
         );
     let (router, _) = openapi_router.split_for_parts();
@@ -68,12 +68,9 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let event1 = response.json::<Event>().await?;
     assert_eq!(event1.description, event_description);
 
-    // Add the contact to the event, making a "participant".
-    let url = format!(
-        "http://{}/events/participants",
-        state.server_config.bind_addr
-    );
-    let body = ParticipantQueryParams::builder()
+    // Add the contact to the event, making a "attendee".
+    let url = format!("http://{}/events/attendees", state.server_config.bind_addr);
+    let body = AttendeeQueryParams::builder()
         .event_query("birthday party".to_string())
         .event_use_reranking_filter(false)
         .contact_query("marky".to_string())
@@ -81,12 +78,12 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
         .build();
     let response = client.post(&url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
-    let participants1 = response.json::<Participants>().await?;
-    assert_eq!(participants1.event, event1);
-    assert_eq!(participants1.contacts.first(), Some(contact1).as_ref());
+    let attendees1 = response.json::<Attendees>().await?;
+    assert_eq!(attendees1.event, event1);
+    assert_eq!(attendees1.contacts.first(), Some(contact1).as_ref());
 
-    // Retrieve the participants using search.
-    let query = ParticipantQueryParams::builder()
+    // Retrieve the attendees using search.
+    let query = AttendeeQueryParams::builder()
         .event_query("birthday party".to_string())
         .event_use_reranking_filter(false)
         .contact_query("marky".to_string())
@@ -94,13 +91,13 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
-    let participants2 = response.json::<Participants>().await?;
-    assert_eq!(participants2, participants1);
+    let attendees2 = response.json::<Attendees>().await?;
+    assert_eq!(attendees2, attendees1);
 
-    // Delete the participants using search.
+    // Delete the attendees using search.
     let response = client.delete(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
-    let participants3 = response.json::<Participants>().await?;
-    assert_eq!(participants3, participants1);
+    let attendees3 = response.json::<Attendees>().await?;
+    assert_eq!(attendees3, attendees1);
     Ok(())
 }

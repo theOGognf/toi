@@ -1,3 +1,5 @@
+pub mod accounts;
+pub mod attendees;
 pub mod chat;
 pub mod client;
 pub mod config;
@@ -7,9 +9,9 @@ pub mod events;
 pub mod news;
 pub mod notes;
 pub mod openapi;
-pub mod participants;
 pub mod prompts;
 pub mod search;
 pub mod state;
 pub mod todos;
+pub mod transactions;
 pub mod weather;

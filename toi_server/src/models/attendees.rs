@@ -12,15 +12,15 @@ use crate::{
 };
 
 #[derive(Insertable, Queryable, Selectable)]
-#[diesel(table_name = crate::schema::event_participants)]
+#[diesel(table_name = crate::schema::event_attendees)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Participant {
+pub struct Attendee {
     pub event_id: i32,
     pub contact_id: i32,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, ToSchema)]
-pub struct Participants {
+pub struct Attendees {
     /// Matching event.
     pub event: Event,
     /// Matching contacts.
@@ -28,7 +28,7 @@ pub struct Participants {
 }
 
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct ParticipantQueryParams {
+pub struct AttendeeQueryParams {
     /// Select an event using its database-generated IDs rather than
     /// searching for it first.
     pub event_id: Option<i32>,

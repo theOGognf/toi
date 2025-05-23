@@ -175,10 +175,10 @@ async fn search_todos(
                 query = query
                     .filter(
                         schema::todos::embedding
-                            .l2_distance(embedding.clone())
+                            .cosine_distance(embedding.clone())
                             .le(state.server_config.distance_threshold),
                     )
-                    .order(schema::todos::embedding.l2_distance(embedding));
+                    .order(schema::todos::embedding.cosine_distance(embedding));
             }
         }
     }

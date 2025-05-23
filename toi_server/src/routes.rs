@@ -1,9 +1,11 @@
+pub mod accounts;
+pub mod attendees;
 pub mod chat;
 pub mod contacts;
 pub mod datetime;
 pub mod events;
 pub mod news;
 pub mod notes;
-pub mod participants;
 pub mod todos;
+pub mod transactions;
 pub mod weather;

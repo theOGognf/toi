@@ -210,10 +210,10 @@ pub async fn search_events(
                 query = query
                     .filter(
                         schema::events::embedding
-                            .l2_distance(embedding.clone())
+                            .cosine_distance(embedding.clone())
                             .le(state.server_config.distance_threshold),
                     )
-                    .order(schema::events::embedding.l2_distance(embedding));
+                    .order(schema::events::embedding.cosine_distance(embedding));
             }
         }
     }

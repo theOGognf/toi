@@ -12,68 +12,72 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
+        accounts::{BankAccount, BankAccountQueryParams, NewBankAccount, NewBankAccountRequest},
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        notes::{NewNote, NewNoteRequest, Note, NoteQueryParams},
         state::ToiState,
     },
     schema, utils,
 };
 
 // Prefixes are used for embedding instructions.
-const INSTRUCTION_PREFIX: &str =
-    "Instruction: Given a user query, find notes similar to the one the user mentions";
+const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, find bank accounts stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
-        .routes(routes!(add_note, delete_matching_notes, get_matching_notes))
+        .routes(routes!(
+            add_bank_account,
+            delete_matching_bank_accounts,
+            get_matching_bank_accounts,
+        ))
         .with_state(state);
 
     let openapi = router.get_openapi_mut();
     let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
 
-    // Update POST /notes extensions
-    let add_note_json_schema = schema_for!(NewNoteRequest);
-    let add_note_json_schema =
-        serde_json::to_value(add_note_json_schema).expect("schema unserializable");
-    let add_note_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_note_json_schema)
+    // Update POST /banking/accounts extensions
+    let add_bank_account_json_schema = schema_for!(NewBankAccountRequest);
+    let add_bank_account_json_schema =
+        serde_json::to_value(add_bank_account_json_schema).expect("schema unserializable");
+    let add_bank_account_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-body", add_bank_account_json_schema)
         .build();
     paths
         .post
         .as_mut()
         .expect("POST doesn't exist")
         .extensions
-        .get_or_insert(add_note_extensions);
+        .get_or_insert(add_bank_account_extensions);
 
-    // Update DELETE and GET /notes extensions
-    let notes_json_schema = schema_for!(NoteQueryParams);
-    let notes_json_schema = serde_json::to_value(notes_json_schema).expect("schema unserializable");
-    let notes_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", notes_json_schema)
+    // Update DELETE and GET /banking/accounts extensions
+    let bank_accounts_json_schema = schema_for!(BankAccountQueryParams);
+    let bank_accounts_json_schema =
+        serde_json::to_value(bank_accounts_json_schema).expect("schema unserializable");
+    let bank_accounts_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", bank_accounts_json_schema)
         .build();
     paths
         .delete
         .as_mut()
         .expect("DELETE doesn't exist")
         .extensions
-        .get_or_insert(notes_extensions.clone());
+        .get_or_insert(bank_accounts_extensions.clone());
     paths
         .get
         .as_mut()
         .expect("GET doesn't exist")
         .extensions
-        .get_or_insert(notes_extensions);
+        .get_or_insert(bank_accounts_extensions);
 
     router
 }
 
-async fn search_notes(
+pub async fn search_bank_accounts(
     state: &ToiState,
-    params: NoteQueryParams,
+    params: BankAccountQueryParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let NoteQueryParams {
+    let BankAccountQueryParams {
         ids,
         similarity_search_params,
         created_from,
@@ -82,25 +86,27 @@ async fn search_notes(
         limit,
     } = params;
 
-    let mut query = schema::notes::table
-        .select(Note::as_select())
-        .distinct_on(schema::notes::id)
+    let mut query = schema::bank_accounts::table
+        .select(BankAccount::as_select())
+        .distinct_on(schema::bank_accounts::id)
         .into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
-        query = query.filter(schema::notes::created_at.ge(created_from));
+        query = query.filter(schema::bank_accounts::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
     if let Some(created_to) = created_to {
-        query = query.filter(schema::notes::created_at.le(created_to));
+        query = query.filter(schema::bank_accounts::created_at.le(created_to));
     }
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::notes::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::notes::created_at.desc()),
+        Some(utils::OrderBy::Oldest) => query = query.order(schema::bank_accounts::created_at),
+        Some(utils::OrderBy::Newest) => {
+            query = query.order(schema::bank_accounts::created_at.desc())
+        }
         None => {
             // By default, filter items similar to a given query.
             if let Some(ref similarity_search_params) = similarity_search_params {
@@ -113,18 +119,18 @@ async fn search_notes(
                 let embedding = state.model_client.embed(embedding_request).await?;
                 query = query
                     .filter(
-                        schema::notes::embedding
+                        schema::bank_accounts::embedding
                             .cosine_distance(embedding.clone())
                             .le(state.server_config.distance_threshold),
                     )
-                    .order(schema::notes::embedding.cosine_distance(embedding));
+                    .order(schema::bank_accounts::embedding.cosine_distance(embedding));
             }
         }
     }
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::notes::id.eq_any(ids))
+        query = query.or_filter(schema::bank_accounts::id.eq_any(ids))
     }
 
     // Limit number of items.
@@ -133,13 +139,13 @@ async fn search_notes(
     }
 
     // Get all the items that match the query.
-    let notes: Vec<Note> = query.load(conn).await.map_err(utils::diesel_error)?;
-    let (ids, documents): (Vec<i32>, Vec<String>) = notes
+    let bank_accounts: Vec<BankAccount> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let (ids, documents): (Vec<i32>, Vec<String>) = bank_accounts
         .into_iter()
-        .map(|note| (note.id, note.content))
+        .map(|bank_account| (bank_account.id, bank_account.description))
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no notes found".to_string()));
+        return Err((StatusCode::NOT_FOUND, "no bank accounts found".to_string()));
     }
 
     // Rerank and filter items once more.
@@ -167,109 +173,111 @@ async fn search_notes(
     Ok(ids)
 }
 
-/// Add and return a note.
+/// Add and return a bank account.
 ///
-/// Example queries for adding notes using this endpoint:
-/// - Add a note saying
-/// - Add a note that
-/// - Keep note on
-/// - Remember that
-/// - Make a note
+/// Example queries for adding a bank account using this endpoint:
+/// - Add a bank account with
+/// - Remember this bank account
+/// - Make a bank account
 #[utoipa::path(
     post,
     path = "",
-    request_body = NewNoteRequest,
+    request_body = NewBankAccountRequest,
     responses(
-        (status = 201, description = "Successfully added a note", body = Note),
+        (status = 201, description = "Successfully added a bank account", body = BankAccount),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn add_note(
+pub async fn add_bank_account(
     State(state): State<ToiState>,
-    Json(body): Json<NewNoteRequest>,
-) -> Result<Json<Note>, (StatusCode, String)> {
+    Json(body): Json<NewBankAccountRequest>,
+) -> Result<Json<BankAccount>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let NewNoteRequest { content } = body;
     let embedding_request = EmbeddingRequest {
-        input: content.clone(),
+        input: body.description.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
-    let new_note = NewNote { content, embedding };
-    let res = diesel::insert_into(schema::notes::table)
-        .values(new_note)
-        .returning(Note::as_returning())
+    let NewBankAccountRequest { description } = body;
+    let new_bank_account = NewBankAccount {
+        description,
+        embedding,
+    };
+    let res = diesel::insert_into(schema::bank_accounts::table)
+        .values(new_bank_account)
+        .returning(BankAccount::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     Ok(Json(res))
 }
 
-/// Delete and return notes.
+/// Delete and return bank accounts.
 ///
-/// Example queries for deleting notes using this endpoint:
-/// - Delete all notes
-/// - Erase all notes
-/// - Remove notes
-/// - Delete as many notes
+/// Example queries for deleting bank accounts using this endpoint:
+/// - Delete all bank accounts with
+/// - Erase all bank accounts that
+/// - Remove bank accounts with
+/// - Delete bank accounts
 #[utoipa::path(
     delete,
     path = "",
-    params(NoteQueryParams),
+    params(BankAccountQueryParams),
     responses(
-        (status = 200, description = "Successfully deleted notes", body = [Note]),
+        (status = 200, description = "Successfully deleted bank accounts", body = [BankAccount]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_notes(
+pub async fn delete_matching_bank_accounts(
     State(state): State<ToiState>,
-    Query(params): Query<NoteQueryParams>,
-) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
+    Query(params): Query<BankAccountQueryParams>,
+) -> Result<Json<Vec<BankAccount>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search_notes(&state, params, &mut conn).await?;
-    let notes = diesel::delete(schema::notes::table.filter(schema::notes::id.eq_any(ids)))
-        .returning(Note::as_returning())
-        .load(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    Ok(Json(notes))
+    let ids = search_bank_accounts(&state, params, &mut conn).await?;
+    let bank_accounts =
+        diesel::delete(schema::bank_accounts::table.filter(schema::bank_accounts::id.eq_any(ids)))
+            .returning(BankAccount::as_returning())
+            .load(&mut conn)
+            .await
+            .map_err(utils::diesel_error)?;
+    Ok(Json(bank_accounts))
 }
 
-/// Get notes.
+/// Get bank accounts.
 ///
-/// Example queries for getting notes using this endpoint:
-/// - Get all notes
-/// - List all notes
-/// - What notes are there
-/// - How many notes are there
+/// Example queries for getting bank accounts using this endpoint:
+/// - Get all bank accounts where
+/// - List all bank accounts
+/// - What bank accounts do I have on
+/// - How many bank accounts do I have
 #[utoipa::path(
     get,
     path = "",
-    params(NoteQueryParams),
+    params(BankAccountQueryParams),
     responses(
-        (status = 200, description = "Successfully got notes", body = [Note]),
+        (status = 200, description = "Successfully got bank accounts", body = [BankAccount]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_notes(
+pub async fn get_matching_bank_accounts(
     State(state): State<ToiState>,
-    Query(params): Query<NoteQueryParams>,
-) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
+    Query(params): Query<BankAccountQueryParams>,
+) -> Result<Json<Vec<BankAccount>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let ids = search_notes(&state, params, &mut conn).await?;
-    let notes = schema::notes::table
-        .select(Note::as_select())
-        .filter(schema::notes::id.eq_any(ids))
+    let ids = search_bank_accounts(&state, params, &mut conn).await?;
+    let bank_accounts = schema::bank_accounts::table
+        .select(BankAccount::as_select())
+        .filter(schema::bank_accounts::id.eq_any(ids))
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(notes))
+    Ok(Json(bank_accounts))
 }
