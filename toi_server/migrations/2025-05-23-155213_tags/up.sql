@@ -1,0 +1,6 @@
+-- Your SQL goes here
+CREATE TABLE IF NOT EXISTS tags (
+    id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name TEXT NOT NULL,
+    embedding VECTOR NOT NULL
+);

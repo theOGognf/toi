@@ -33,7 +33,7 @@ const QUERY_PREFIX: &str = "Query: ";
 pub fn router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
-            add_transaction,
+            add_bank_account_transaction,
             delete_matching_transactions,
             get_matching_transactions,
         ))
@@ -160,7 +160,6 @@ pub async fn search_transactions(
 
     let mut query = schema::transactions::table
         .select(Transaction::as_select())
-        .distinct_on(schema::transactions::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -261,7 +260,7 @@ pub async fn search_transactions(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_transaction(
+pub async fn add_bank_account_transaction(
     State(state): State<ToiState>,
     Json(body): Json<NewBankAccountTransactionRequest>,
 ) -> Result<Json<BankAccountTransaction>, (StatusCode, String)> {
@@ -337,6 +336,7 @@ pub async fn add_transaction(
     responses(
         (status = 200, description = "Successfully deleted transactions", body = BankAccountHistory),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No bank account or transactions found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -376,6 +376,7 @@ pub async fn delete_matching_transactions(
     responses(
         (status = 200, description = "Successfully got transactions", body = BankAccountHistory),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No bank account or transactions found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

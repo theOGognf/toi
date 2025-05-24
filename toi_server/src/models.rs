@@ -12,6 +12,7 @@ pub mod openapi;
 pub mod prompts;
 pub mod search;
 pub mod state;
+pub mod tags;
 pub mod todos;
 pub mod transactions;
 pub mod weather;

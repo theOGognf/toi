@@ -82,10 +82,7 @@ async fn search_notes(
         limit,
     } = params;
 
-    let mut query = schema::notes::table
-        .select(Note::as_select())
-        .distinct_on(schema::notes::id)
-        .into_boxed();
+    let mut query = schema::notes::table.select(Note::as_select()).into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
@@ -221,6 +218,7 @@ pub async fn add_note(
     responses(
         (status = 200, description = "Successfully deleted notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No notes found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -254,6 +252,7 @@ pub async fn delete_matching_notes(
     responses(
         (status = 200, description = "Successfully got notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No notes found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

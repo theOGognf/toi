@@ -117,6 +117,7 @@ async fn geocode(
     responses(
         (status = 200, description = "Successfully got weather alerts", body = [WeatherAlerts]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "Forecast zone not found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

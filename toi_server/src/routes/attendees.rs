@@ -1,11 +1,9 @@
-use std::collections::HashSet;
-
 use axum::{
     extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
-use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
+use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use schemars::schema_for;
 use utoipa::openapi::extensions::ExtensionsBuilder;
@@ -73,7 +71,7 @@ pub async fn search_attendees(
     state: &ToiState,
     params: AttendeeQueryParams,
     conn: &mut utils::Conn<'_>,
-) -> Result<(Event, Vec<Contact>), (StatusCode, String)> {
+) -> Result<(Event, Vec<i32>), (StatusCode, String)> {
     let AttendeeQueryParams {
         event_id,
         event_query,
@@ -123,13 +121,7 @@ pub async fn search_attendees(
         limit: contact_limit,
     };
     let contact_ids = search_contacts(state, contact_query_params, conn).await?;
-    let contacts = schema::contacts::table
-        .select(Contact::as_select())
-        .filter(schema::contacts::id.eq_any(contact_ids))
-        .load(conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    Ok((event, contacts))
+    Ok((event, contact_ids))
 }
 
 /// Add and return attendees.
@@ -155,18 +147,23 @@ pub async fn add_attendees(
     Json(body): Json<AttendeeQueryParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_attendees(&state, body, &mut conn).await?;
-    let new_attendees: Vec<Attendee> = contacts
+    let (event, contact_ids) = search_attendees(&state, body, &mut conn).await?;
+    let contacts = schema::contacts::table
+        .select(Contact::as_select())
+        .filter(schema::contacts::id.eq_any(&contact_ids))
+        .load(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    let new_attendees: Vec<Attendee> = contact_ids
         .iter()
-        .map(|contact| Attendee {
+        .map(|contact_id| Attendee {
             event_id: event.id,
-            contact_id: contact.id,
+            contact_id: *contact_id,
         })
         .collect();
-    let _ = diesel::insert_into(schema::event_attendees::table)
+    diesel::insert_into(schema::event_attendees::table)
         .values(new_attendees)
-        .returning(Attendee::as_returning())
-        .load(&mut conn)
+        .execute(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     let attendees = Attendees { event, contacts };
@@ -187,6 +184,7 @@ pub async fn add_attendees(
     responses(
         (status = 200, description = "Successfully deleted attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No event or contacts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -197,26 +195,30 @@ pub async fn delete_matching_attendees(
     Query(params): Query<AttendeeQueryParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_attendees(&state, params, &mut conn).await?;
+    let (event, contact_ids) = search_attendees(&state, params, &mut conn).await?;
+    let contacts = schema::contacts::table
+        .select(Contact::as_select())
+        .inner_join(
+            schema::event_attendees::table
+                .on(schema::event_attendees::contact_id.eq(schema::contacts::id)),
+        )
+        .filter(schema::event_attendees::event_id.eq(event.id))
+        .filter(schema::contacts::id.eq_any(contact_ids))
+        .load(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
     let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let contact_ids = diesel::delete(schema::event_attendees::table)
-        .filter(
+    diesel::delete(
+        schema::event_attendees::table.filter(
             schema::event_attendees::event_id
                 .eq(event.id)
                 .and(schema::event_attendees::contact_id.eq_any(contact_ids)),
-        )
-        .returning(schema::event_attendees::contact_id)
-        .get_results(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    let contact_ids: HashSet<i32> = HashSet::from_iter(contact_ids);
-    let attendees = Attendees {
-        event,
-        contacts: contacts
-            .into_iter()
-            .filter(|contact| contact_ids.contains(&contact.id))
-            .collect(),
-    };
+        ),
+    )
+    .execute(&mut conn)
+    .await
+    .map_err(utils::diesel_error)?;
+    let attendees = Attendees { event, contacts };
     Ok(Json(attendees))
 }
 
@@ -234,6 +236,7 @@ pub async fn delete_matching_attendees(
     responses(
         (status = 200, description = "Successfully got attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No event or contacts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -244,25 +247,18 @@ pub async fn get_matching_attendees(
     Query(params): Query<AttendeeQueryParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contacts) = search_attendees(&state, params, &mut conn).await?;
-    let contact_ids: Vec<i32> = contacts.iter().map(|contact| contact.id).collect();
-    let contact_ids = schema::event_attendees::table
-        .select(schema::event_attendees::contact_id)
-        .filter(
-            schema::event_attendees::event_id
-                .eq(event.id)
-                .and(schema::event_attendees::contact_id.eq_any(contact_ids)),
+    let (event, contact_ids) = search_attendees(&state, params, &mut conn).await?;
+    let contacts = schema::contacts::table
+        .select(Contact::as_select())
+        .inner_join(
+            schema::event_attendees::table
+                .on(schema::event_attendees::contact_id.eq(schema::contacts::id)),
         )
+        .filter(schema::event_attendees::event_id.eq(event.id))
+        .filter(schema::contacts::id.eq_any(contact_ids))
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let contact_ids: HashSet<i32> = HashSet::from_iter(contact_ids);
-    let attendees = Attendees {
-        event,
-        contacts: contacts
-            .into_iter()
-            .filter(|contact| contact_ids.contains(&contact.id))
-            .collect(),
-    };
+    let attendees = Attendees { event, contacts };
     Ok(Json(attendees))
 }

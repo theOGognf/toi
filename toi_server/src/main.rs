@@ -40,6 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // for the main assistant endpoint.
     let mut openapi_router = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .nest(
+            "/banking/accounts",
+            toi_server::routes::accounts::router(state.clone()),
+        )
+        .nest(
+            "/banking/transactions",
+            toi_server::routes::transactions::router(state.clone()),
+        )
+        .nest(
             "/contacts",
             toi_server::routes::contacts::router(state.clone()),
         )
@@ -56,6 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             toi_server::routes::news::router(state.clone()).await?,
         )
         .nest("/notes", toi_server::routes::notes::router(state.clone()))
+        .nest("/tags", toi_server::routes::tags::router(state.clone()))
         .nest("/todos", toi_server::routes::todos::router(state.clone()))
         .nest(
             "/weather",

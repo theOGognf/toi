@@ -91,7 +91,6 @@ pub async fn search_events(
 
     let mut query = schema::events::table
         .select(Event::as_select())
-        .distinct_on(schema::events::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -324,6 +323,7 @@ pub async fn add_event(
     responses(
         (status = 200, description = "Successfully deleted events", body = [Event]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No events found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -357,6 +357,7 @@ pub async fn delete_matching_events(
     responses(
         (status = 200, description = "Successfully got events", body = [Event]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No events found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

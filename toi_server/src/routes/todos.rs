@@ -107,10 +107,7 @@ async fn search_todos(
         limit,
     } = params;
 
-    let mut query = schema::todos::table
-        .select(Todo::as_select())
-        .distinct_on(schema::todos::id)
-        .into_boxed();
+    let mut query = schema::todos::table.select(Todo::as_select()).into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
@@ -345,6 +342,7 @@ pub async fn complete_matching_todos(
     responses(
         (status = 200, description = "Successfully deleted todos", body = [Todo]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No todos found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -378,6 +376,7 @@ pub async fn delete_matching_todos(
     responses(
         (status = 200, description = "Successfully got todos", body = [Todo]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No todos found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

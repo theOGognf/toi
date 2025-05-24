@@ -109,7 +109,6 @@ pub async fn search_contacts(
 
     let mut query = schema::contacts::table
         .select(Contact::as_select())
-        .distinct_on(schema::contacts::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -339,6 +338,7 @@ pub async fn add_contact(
     responses(
         (status = 200, description = "Successfully deleted contacts", body = [Contact]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No contacts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -389,6 +389,7 @@ pub async fn delete_matching_contacts(
     responses(
         (status = 200, description = "Successfully got contacts", body = [Contact]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No contacts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )

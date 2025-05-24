@@ -88,7 +88,6 @@ pub async fn search_bank_accounts(
 
     let mut query = schema::bank_accounts::table
         .select(BankAccount::as_select())
-        .distinct_on(schema::bank_accounts::id)
         .into_boxed();
 
     // Filter items created on or after date.
@@ -228,6 +227,7 @@ pub async fn add_bank_account(
     responses(
         (status = 200, description = "Successfully deleted bank accounts", body = [BankAccount]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No bank accounts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -262,6 +262,7 @@ pub async fn delete_matching_bank_accounts(
     responses(
         (status = 200, description = "Successfully got bank accounts", body = [BankAccount]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No bank accounts found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
