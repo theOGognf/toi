@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
 
 CREATE TABLE IF NOT EXISTS transactions (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    bank_account_id INT REFERENCES bank_accounts(id) ON DELETE CASCADE,
+    bank_account_id INT NOT NULL REFERENCES bank_accounts(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
     amount REAL NOT NULL,
     embedding VECTOR NOT NULL,

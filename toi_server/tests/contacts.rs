@@ -22,7 +22,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     let state = toi_server::init(db_connection_url).await?;
     let openapi_router = OpenApiRouter::new().nest(
         "/contacts",
-        toi_server::routes::contacts::router(state.clone()),
+        toi_server::routes::contacts::contacts_router(state.clone()),
     );
     let (router, _) = openapi_router.split_for_parts();
     let listener = TcpListener::bind(&state.server_config.bind_addr).await?;

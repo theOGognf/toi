@@ -96,6 +96,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
+    recipe_tags (recipe_id, tag_id) {
+        recipe_id -> Int4,
+        tag_id -> Int4,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
+    recipes (id) {
+        id -> Int4,
+        description -> Text,
+        ingredients -> Text,
+        instructions -> Text,
+        embedding -> Vector,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
     searchable_openapi (id) {
         id -> Int4,
         parent_id -> Int4,
@@ -135,7 +158,7 @@ diesel::table! {
 
     transactions (id) {
         id -> Int4,
-        bank_account_id -> Nullable<Int4>,
+        bank_account_id -> Int4,
         description -> Text,
         amount -> Float4,
         embedding -> Vector,
@@ -145,6 +168,8 @@ diesel::table! {
 
 diesel::joinable!(event_attendees -> contacts (contact_id));
 diesel::joinable!(event_attendees -> events (event_id));
+diesel::joinable!(recipe_tags -> recipes (recipe_id));
+diesel::joinable!(recipe_tags -> tags (tag_id));
 diesel::joinable!(searchable_openapi -> openapi (parent_id));
 diesel::joinable!(transactions -> bank_accounts (bank_account_id));
 
@@ -156,6 +181,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     news,
     notes,
     openapi,
+    recipe_tags,
+    recipes,
     searchable_openapi,
     tags,
     todos,

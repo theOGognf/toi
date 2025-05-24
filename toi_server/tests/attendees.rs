@@ -24,13 +24,13 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router = OpenApiRouter::new()
         .nest(
             "/contacts",
-            toi_server::routes::contacts::router(state.clone()),
+            toi_server::routes::contacts::contacts_router(state.clone()),
         )
         .nest(
             "/events",
-            toi_server::routes::events::router(state.clone()).nest(
+            toi_server::routes::events::event_router(state.clone()).nest(
                 "/attendees",
-                toi_server::routes::attendees::router(state.clone()),
+                toi_server::routes::attendees::attendees_router(state.clone()),
             ),
         );
     let (router, _) = openapi_router.split_for_parts();

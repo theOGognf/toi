@@ -23,7 +23,7 @@ use crate::{
 
 const ALIASES: &str = include_str!("../../data/aliases.txt");
 
-pub async fn router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {
+pub async fn news_router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {
     let mut new_aliases: Vec<String> = ALIASES
         .lines()
         .filter_map(|item| {

@@ -19,7 +19,7 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub async fn router(
+pub async fn chat_router(
     openapi: &mut OpenApi,
     state: ToiState,
 ) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {

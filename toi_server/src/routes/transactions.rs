@@ -18,7 +18,8 @@ use crate::{
         state::ToiState,
         transactions::{
             BankAccountHistory, BankAccountTransaction, BankAccountTransactionQueryParams,
-            NewBankAccountTransactionRequest, NewTransaction, Transaction, TransactionQueryParams,
+            LinkedTransaction, NewBankAccountTransactionRequest, NewLinkedTransaction, Transaction,
+            TransactionQueryParams,
         },
     },
     routes::accounts::search_bank_accounts,
@@ -30,12 +31,12 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find transactions stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn bank_account_transactions_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
             add_bank_account_transaction,
-            delete_matching_transactions,
-            get_matching_transactions,
+            delete_matching_bank_account_transactions,
+            get_matching_bank_account_transactions,
         ))
         .with_state(state);
 
@@ -86,6 +87,40 @@ pub fn router(state: ToiState) -> OpenApiRouter {
     router
 }
 
+pub fn transactions_router(state: ToiState) -> OpenApiRouter {
+    let mut router = OpenApiRouter::new()
+        .routes(routes!(
+            delete_matching_transactions,
+            get_matching_transactions,
+        ))
+        .with_state(state);
+
+    let openapi = router.get_openapi_mut();
+    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
+
+    // Update DELETE and GET /banking/transactions extensions
+    let transactions_json_schema = schema_for!(TransactionQueryParams);
+    let transactions_json_schema =
+        serde_json::to_value(transactions_json_schema).expect("schema unserializable");
+    let transaction_extensions = ExtensionsBuilder::new()
+        .add("x-json-schema-params", transactions_json_schema)
+        .build();
+    paths
+        .delete
+        .as_mut()
+        .expect("DELETE doesn't exist")
+        .extensions
+        .get_or_insert(transaction_extensions.clone());
+    paths
+        .get
+        .as_mut()
+        .expect("GET doesn't exist")
+        .extensions
+        .get_or_insert(transaction_extensions);
+
+    router
+}
+
 pub async fn search_bank_account_transactions(
     state: &ToiState,
     params: BankAccountTransactionQueryParams,
@@ -130,6 +165,7 @@ pub async fn search_bank_account_transactions(
         .map_err(utils::diesel_error)?;
 
     let transaction_query_params = TransactionQueryParams {
+        bank_account_id: Some(bank_account.id),
         ids: transaction_ids,
         similarity_search_params: transaction_query.map(|query| SimilaritySearchParams {
             query,
@@ -150,6 +186,7 @@ pub async fn search_transactions(
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let TransactionQueryParams {
+        bank_account_id,
         ids,
         similarity_search_params,
         posted_from,
@@ -161,6 +198,11 @@ pub async fn search_transactions(
     let mut query = schema::transactions::table
         .select(Transaction::as_select())
         .into_boxed();
+
+    // Filter items based on parent ID.
+    if let Some(bank_account_id) = bank_account_id {
+        query = query.filter(schema::transactions::bank_account_id.eq(bank_account_id));
+    }
 
     // Filter items created on or after date.
     if let Some(posted_from) = posted_from {
@@ -242,12 +284,12 @@ pub async fn search_transactions(
     Ok(ids)
 }
 
-/// Add and return a transaction.
+/// Add and return a bank account transaction.
 ///
-/// Example queries for adding transactions using this endpoint:
-/// - Add transaction to
-/// - Remember this transaction for
-/// - Make a transaction for
+/// Example queries for adding bank account transactions using this endpoint:
+/// - Add a bank account transaction to
+/// - Remember this bank account transaction for
+/// - Make a bank account transaction for
 #[utoipa::path(
     post,
     path = "",
@@ -302,7 +344,7 @@ pub async fn add_bank_account_transaction(
         input: transaction_description.clone(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
-    let new_transaction = NewTransaction {
+    let new_transaction = NewLinkedTransaction {
         bank_account_id: bank_account.id,
         description: transaction_description,
         amount: transaction_amount,
@@ -322,13 +364,13 @@ pub async fn add_bank_account_transaction(
     Ok(Json(bank_account_transaction))
 }
 
-/// Delete and return transactions.
+/// Delete and return bank account transactions.
 ///
-/// Example queries for deleting transactions using this endpoint:
-/// - Delete all transactions with
-/// - Erase all transactions for
-/// - Remove transactions for
-/// - Delete transactions
+/// Example queries for deleting bank account transactions using this endpoint:
+/// - Delete all bank account transactions with
+/// - Erase all bank account transactions for
+/// - Remove bank account transactions for
+/// - Delete bank account transactions
 #[utoipa::path(
     delete,
     path = "",
@@ -342,7 +384,7 @@ pub async fn add_bank_account_transaction(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_transactions(
+pub async fn delete_matching_bank_account_transactions(
     State(state): State<ToiState>,
     Query(params): Query<BankAccountTransactionQueryParams>,
 ) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
@@ -352,6 +394,81 @@ pub async fn delete_matching_transactions(
     let transactions = diesel::delete(schema::transactions::table)
         .filter(schema::transactions::id.eq_any(transaction_ids))
         .returning(Transaction::as_returning())
+        .load(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    let bank_account_history = BankAccountHistory {
+        bank_account,
+        transactions,
+    };
+    Ok(Json(bank_account_history))
+}
+
+/// Delete and return transactions.
+///
+/// Example queries for deleting transactions using this endpoint:
+/// - Delete all transactions with
+/// - Erase all transactions for
+/// - Remove transactions for
+/// - Delete transactions
+#[utoipa::path(
+    delete,
+    path = "",
+    params(TransactionQueryParams),
+    responses(
+        (status = 200, description = "Successfully deleted transactions", body = [LinkedTransaction]),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No transactions found"),
+        (status = 422, description = "Error when parsing a response from a model API"),
+        (status = 502, description = "Error when forwarding request to model APIs")
+    )
+)]
+#[axum::debug_handler]
+pub async fn delete_matching_transactions(
+    State(state): State<ToiState>,
+    Query(params): Query<TransactionQueryParams>,
+) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let transaction_ids = search_transactions(&state, params, &mut conn).await?;
+    let linked_transactions = diesel::delete(schema::transactions::table)
+        .filter(schema::transactions::id.eq_any(transaction_ids))
+        .returning(LinkedTransaction::as_returning())
+        .load(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    Ok(Json(linked_transactions))
+}
+
+/// Get bank account transactions.
+///
+/// Example queries for getting bank account transactions using this endpoint:
+/// - Get all bank account transactions where
+/// - List all bank account transactions for
+/// - What bank account transactions do I have
+/// - How many bank account transactions do I have
+#[utoipa::path(
+    get,
+    path = "",
+    params(BankAccountTransactionQueryParams),
+    responses(
+        (status = 200, description = "Successfully got transactions", body = BankAccountHistory),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No bank account or transactions found"),
+        (status = 422, description = "Error when parsing a response from a model API"),
+        (status = 502, description = "Error when forwarding request to model APIs")
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_matching_bank_account_transactions(
+    State(state): State<ToiState>,
+    Query(params): Query<BankAccountTransactionQueryParams>,
+) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let (bank_account, transaction_ids) =
+        search_bank_account_transactions(&state, params, &mut conn).await?;
+    let transactions = schema::transactions::table
+        .select(Transaction::as_select())
+        .filter(schema::transactions::id.eq_any(transaction_ids))
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
@@ -372,11 +489,11 @@ pub async fn delete_matching_transactions(
 #[utoipa::path(
     get,
     path = "",
-    params(BankAccountTransactionQueryParams),
+    params(TransactionQueryParams),
     responses(
-        (status = 200, description = "Successfully got transactions", body = BankAccountHistory),
+        (status = 200, description = "Successfully got transactions", body = [LinkedTransaction]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
-        (status = 404, description = "No bank account or transactions found"),
+        (status = 404, description = "No transactions found"),
         (status = 422, description = "Error when parsing a response from a model API"),
         (status = 502, description = "Error when forwarding request to model APIs")
     )
@@ -384,20 +501,15 @@ pub async fn delete_matching_transactions(
 #[axum::debug_handler]
 pub async fn get_matching_transactions(
     State(state): State<ToiState>,
-    Query(params): Query<BankAccountTransactionQueryParams>,
-) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
+    Query(params): Query<TransactionQueryParams>,
+) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (bank_account, transaction_ids) =
-        search_bank_account_transactions(&state, params, &mut conn).await?;
-    let transactions = schema::transactions::table
-        .select(Transaction::as_select())
+    let transaction_ids = search_transactions(&state, params, &mut conn).await?;
+    let linked_transactions = schema::transactions::table
+        .select(LinkedTransaction::as_select())
         .filter(schema::transactions::id.eq_any(transaction_ids))
         .load(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    let bank_account_history = BankAccountHistory {
-        bank_account,
-        transactions,
-    };
-    Ok(Json(bank_account_history))
+    Ok(Json(linked_transactions))
 }

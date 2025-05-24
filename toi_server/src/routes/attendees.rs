@@ -21,7 +21,7 @@ use crate::{
     schema, utils,
 };
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn attendees_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
             add_attendees,

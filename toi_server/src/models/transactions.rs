@@ -14,7 +14,8 @@ use crate::{
 #[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Transaction {
+pub struct LinkedTransaction {
+    pub bank_account_id: i32,
     pub id: i32,
     pub description: String,
     pub amount: f32,
@@ -24,7 +25,7 @@ pub struct Transaction {
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::transactions)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewTransaction {
+pub struct NewLinkedTransaction {
     pub bank_account_id: i32,
     pub description: String,
     pub amount: f32,
@@ -32,8 +33,22 @@ pub struct NewTransaction {
     pub posted_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
+#[diesel(table_name = crate::schema::transactions)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Transaction {
+    pub id: i32,
+    pub description: String,
+    pub amount: f32,
+    pub posted_at: DateTime<Utc>,
+}
+
 #[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
 pub struct TransactionQueryParams {
+    /// Select a bank account using its database-generated IDs rather than
+    /// searching for it first.
+    #[serde(skip)]
+    pub bank_account_id: Option<i32>,
     /// Select transactions using their database-generated IDs rather than searching
     /// for them.
     pub ids: Option<Vec<i32>>,

@@ -6,7 +6,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::datetime::{DateTimeShiftRequest, DateTimeWeekdayParams};
 
-pub fn router() -> OpenApiRouter {
+pub fn datetime_router() -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(now, shift))
         .routes(routes!(weekday));

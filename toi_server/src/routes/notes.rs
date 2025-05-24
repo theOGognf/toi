@@ -24,7 +24,7 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find notes similar to the one the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn notes_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(add_note, delete_matching_notes, get_matching_notes))
         .with_state(state);

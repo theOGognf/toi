@@ -24,7 +24,7 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user's query, find todo items similar to the one that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn todos_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
             add_todo,

@@ -23,7 +23,7 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, find bank accounts stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn accounts_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(
             add_bank_account,

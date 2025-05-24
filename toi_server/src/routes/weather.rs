@@ -16,7 +16,7 @@ use crate::models::{
     },
 };
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn weather_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(get_weather_alerts))
         .routes(routes!(get_gridpoint_weather_forecast))

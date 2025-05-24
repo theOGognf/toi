@@ -18,8 +18,10 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the server state.
     let state = toi_server::init(db_connection_url).await?;
-    let openapi_router =
-        OpenApiRouter::new().nest("/todos", toi_server::routes::todos::router(state.clone()));
+    let openapi_router = OpenApiRouter::new().nest(
+        "/todos",
+        toi_server::routes::todos::todos_router(state.clone()),
+    );
     let (router, _) = openapi_router.split_for_parts();
     let listener = TcpListener::bind(&state.server_config.bind_addr).await?;
 

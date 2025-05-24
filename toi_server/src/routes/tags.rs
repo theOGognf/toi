@@ -24,7 +24,7 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find tags similar to the one the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn router(state: ToiState) -> OpenApiRouter {
+pub fn tags_router(state: ToiState) -> OpenApiRouter {
     let mut router = OpenApiRouter::new()
         .routes(routes!(add_tag, delete_matching_tags, get_matching_tags))
         .with_state(state);
