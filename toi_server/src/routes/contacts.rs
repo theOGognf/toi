@@ -316,13 +316,13 @@ pub async fn add_contact(
         relationship,
         embedding,
     };
-    let res = diesel::insert_into(schema::contacts::table)
+    let result = diesel::insert_into(schema::contacts::table)
         .values(new_contact)
         .returning(Contact::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Delete and return contacts.

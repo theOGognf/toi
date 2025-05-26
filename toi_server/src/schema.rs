@@ -112,6 +112,7 @@ diesel::table! {
         ingredients -> Text,
         instructions -> Text,
         embedding -> Vector,
+        created_at -> Timestamptz,
     }
 }
 

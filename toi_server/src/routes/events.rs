@@ -285,28 +285,28 @@ pub async fn add_event(
     Json(body): Json<NewEventRequest>,
 ) -> Result<Json<Event>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let embedding_request = EmbeddingRequest {
-        input: body.description.clone(),
-    };
-    let embedding = state.model_client.embed(embedding_request).await?;
     let NewEventRequest {
         description,
         starts_at,
         ends_at,
     } = body;
+    let embedding_request = EmbeddingRequest {
+        input: description.clone(),
+    };
+    let embedding = state.model_client.embed(embedding_request).await?;
     let new_event = NewEvent {
         description,
         embedding,
         starts_at,
         ends_at,
     };
-    let res = diesel::insert_into(schema::events::table)
+    let result = diesel::insert_into(schema::events::table)
         .values(new_event)
         .returning(Event::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Delete and return events.

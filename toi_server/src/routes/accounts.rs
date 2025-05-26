@@ -204,13 +204,13 @@ pub async fn add_bank_account(
         description,
         embedding,
     };
-    let res = diesel::insert_into(schema::bank_accounts::table)
+    let result = diesel::insert_into(schema::bank_accounts::table)
         .values(new_bank_account)
         .returning(BankAccount::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Delete and return bank accounts.

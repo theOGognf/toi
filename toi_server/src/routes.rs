@@ -6,6 +6,7 @@ pub mod datetime;
 pub mod events;
 pub mod news;
 pub mod notes;
+pub mod recipes;
 pub mod tags;
 pub mod todos;
 pub mod transactions;

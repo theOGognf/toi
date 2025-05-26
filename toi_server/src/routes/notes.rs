@@ -195,13 +195,13 @@ pub async fn add_note(
     };
     let embedding = state.model_client.embed(embedding_request).await?;
     let new_note = NewNote { content, embedding };
-    let res = diesel::insert_into(schema::notes::table)
+    let result = diesel::insert_into(schema::notes::table)
         .values(new_note)
         .returning(Note::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Delete and return notes.

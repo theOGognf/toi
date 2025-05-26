@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS recipes (
     description TEXT NOT NULL,
     ingredients TEXT NOT NULL,
     instructions TEXT NOT NULL,
-    embedding VECTOR NOT NULL
+    embedding VECTOR NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS recipe_tags (

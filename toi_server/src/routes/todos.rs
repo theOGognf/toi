@@ -261,13 +261,13 @@ pub async fn add_todo(
         due_at,
         completed_at,
     };
-    let res = diesel::insert_into(schema::todos::table)
+    let result = diesel::insert_into(schema::todos::table)
         .values(new_todo)
         .returning(Todo::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Complete and return todos.

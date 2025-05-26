@@ -63,8 +63,8 @@ pub fn datetime_router() -> OpenApiRouter {
 )]
 #[axum::debug_handler]
 pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
-    let res = Utc::now();
-    Ok(Json(res))
+    let result = Utc::now();
+    Ok(Json(result))
 }
 
 /// Shift the given ISO datetime by seconds, minutes, hours, etc.
@@ -91,11 +91,11 @@ pub async fn shift(
         + Duration::hours(body.hours)
         + Duration::minutes(body.minutes)
         + Duration::seconds(body.seconds);
-    let res = body
+    let result = body
         .datetime
         .checked_add_signed(time_delta)
         .ok_or((StatusCode::BAD_REQUEST, "duration overflow".to_string()))?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Get the weekday of a date.
@@ -119,6 +119,6 @@ pub async fn shift(
 pub async fn weekday(
     Query(params): Query<DateTimeWeekdayParams>,
 ) -> Result<Json<Weekday>, (StatusCode, String)> {
-    let res = params.datetime.weekday();
-    Ok(Json(res))
+    let result = params.datetime.weekday();
+    Ok(Json(result))
 }

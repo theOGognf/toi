@@ -68,7 +68,7 @@ pub fn tags_router(state: ToiState) -> OpenApiRouter {
     router
 }
 
-async fn search_tags(
+pub async fn search_tags(
     state: &ToiState,
     params: TagQueryParams,
     conn: &mut utils::Conn<'_>,
@@ -213,13 +213,13 @@ pub async fn add_tag(
     }
 
     let new_tag = NewTag { name, embedding };
-    let res = diesel::insert_into(schema::tags::table)
+    let result = diesel::insert_into(schema::tags::table)
         .values(new_tag)
         .returning(Tag::as_returning())
         .get_result(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
-    Ok(Json(res))
+    Ok(Json(result))
 }
 
 /// Delete and return tags.
