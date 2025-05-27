@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/datetime", toi_server::routes::datetime::datetime_router())
         .nest(
             "/events",
-            toi_server::routes::events::event_router(state.clone()).nest(
+            toi_server::routes::events::events_router(state.clone()).nest(
                 "/attendees",
                 toi_server::routes::attendees::attendees_router(state.clone()),
             ),
@@ -69,6 +69,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest(
             "/notes",
             toi_server::routes::notes::notes_router(state.clone()),
+        )
+        .nest(
+            "/recipes",
+            toi_server::routes::recipes::recipes_router(state.clone()),
         )
         .nest(
             "/tags",

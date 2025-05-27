@@ -21,9 +21,6 @@ pub fn datetime_router() -> OpenApiRouter {
 #[utoipa::path(
     get,
     path = "/now",
-    extensions(
-        ("x-json-schema-params" = json!(schema_for!(DateTime<Utc>)))
-    ),
     responses(
         (status = 200, description = "Successfully got current date", body = DateTime<Utc>)
     )

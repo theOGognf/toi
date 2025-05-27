@@ -24,7 +24,7 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find events stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn event_router(state: ToiState) -> OpenApiRouter {
+pub fn events_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(
             add_event,

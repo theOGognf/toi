@@ -148,9 +148,12 @@ pub async fn chat_router(
         .values(&new_searchable_openapi_path_items)
         .execute(&mut conn)
         .await?;
+
     drop(conn);
 
-    Ok(OpenApiRouter::new().routes(routes!(chat)).with_state(state))
+    let router = OpenApiRouter::new().routes(routes!(chat)).with_state(state);
+
+    Ok(router)
 }
 
 #[utoipa::path(

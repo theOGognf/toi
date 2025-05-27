@@ -49,7 +49,9 @@ pub async fn news_router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::
         .values(&new_aliases)
         .execute(&mut conn)
         .await?;
+
     drop(conn);
+
     let router = OpenApiRouter::new()
         .routes(routes!(get_news_article, get_news))
         .with_state(state);

@@ -29,7 +29,7 @@ const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find recipes stored with details that the user mentions";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub fn recipe_router(state: ToiState) -> OpenApiRouter {
+pub fn recipes_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(
             add_recipe,
@@ -116,7 +116,7 @@ pub async fn search_recipes(
                 }),
                 limit: Some(1),
             };
-            let matching_tag_ids = search_tags(&state, params, conn).await?;
+            let matching_tag_ids = search_tags(state, params, conn).await?;
             let tag_id = matching_tag_ids
                 .into_iter()
                 .next()

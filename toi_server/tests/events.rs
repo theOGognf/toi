@@ -20,7 +20,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let state = toi_server::init(db_connection_url).await?;
     let openapi_router = OpenApiRouter::new().nest(
         "/events",
-        toi_server::routes::events::event_router(state.clone()),
+        toi_server::routes::events::events_router(state.clone()),
     );
     let (router, _) = openapi_router.split_for_parts();
     let listener = TcpListener::bind(&state.server_config.bind_addr).await?;

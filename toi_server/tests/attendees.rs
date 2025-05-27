@@ -28,7 +28,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
         )
         .nest(
             "/events",
-            toi_server::routes::events::event_router(state.clone()).nest(
+            toi_server::routes::events::events_router(state.clone()).nest(
                 "/attendees",
                 toi_server::routes::attendees::attendees_router(state.clone()),
             ),
