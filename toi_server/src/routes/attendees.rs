@@ -22,49 +22,13 @@ use crate::{
 };
 
 pub fn attendees_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_attendees,
             delete_matching_attendees,
             get_matching_attendees,
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /attendees extensions
-    let attendee_json_schema = schema_for!(AttendeeQueryParams);
-    let attendees_json_schema =
-        serde_json::to_value(attendee_json_schema).expect("schema unserializable");
-    let attendee_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", attendees_json_schema.clone())
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(attendee_extensions);
-
-    // Update DELETE and GET /attendees extensions
-    let attendees_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", attendees_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(attendees_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(attendees_extensions);
-
-    router
+        .with_state(state)
 }
 
 pub async fn search_attendees(

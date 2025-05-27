@@ -26,52 +26,13 @@ const INSTRUCTION_PREFIX: &str =
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn event_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_event,
             delete_matching_events,
             get_matching_events,
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /events extensions
-    let add_event_json_schema = schema_for!(NewEventRequest);
-    let add_event_json_schema =
-        serde_json::to_value(add_event_json_schema).expect("schema unserializable");
-    let add_event_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_event_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_event_extensions);
-
-    // Update DELETE and GET /events extensions
-    let events_json_schema = schema_for!(EventQueryParams);
-    let events_json_schema =
-        serde_json::to_value(events_json_schema).expect("schema unserializable");
-    let events_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", events_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(events_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(events_extensions);
-
-    router
+        .with_state(state)
 }
 
 pub async fn search_events(

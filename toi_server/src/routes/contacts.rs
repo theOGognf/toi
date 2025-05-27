@@ -29,67 +29,14 @@ const INSTRUCTION_PREFIX: &str =
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn contacts_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_contact,
             delete_matching_contacts,
             get_matching_contacts,
             update_matching_contact
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /contacts extensions
-    let add_contact_json_schema = schema_for!(NewContactRequest);
-    let add_contact_json_schema =
-        serde_json::to_value(add_contact_json_schema).expect("schema unserializable");
-    let add_contact_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_contact_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_contact_extensions);
-
-    // Update PUT /contacts extensions
-    let update_contact_json_schema = schema_for!(UpdateContactRequest);
-    let update_contact_json_schema =
-        serde_json::to_value(update_contact_json_schema).expect("schema unserializable");
-    let update_contact_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", update_contact_json_schema)
-        .build();
-    paths
-        .put
-        .as_mut()
-        .expect("PUT doesn't exist")
-        .extensions
-        .get_or_insert(update_contact_extensions);
-
-    // Update DELETE and GET /contacts extensions
-    let contacts_json_schema = schema_for!(ContactQueryParams);
-    let contacts_json_schema =
-        serde_json::to_value(contacts_json_schema).expect("schema unserializable");
-    let contacts_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", contacts_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(contacts_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(contacts_extensions);
-
-    router
+        .with_state(state)
 }
 
 pub async fn search_contacts(

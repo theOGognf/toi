@@ -25,47 +25,9 @@ const INSTRUCTION_PREFIX: &str =
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn notes_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(add_note, delete_matching_notes, get_matching_notes))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /notes extensions
-    let add_note_json_schema = schema_for!(NewNoteRequest);
-    let add_note_json_schema =
-        serde_json::to_value(add_note_json_schema).expect("schema unserializable");
-    let add_note_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_note_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_note_extensions);
-
-    // Update DELETE and GET /notes extensions
-    let notes_json_schema = schema_for!(NoteQueryParams);
-    let notes_json_schema = serde_json::to_value(notes_json_schema).expect("schema unserializable");
-    let notes_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", notes_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(notes_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(notes_extensions);
-
-    router
+        .with_state(state)
 }
 
 async fn search_notes(

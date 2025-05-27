@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use diesel::{ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
+use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
 use diesel_async::{AsyncConnection, RunQueryDsl, scoped_futures::ScopedFutureExt};
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
@@ -15,11 +15,11 @@ use crate::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         recipes::{
             NewRecipe, NewRecipeRequest, NewRecipeTag, NewRecipeTagsRequest, Recipe, RecipePreview,
-            RecipeQueryParams, RecipeTagQueryParams,
+            RecipeQueryParams, RecipeTagQueryParams, RecipeTags,
         },
         search::SimilaritySearchParams,
         state::ToiState,
-        tags::TagQueryParams,
+        tags::{Tag, TagQueryParams},
     },
     routes::tags::search_tags,
     schema, utils,
@@ -31,52 +31,22 @@ const INSTRUCTION_PREFIX: &str =
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn recipe_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_recipe,
             delete_matching_recipes,
             get_matching_recipes,
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /recipes extensions
-    let add_recipe_json_schema = schema_for!(NewRecipeRequest);
-    let add_recipe_json_schema =
-        serde_json::to_value(add_recipe_json_schema).expect("schema unserializable");
-    let add_recipe_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_recipe_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_recipe_extensions);
-
-    // Update DELETE and GET /recipes extensions
-    let recipes_json_schema = schema_for!(RecipeQueryParams);
-    let recipes_json_schema =
-        serde_json::to_value(recipes_json_schema).expect("schema unserializable");
-    let recipes_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", recipes_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(recipes_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(recipes_extensions);
-
-    router
+        .routes(routes!(
+            delete_matching_recipe_previews,
+            get_matching_recipe_previews
+        ))
+        .routes(routes!(
+            add_recipe_tags,
+            delete_matching_recipe_tags,
+            get_matching_recipe_tags
+        ))
+        .with_state(state)
 }
 
 pub async fn search_recipes(
@@ -508,6 +478,67 @@ pub async fn delete_matching_recipe_previews(
     Ok(Json(recipe_previews))
 }
 
+/// Delete and return recipe tags.
+///
+/// Useful for deleting recipes in bulk.
+///
+/// Example queries for deleting recipe tags using this endpoint:
+/// - Delete recipe tags for
+/// - Erase recipe tags for
+/// - Remove recipe tags with
+#[utoipa::path(
+    delete,
+    path = "/tags",
+    params(RecipeTagQueryParams),
+    responses(
+        (status = 200, description = "Successfully deleted recipe tags", body = RecipeTags),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No recipe or recipe tags found"),
+        (status = 422, description = "Error when parsing a response from a model API"),
+        (status = 502, description = "Error when forwarding request to model APIs")
+    )
+)]
+#[axum::debug_handler]
+pub async fn delete_matching_recipe_tags(
+    State(state): State<ToiState>,
+    Query(params): Query<RecipeTagQueryParams>,
+) -> Result<Json<RecipeTags>, (StatusCode, String)> {
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let (recipe_preview, ids) = search_recipe_tags(&state, params, &mut conn).await?;
+    let (recipe_preview, tags) = {
+        conn.transaction(|mut conn| {
+            async move {
+                // Delete recipe tag items.
+                let ids: Vec<i32> = diesel::delete(
+                    schema::recipe_tags::table.filter(
+                        schema::recipe_tags::recipe_id
+                            .eq(recipe_preview.id)
+                            .and(schema::recipe_tags::tag_id.eq_any(ids)),
+                    ),
+                )
+                .returning(schema::recipe_tags::tag_id)
+                .load(&mut conn)
+                .await?;
+                // Return the actual tag objects.
+                let tags = schema::tags::table
+                    .select(Tag::as_select())
+                    .filter(schema::tags::id.eq_any(ids))
+                    .load(&mut conn)
+                    .await?;
+                Ok((recipe_preview, tags))
+            }
+            .scope_boxed()
+        })
+        .await
+        .map_err(utils::diesel_error)?
+    };
+    let recipe_tags = RecipeTags {
+        recipe_preview,
+        tags,
+    };
+    Ok(Json(recipe_tags))
+}
+
 /// Get recipes.
 ///
 /// Example queries for getting recipes using this endpoint:
@@ -576,4 +607,42 @@ pub async fn get_matching_recipe_previews(
         .await
         .map_err(utils::diesel_error)?;
     Ok(Json(recipe_previews))
+}
+
+/// Get recipe tags.
+///
+/// Example queries for getting recipe tags using this endpoint:
+/// - Get recipe tags where
+/// - List recipe tags
+/// - What recipe tags do I have on
+#[utoipa::path(
+    get,
+    path = "/tags",
+    params(RecipeTagQueryParams),
+    responses(
+        (status = 200, description = "Successfully got recipe tags", body = RecipeTags),
+        (status = 400, description = "Default JSON elements configured by the user are invalid"),
+        (status = 404, description = "No recipe or recipe tags found"),
+        (status = 422, description = "Error when parsing a response from a model API"),
+        (status = 502, description = "Error when forwarding request to model APIs")
+    )
+)]
+#[axum::debug_handler]
+pub async fn get_matching_recipe_tags(
+    State(state): State<ToiState>,
+    Query(params): Query<RecipeTagQueryParams>,
+) -> Result<Json<RecipeTags>, (StatusCode, String)> {
+    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+    let (recipe_preview, ids) = search_recipe_tags(&state, params, &mut conn).await?;
+    let tags = schema::tags::table
+        .select(Tag::as_select())
+        .filter(schema::tags::id.eq_any(ids))
+        .load(&mut conn)
+        .await
+        .map_err(utils::diesel_error)?;
+    let recipe_tags = RecipeTags {
+        recipe_preview,
+        tags,
+    };
+    Ok(Json(recipe_tags))
 }

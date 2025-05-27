@@ -51,25 +51,9 @@ pub async fn news_router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::
         .execute(&mut conn)
         .await?;
     drop(conn);
-    let mut router = OpenApiRouter::new()
+    let router = OpenApiRouter::new()
         .routes(routes!(get_news_article, get_news))
         .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /news extensions
-    let get_news = schema_for!(GetNewsRequest);
-    let get_news_json_schema = serde_json::to_value(get_news).expect("schema unserializable");
-    let get_news_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", get_news_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(get_news_extensions);
 
     Ok(router)
 }

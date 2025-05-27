@@ -17,49 +17,11 @@ use crate::models::{
 };
 
 pub fn weather_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(get_weather_alerts))
         .routes(routes!(get_gridpoint_weather_forecast))
         .routes(routes!(get_zone_weather_forecast))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = &mut openapi.paths.paths;
-
-    // Update GET /weather extensions
-    let json_schema = schema_for!(WeatherQueryParams);
-    let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
-    let extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", json_schema)
-        .build();
-    paths
-        .get_mut("/alerts")
-        .expect("doesn't exist")
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(extensions.clone());
-
-    paths
-        .get_mut("/forecast/gridpoint")
-        .expect("doesn't exist")
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(extensions.clone());
-
-    paths
-        .get_mut("/forecast/zone")
-        .expect("doesn't exist")
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(extensions);
-
-    router
+        .with_state(state)
 }
 
 async fn geocode(

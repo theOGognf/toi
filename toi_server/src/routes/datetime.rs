@@ -7,44 +7,9 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::models::datetime::{DateTimeShiftRequest, DateTimeWeekdayParams};
 
 pub fn datetime_router() -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(now, shift))
-        .routes(routes!(weekday));
-
-    let openapi = router.get_openapi_mut();
-    let paths = &mut openapi.paths.paths;
-
-    // Update GET /weekday extensions
-    let json_schema = schema_for!(DateTimeWeekdayParams);
-    let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
-    let weekday_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", json_schema)
-        .build();
-    paths
-        .get_mut("/weekday")
-        .expect("/weekday doesn't exist")
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(weekday_extensions);
-
-    // Update POST /shift extensions
-    let json_schema = schema_for!(DateTimeShiftRequest);
-    let json_schema = serde_json::to_value(json_schema).expect("schema unserializable");
-    let shift_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", json_schema)
-        .build();
-    paths
-        .get_mut("/shift")
-        .expect("/shift doesn't exist")
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(shift_extensions);
-
-    router
+        .routes(routes!(weekday))
 }
 
 /// Get the current time.

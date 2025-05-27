@@ -25,66 +25,14 @@ const INSTRUCTION_PREFIX: &str =
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn todos_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_todo,
             complete_matching_todos,
             delete_matching_todos,
             get_matching_todos
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /todos extensions
-    let add_todo_json_schema = schema_for!(NewTodoRequest);
-    let add_todo_json_schema =
-        serde_json::to_value(add_todo_json_schema).expect("schema unserializable");
-    let add_todo_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_todo_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_todo_extensions);
-
-    // Update PUT /todos extensions
-    let complete_todo_json_schema = schema_for!(CompleteTodoRequest);
-    let complete_todo_json_schema =
-        serde_json::to_value(complete_todo_json_schema).expect("schema unserializable");
-    let complete_todo_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", complete_todo_json_schema)
-        .build();
-    paths
-        .put
-        .as_mut()
-        .expect("PUT doesn't exist")
-        .extensions
-        .get_or_insert(complete_todo_extensions);
-
-    // Update DELETE and GET /todos extensions
-    let todos_json_schema = schema_for!(TodoQueryParams);
-    let todos_json_schema = serde_json::to_value(todos_json_schema).expect("schema unserializable");
-    let todos_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", todos_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(todos_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(todos_extensions);
-
-    router
+        .with_state(state)
 }
 
 async fn search_todos(

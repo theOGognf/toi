@@ -24,52 +24,13 @@ const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, find bank acc
 const QUERY_PREFIX: &str = "Query: ";
 
 pub fn accounts_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             add_bank_account,
             delete_matching_bank_accounts,
             get_matching_bank_accounts,
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update POST /banking/accounts extensions
-    let add_bank_account_json_schema = schema_for!(NewBankAccountRequest);
-    let add_bank_account_json_schema =
-        serde_json::to_value(add_bank_account_json_schema).expect("schema unserializable");
-    let add_bank_account_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-body", add_bank_account_json_schema)
-        .build();
-    paths
-        .post
-        .as_mut()
-        .expect("POST doesn't exist")
-        .extensions
-        .get_or_insert(add_bank_account_extensions);
-
-    // Update DELETE and GET /banking/accounts extensions
-    let bank_accounts_json_schema = schema_for!(BankAccountQueryParams);
-    let bank_accounts_json_schema =
-        serde_json::to_value(bank_accounts_json_schema).expect("schema unserializable");
-    let bank_accounts_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", bank_accounts_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(bank_accounts_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(bank_accounts_extensions);
-
-    router
+        .with_state(state)
 }
 
 pub async fn search_bank_accounts(
