@@ -6,7 +6,6 @@ use axum::{
 use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -97,6 +96,9 @@ pub async fn search_attendees(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(AttendeeQueryParams)))
+    ),
     request_body = AttendeeQueryParams,
     responses(
         (status = 201, description = "Successfully added a attendee", body = Attendees),
@@ -144,6 +146,9 @@ pub async fn add_attendees(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(AttendeeQueryParams)))
+    ),
     params(AttendeeQueryParams),
     responses(
         (status = 200, description = "Successfully deleted attendees", body = Attendees),
@@ -196,6 +201,9 @@ pub async fn delete_matching_attendees(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(AttendeeQueryParams)))
+    ),
     params(AttendeeQueryParams),
     responses(
         (status = 200, description = "Successfully got attendees", body = Attendees),

@@ -5,7 +5,6 @@ use axum::{
 };
 use schemars::schema_for;
 use serde_json::json;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::{
@@ -75,6 +74,9 @@ async fn geocode(
 #[utoipa::path(
     get,
     path = "/alerts",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(WeatherQueryParams)))
+    ),
     params(WeatherQueryParams),
     responses(
         (status = 200, description = "Successfully got weather alerts", body = [WeatherAlerts]),
@@ -121,6 +123,9 @@ pub async fn get_weather_alerts(
 #[utoipa::path(
     get,
     path = "/forecast/gridpoint",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(WeatherQueryParams)))
+    ),
     params(WeatherQueryParams),
     responses(
         (status = 200, description = "Successfully got gridpoint weather forecast", body = [GridpointForecast]),
@@ -157,6 +162,9 @@ pub async fn get_gridpoint_weather_forecast(
 #[utoipa::path(
     get,
     path = "/forecast/zone",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(WeatherQueryParams)))
+    ),
     params(WeatherQueryParams),
     responses(
         (status = 200, description = "Successfully got zone weather forecast", body = [ZoneForecast]),

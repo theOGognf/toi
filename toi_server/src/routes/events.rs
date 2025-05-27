@@ -8,7 +8,6 @@ use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelpe
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -232,6 +231,9 @@ pub async fn search_events(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewEventRequest)))
+    ),
     request_body = NewEventRequest,
     responses(
         (status = 201, description = "Successfully added an event", body = Event),
@@ -280,6 +282,9 @@ pub async fn add_event(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(EventQueryParams)))
+    ),
     params(EventQueryParams),
     responses(
         (status = 200, description = "Successfully deleted events", body = [Event]),
@@ -314,6 +319,9 @@ pub async fn delete_matching_events(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(EventQueryParams)))
+    ),
     params(EventQueryParams),
     responses(
         (status = 200, description = "Successfully got events", body = [Event]),

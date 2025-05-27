@@ -7,7 +7,6 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -137,6 +136,9 @@ async fn search_notes(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewNoteRequest)))
+    ),
     request_body = NewNoteRequest,
     responses(
         (status = 201, description = "Successfully added a note", body = Note),
@@ -176,6 +178,9 @@ pub async fn add_note(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(NoteQueryParams)))
+    ),
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully deleted notes", body = [Note]),
@@ -210,6 +215,9 @@ pub async fn delete_matching_notes(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(NoteQueryParams)))
+    ),
     params(NoteQueryParams),
     responses(
         (status = 200, description = "Successfully got notes", body = [Note]),

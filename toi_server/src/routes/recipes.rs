@@ -7,7 +7,6 @@ use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, Sele
 use diesel_async::{AsyncConnection, RunQueryDsl, scoped_futures::ScopedFutureExt};
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -249,6 +248,9 @@ pub async fn search_recipe_tags(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewRecipeRequest)))
+    ),
     request_body = NewRecipeRequest,
     responses(
         (status = 201, description = "Successfully added a recipe", body = Recipe),
@@ -338,6 +340,9 @@ pub async fn add_recipe(
 #[utoipa::path(
     post,
     path = "/tags",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewRecipeTagsRequest)))
+    ),
     request_body = NewRecipeTagsRequest,
     responses(
         (status = 201, description = "Successfully added recipe tags", body = [Recipe]),
@@ -418,6 +423,9 @@ pub async fn add_recipe_tags(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+    ),
     params(RecipeQueryParams),
     responses(
         (status = 200, description = "Successfully deleted recipes", body = [Recipe]),
@@ -453,6 +461,9 @@ pub async fn delete_matching_recipes(
 #[utoipa::path(
     delete,
     path = "/previews",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+    ),
     params(RecipeQueryParams),
     responses(
         (status = 200, description = "Successfully deleted recipe previews", body = [RecipePreview]),
@@ -489,6 +500,9 @@ pub async fn delete_matching_recipe_previews(
 #[utoipa::path(
     delete,
     path = "/tags",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeTagQueryParams)))
+    ),
     params(RecipeTagQueryParams),
     responses(
         (status = 200, description = "Successfully deleted recipe tags", body = RecipeTags),
@@ -548,6 +562,9 @@ pub async fn delete_matching_recipe_tags(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+    ),
     params(RecipeQueryParams),
     responses(
         (status = 200, description = "Successfully got recipes", body = [Recipe]),
@@ -584,6 +601,9 @@ pub async fn get_matching_recipes(
 #[utoipa::path(
     get,
     path = "/previews",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+    ),
     params(RecipeQueryParams),
     responses(
         (status = 200, description = "Successfully got recipe previews", body = [RecipePreview]),
@@ -618,6 +638,9 @@ pub async fn get_matching_recipe_previews(
 #[utoipa::path(
     get,
     path = "/tags",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(RecipeTagQueryParams)))
+    ),
     params(RecipeTagQueryParams),
     responses(
         (status = 200, description = "Successfully got recipe tags", body = RecipeTags),

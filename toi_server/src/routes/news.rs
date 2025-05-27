@@ -9,7 +9,6 @@ use diesel_async::{AsyncConnection, RunQueryDsl, scoped_futures::ScopedFutureExt
 use rand::seq::SliceRandom;
 use schemars::schema_for;
 use tracing::debug;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -107,6 +106,9 @@ pub async fn get_news_article(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(GetNewsRequest)))
+    ),
     request_body = GetNewsRequest,
     responses(
         (status = 201, description = "Successfully got news", body = [NewRedirect]),

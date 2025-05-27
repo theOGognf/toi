@@ -7,7 +7,6 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -114,6 +113,9 @@ pub async fn search_tags(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewTagRequest)))
+    ),
     request_body = NewTagRequest,
     responses(
         (status = 201, description = "Successfully added a tag", body = Tag),
@@ -194,6 +196,9 @@ pub async fn add_tag(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TagQueryParams)))
+    ),
     params(TagQueryParams),
     responses(
         (status = 200, description = "Successfully deleted tags", body = [Tag]),
@@ -228,6 +233,9 @@ pub async fn delete_matching_tags(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TagQueryParams)))
+    ),
     params(TagQueryParams),
     responses(
         (status = 200, description = "Successfully got tags", body = [Tag]),

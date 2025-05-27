@@ -1,7 +1,6 @@
 use axum::{extract::Query, http::StatusCode, response::Json};
 use chrono::{DateTime, Datelike, Duration, Utc, Weekday};
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::models::datetime::{DateTimeShiftRequest, DateTimeWeekdayParams};
@@ -22,6 +21,9 @@ pub fn datetime_router() -> OpenApiRouter {
 #[utoipa::path(
     get,
     path = "/now",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(DateTime<Utc>)))
+    ),
     responses(
         (status = 200, description = "Successfully got current date", body = DateTime<Utc>)
     )
@@ -42,6 +44,9 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 #[utoipa::path(
     post,
     path = "/shift", 
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(DateTimeShiftRequest)))
+    ),
     request_body = DateTimeShiftRequest,
     responses(
         (status = 200, description = "Successfully shifted given date", body = DateTime<Utc>)
@@ -73,6 +78,9 @@ pub async fn shift(
 #[utoipa::path(
     get,
     path = "/weekday",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(DateTimeWeekdayParams)))
+    ),
     params(
         DateTimeWeekdayParams
     ),

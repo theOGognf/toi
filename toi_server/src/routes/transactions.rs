@@ -247,6 +247,9 @@ pub async fn search_transactions(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewBankAccountTransactionRequest)))
+    ),
     request_body = NewBankAccountTransactionRequest,
     responses(
         (status = 201, description = "Successfully added a transaction", body = BankAccountTransaction),
@@ -328,6 +331,9 @@ pub async fn add_bank_account_transaction(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(BankAccountTransactionQueryParams)))
+    ),
     params(BankAccountTransactionQueryParams),
     responses(
         (status = 200, description = "Successfully deleted transactions", body = BankAccountHistory),
@@ -368,6 +374,9 @@ pub async fn delete_matching_bank_account_transactions(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TransactionQueryParams)))
+    ),
     params(TransactionQueryParams),
     responses(
         (status = 200, description = "Successfully deleted transactions", body = [LinkedTransaction]),
@@ -403,6 +412,9 @@ pub async fn delete_matching_transactions(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(BankAccountTransactionQueryParams)))
+    ),
     params(BankAccountTransactionQueryParams),
     responses(
         (status = 200, description = "Successfully got transactions", body = BankAccountHistory),
@@ -443,6 +455,9 @@ pub async fn get_matching_bank_account_transactions(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TransactionQueryParams)))
+    ),
     params(TransactionQueryParams),
     responses(
         (status = 200, description = "Successfully got transactions", body = [LinkedTransaction]),

@@ -8,7 +8,6 @@ use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelpe
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -228,6 +227,9 @@ pub async fn search_contacts(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewContactRequest)))
+    ),
     request_body = NewContactRequest,
     responses(
         (status = 201, description = "Successfully added a contact", body = Contact),
@@ -281,6 +283,9 @@ pub async fn add_contact(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(ContactDeleteParams)))
+    ),
     params(ContactDeleteParams),
     responses(
         (status = 200, description = "Successfully deleted contacts", body = [Contact]),
@@ -332,6 +337,9 @@ pub async fn delete_matching_contacts(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(ContactQueryParams)))
+    ),
     params(ContactQueryParams),
     responses(
         (status = 200, description = "Successfully got contacts", body = [Contact]),
@@ -367,6 +375,9 @@ pub async fn get_matching_contacts(
 #[utoipa::path(
     put,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(UpdateContactRequest)))
+    ),
     request_body = UpdateContactRequest,
     responses(
         (status = 200, description = "Successfully updated contact", body = Contact),

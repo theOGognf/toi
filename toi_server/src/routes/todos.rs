@@ -7,7 +7,6 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
@@ -180,6 +179,9 @@ async fn search_todos(
 #[utoipa::path(
     post,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(NewTodoRequest)))
+    ),
     request_body = NewTodoRequest,
     responses(
         (status = 201, description = "Successfully added a todo", body = Todo),
@@ -227,6 +229,9 @@ pub async fn add_todo(
 #[utoipa::path(
     put,
     path = "",
+    extensions(
+        ("x-json-schema-body" = json!(schema_for!(CompleteTodoRequest)))
+    ),
     request_body = CompleteTodoRequest,
     responses(
         (status = 200, description = "Successfully updated todos", body = Todo),
@@ -286,6 +291,9 @@ pub async fn complete_matching_todos(
 #[utoipa::path(
     delete,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TodoQueryParams)))
+    ),
     params(TodoQueryParams),
     responses(
         (status = 200, description = "Successfully deleted todos", body = [Todo]),
@@ -320,6 +328,9 @@ pub async fn delete_matching_todos(
 #[utoipa::path(
     get,
     path = "",
+    extensions(
+        ("x-json-schema-params" = json!(schema_for!(TodoQueryParams)))
+    ),
     params(TodoQueryParams),
     responses(
         (status = 200, description = "Successfully got todos", body = [Todo]),
