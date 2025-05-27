@@ -15,7 +15,7 @@ use crate::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         recipes::{
             NewRecipe, NewRecipeRequest, NewRecipeTag, NewRecipeTagsRequest, Recipe, RecipePreview,
-            RecipeQueryParams,
+            RecipeQueryParams, RecipeTagQueryParams,
         },
         search::SimilaritySearchParams,
         state::ToiState,
@@ -201,6 +201,73 @@ pub async fn search_recipes(
     };
 
     Ok(ids)
+}
+
+pub async fn search_recipe_tags(
+    state: &ToiState,
+    params: RecipeTagQueryParams,
+    conn: &mut utils::Conn<'_>,
+) -> Result<(RecipePreview, Vec<i32>), (StatusCode, String)> {
+    let RecipeTagQueryParams {
+        recipe_id,
+        recipe_query,
+        recipe_use_reranking_filter,
+        recipe_created_from,
+        recipe_created_to,
+        recipe_order_by,
+        tag_ids,
+        tag_query,
+        tag_use_reranking_filter,
+        tag_limit,
+    } = params;
+    let recipe_query_params = RecipeQueryParams {
+        ids: recipe_id.map(|i| vec![i]),
+        similarity_search_params: recipe_query.map(|query| SimilaritySearchParams {
+            query,
+            use_reranking_filter: recipe_use_reranking_filter,
+        }),
+        created_from: recipe_created_from,
+        created_to: recipe_created_to,
+        order_by: recipe_order_by,
+        tags: None,
+        limit: Some(1),
+    };
+    let recipe_id = search_recipes(state, recipe_query_params, conn)
+        .await?
+        .into_iter()
+        .next()
+        .ok_or((StatusCode::NOT_FOUND, "recipe not found".to_string()))?;
+    let recipe_preview = schema::recipes::table
+        .select(RecipePreview::as_select())
+        .filter(schema::recipes::id.eq(recipe_id))
+        .first(conn)
+        .await
+        .map_err(utils::diesel_error)?;
+
+    let mut query = schema::recipe_tags::table
+        .select(schema::recipe_tags::tag_id)
+        .filter(schema::recipe_tags::recipe_id.eq(recipe_preview.id))
+        .into_boxed();
+
+    if let Some(tag_ids) = tag_ids {
+        query = query.filter(schema::recipe_tags::tag_id.eq_any(tag_ids));
+    }
+
+    let tag_ids = query.load(conn).await.map_err(utils::diesel_error)?;
+    if tag_ids.is_empty() {
+        return Err((StatusCode::NOT_FOUND, "no tags found".to_string()));
+    }
+
+    let tag_query_params = TagQueryParams {
+        ids: Some(tag_ids),
+        similarity_search_params: tag_query.map(|query| SimilaritySearchParams {
+            query,
+            use_reranking_filter: tag_use_reranking_filter,
+        }),
+        limit: tag_limit,
+    };
+    let tag_ids = search_tags(state, tag_query_params, conn).await?;
+    Ok((recipe_preview, tag_ids))
 }
 
 /// Add and return a recipe.

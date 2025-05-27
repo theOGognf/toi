@@ -457,7 +457,7 @@ pub async fn update_matching_contact(
     let mut contact = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq(id))
-        .get_result(&mut conn)
+        .first(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     contact.update(contact_updates);

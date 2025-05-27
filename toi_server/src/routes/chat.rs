@@ -236,7 +236,7 @@ async fn chat(
                         schema::openapi::table
                             .select(OpenApiPathItem::as_select())
                             .filter(schema::openapi::id.eq(parent_id))
-                            .get_result(&mut conn)
+                            .first(&mut conn)
                             .await
                             .expect("APi item found")
                     };

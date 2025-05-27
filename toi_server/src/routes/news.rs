@@ -105,7 +105,7 @@ pub async fn get_news_article(
     let url: Option<String> = schema::news::table
         .select(schema::news::url)
         .filter(schema::news::alias.eq(alias))
-        .get_result(&mut conn)
+        .first(&mut conn)
         .await
         .map_err(utils::diesel_error)?;
     match url {
