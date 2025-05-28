@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = PgConnection::establish(&db_connection_url)?;
     info!("running migrations");
     conn.run_pending_migrations(MIGRATIONS)
-        .expect("failed to run migrations");
+        .expect("shouldn't fail to run migrations");
 
     // Initialize the server state and extract the server binding address.
     info!("initializing server state");

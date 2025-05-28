@@ -16,7 +16,6 @@ use crate::{
             NewRecipe, NewRecipeRequest, NewRecipeTag, NewRecipeTagsRequest, Recipe, RecipePreview,
             RecipeQueryParams, RecipeTagQueryParams, RecipeTags,
         },
-        search::SimilaritySearchParams,
         state::ToiState,
         tags::{Tag, TagQueryParams},
     },
@@ -55,7 +54,8 @@ pub async fn search_recipes(
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let RecipeQueryParams {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
@@ -63,7 +63,7 @@ pub async fn search_recipes(
         limit,
     } = params;
 
-    let mut query = schema::recipes::table
+    let mut sql_query = schema::recipes::table
         .select(RecipePreview::as_select())
         .inner_join(
             schema::recipe_tags::table.on(schema::recipe_tags::recipe_id.eq(schema::recipes::id)),
@@ -72,29 +72,31 @@ pub async fn search_recipes(
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
-        query = query.filter(schema::recipes::created_at.ge(created_from));
+        sql_query = sql_query.filter(schema::recipes::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
     if let Some(created_to) = created_to {
-        query = query.filter(schema::recipes::created_at.le(created_to));
+        sql_query = sql_query.filter(schema::recipes::created_at.le(created_to));
     }
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::recipes::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::recipes::created_at.desc()),
+        Some(utils::OrderBy::Oldest) => sql_query = sql_query.order(schema::recipes::created_at),
+        Some(utils::OrderBy::Newest) => {
+            sql_query = sql_query.order(schema::recipes::created_at.desc())
+        }
         None => {
             // By default, filter items similar to a given query.
-            if let Some(ref similarity_search_params) = similarity_search_params {
+            if let Some(ref query) = query {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
                     .build()
-                    .apply(&similarity_search_params.query);
+                    .apply(query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query
+                sql_query = sql_query
                     .filter(
                         schema::recipes::embedding
                             .cosine_distance(embedding.clone())
@@ -110,63 +112,55 @@ pub async fn search_recipes(
         for tag in tags {
             let params = TagQueryParams {
                 ids: None,
-                similarity_search_params: Some(SimilaritySearchParams {
-                    query: tag,
-                    use_reranking_filter: true,
-                }),
+                query: Some(tag),
+                use_reranking_filter: Some(true),
+                use_edit_distance_filter: Some(true),
                 limit: Some(1),
             };
             let matching_tag_ids = search_tags(state, params, conn).await?;
             let tag_id = matching_tag_ids
                 .into_iter()
                 .next()
-                .expect("no matching tags");
+                .ok_or((StatusCode::NOT_FOUND, "no matching tags".to_string()))?;
             tag_ids.push(tag_id);
         }
-        query = query.filter(schema::recipe_tags::tag_id.eq_any(tag_ids));
+        sql_query = sql_query.filter(schema::recipe_tags::tag_id.eq_any(tag_ids));
     }
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::recipes::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::recipes::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get the item that matches the query.
     let recipe_previews: Vec<RecipePreview> =
-        query.load(conn).await.map_err(utils::diesel_error)?;
+        sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = recipe_previews
         .into_iter()
         .map(|recipe| (recipe.id, recipe.description))
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no recipes found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest { query, documents };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)
@@ -187,14 +181,13 @@ pub async fn search_recipe_tags(
         tag_ids,
         tag_query,
         tag_use_reranking_filter,
+        tag_use_edit_distance_filter,
         tag_limit,
     } = params;
     let recipe_query_params = RecipeQueryParams {
         ids: recipe_id.map(|i| vec![i]),
-        similarity_search_params: recipe_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: recipe_use_reranking_filter,
-        }),
+        query: recipe_query,
+        use_reranking_filter: recipe_use_reranking_filter,
         created_from: recipe_created_from,
         created_to: recipe_created_to,
         order_by: recipe_order_by,
@@ -224,15 +217,14 @@ pub async fn search_recipe_tags(
 
     let tag_ids = query.load(conn).await.map_err(utils::diesel_error)?;
     if tag_ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no tags found".to_string()));
+        return Ok((recipe_preview, tag_ids));
     }
 
     let tag_query_params = TagQueryParams {
         ids: Some(tag_ids),
-        similarity_search_params: tag_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: tag_use_reranking_filter,
-        }),
+        query: tag_query,
+        use_reranking_filter: tag_use_reranking_filter,
+        use_edit_distance_filter: tag_use_edit_distance_filter,
         limit: tag_limit,
     };
     let tag_ids = search_tags(state, tag_query_params, conn).await?;
@@ -276,17 +268,16 @@ pub async fn add_recipe(
     for tag in tags {
         let params = TagQueryParams {
             ids: None,
-            similarity_search_params: Some(SimilaritySearchParams {
-                query: tag,
-                use_reranking_filter: true,
-            }),
+            query: Some(tag),
+            use_reranking_filter: Some(true),
+            use_edit_distance_filter: Some(true),
             limit: Some(1),
         };
         let matching_tag_ids = search_tags(&state, params, &mut conn).await?;
         let tag_id = matching_tag_ids
             .into_iter()
             .next()
-            .expect("no matching tags");
+            .ok_or((StatusCode::NOT_FOUND, "no matching tags".to_string()))?;
         tag_ids.push(tag_id);
     }
     // Get embedding for recipe description.
@@ -359,7 +350,8 @@ pub async fn add_recipe_tags(
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewRecipeTagsRequest {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
@@ -368,7 +360,8 @@ pub async fn add_recipe_tags(
     } = body;
     let params = RecipeQueryParams {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
@@ -381,17 +374,16 @@ pub async fn add_recipe_tags(
     for tag in tags {
         let params = TagQueryParams {
             ids: None,
-            similarity_search_params: Some(SimilaritySearchParams {
-                query: tag,
-                use_reranking_filter: true,
-            }),
+            query: Some(tag),
+            use_reranking_filter: Some(true),
+            use_edit_distance_filter: Some(true),
             limit: Some(1),
         };
         let matching_tag_ids = search_tags(&state, params, &mut conn).await?;
         let tag_id = matching_tag_ids
             .into_iter()
             .next()
-            .expect("no matching tags");
+            .ok_or((StatusCode::NOT_FOUND, "no matching tags".to_string()))?;
         for recipe_id in recipe_ids.iter() {
             let new_recipe_tag = NewRecipeTag {
                 recipe_id: *recipe_id,

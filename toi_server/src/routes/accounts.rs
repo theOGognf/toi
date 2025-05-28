@@ -39,44 +39,47 @@ pub async fn search_bank_accounts(
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let BankAccountQueryParams {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
         limit,
     } = params;
 
-    let mut query = schema::bank_accounts::table
+    let mut sql_query = schema::bank_accounts::table
         .select(BankAccount::as_select())
         .into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
-        query = query.filter(schema::bank_accounts::created_at.ge(created_from));
+        sql_query = sql_query.filter(schema::bank_accounts::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
     if let Some(created_to) = created_to {
-        query = query.filter(schema::bank_accounts::created_at.le(created_to));
+        sql_query = sql_query.filter(schema::bank_accounts::created_at.le(created_to));
     }
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::bank_accounts::created_at),
+        Some(utils::OrderBy::Oldest) => {
+            sql_query = sql_query.order(schema::bank_accounts::created_at)
+        }
         Some(utils::OrderBy::Newest) => {
-            query = query.order(schema::bank_accounts::created_at.desc())
+            sql_query = sql_query.order(schema::bank_accounts::created_at.desc())
         }
         None => {
             // By default, filter items similar to a given query.
-            if let Some(ref similarity_search_params) = similarity_search_params {
+            if let Some(ref query) = query {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
                     .build()
-                    .apply(&similarity_search_params.query);
+                    .apply(query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query
+                sql_query = sql_query
                     .filter(
                         schema::bank_accounts::embedding
                             .cosine_distance(embedding.clone())
@@ -89,44 +92,38 @@ pub async fn search_bank_accounts(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::bank_accounts::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::bank_accounts::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get all the items that match the query.
-    let bank_accounts: Vec<BankAccount> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let bank_accounts: Vec<BankAccount> =
+        sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = bank_accounts
         .into_iter()
         .map(|bank_account| (bank_account.id, bank_account.description))
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no bank accounts found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest { query, documents };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)

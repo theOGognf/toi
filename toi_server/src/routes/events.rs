@@ -41,34 +41,36 @@ pub async fn search_events(
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let EventQueryParams {
         ids,
-        event_day_falls_on_search_params,
-        similarity_search_params,
+        event_day,
+        event_day_falls_on,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
         limit,
     } = params;
 
-    let mut query = schema::events::table
+    let mut sql_query = schema::events::table
         .select(Event::as_select())
         .into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
-        query = query.filter(schema::events::created_at.ge(created_from));
+        sql_query = sql_query.filter(schema::events::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
     if let Some(created_to) = created_to {
-        query = query.filter(schema::events::created_at.le(created_to));
+        sql_query = sql_query.filter(schema::events::created_at.le(created_to));
     }
 
     // Filter items according to event days.
-    if let Some(event_day_falls_on_search_params) = event_day_falls_on_search_params {
-        match event_day_falls_on_search_params.falls_on {
-            utils::DateFallsOn::Month => {
-                let year = event_day_falls_on_search_params.event_day.year();
-                let month = event_day_falls_on_search_params.event_day.month();
+    if let Some(event_day) = event_day {
+        match event_day_falls_on {
+            Some(utils::DateFallsOn::Month) => {
+                let year = event_day.year();
+                let month = event_day.month();
                 let num_days_in_month = {
                     let month = u8::try_from(month).map_err(|_| {
                         (
@@ -98,9 +100,9 @@ pub async fn search_events(
                         StatusCode::BAD_REQUEST,
                         "invalid event day search".to_string(),
                     ))?;
-                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("invalid time");
+                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("time should be valid");
                 let last_day_of_month_end_time = last_day_of_month.and_time(end_time).and_utc();
-                query = query.filter(
+                sql_query = sql_query.filter(
                     (schema::events::starts_at
                         .ge(first_day_of_month_start_time)
                         .and(schema::events::starts_at.le(last_day_of_month_end_time)))
@@ -109,19 +111,15 @@ pub async fn search_events(
                         .and(schema::events::ends_at.le(last_day_of_month_end_time))),
                 );
             }
-            utils::DateFallsOn::Week => {
-                let num_days_from_sunday = event_day_falls_on_search_params
-                    .event_day
-                    .weekday()
-                    .num_days_from_sunday();
-                let this_weeks_sunday = event_day_falls_on_search_params.event_day
-                    - Duration::days(num_days_from_sunday.into());
+            Some(utils::DateFallsOn::Week) => {
+                let num_days_from_sunday = event_day.weekday().num_days_from_sunday();
+                let this_weeks_sunday = event_day - Duration::days(num_days_from_sunday.into());
                 let this_weeks_start_time =
                     this_weeks_sunday.and_time(NaiveTime::default()).and_utc();
-                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("invalid time");
+                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("time should be valid");
                 let this_weeks_saturday = this_weeks_sunday + Duration::days(6);
                 let this_weeks_end_time = this_weeks_saturday.and_time(end_time).and_utc();
-                query = query.filter(
+                sql_query = sql_query.filter(
                     (schema::events::starts_at
                         .ge(this_weeks_start_time)
                         .and(schema::events::starts_at.le(this_weeks_end_time)))
@@ -130,17 +128,11 @@ pub async fn search_events(
                         .and(schema::events::ends_at.le(this_weeks_end_time))),
                 );
             }
-            utils::DateFallsOn::Day => {
-                let day_of_event_start_time = event_day_falls_on_search_params
-                    .event_day
-                    .and_time(NaiveTime::default())
-                    .and_utc();
-                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("invalid time");
-                let day_of_event_end_time = event_day_falls_on_search_params
-                    .event_day
-                    .and_time(end_time)
-                    .and_utc();
-                query = query.filter(
+            Some(utils::DateFallsOn::Day) | None => {
+                let day_of_event_start_time = event_day.and_time(NaiveTime::default()).and_utc();
+                let end_time = NaiveTime::from_hms_opt(23, 59, 59).expect("time should be valid");
+                let day_of_event_end_time = event_day.and_time(end_time).and_utc();
+                sql_query = sql_query.filter(
                     (schema::events::starts_at
                         .ge(day_of_event_start_time)
                         .and(schema::events::starts_at.le(day_of_event_end_time)))
@@ -154,19 +146,21 @@ pub async fn search_events(
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::events::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::events::created_at.desc()),
+        Some(utils::OrderBy::Oldest) => sql_query = sql_query.order(schema::events::created_at),
+        Some(utils::OrderBy::Newest) => {
+            sql_query = sql_query.order(schema::events::created_at.desc())
+        }
         None => {
             // By default, filter items similar to a given query.
-            if let Some(ref similarity_search_params) = similarity_search_params {
+            if let Some(ref query) = query {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
                     .build()
-                    .apply(&similarity_search_params.query);
+                    .apply(query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query
+                sql_query = sql_query
                     .filter(
                         schema::events::embedding
                             .cosine_distance(embedding.clone())
@@ -179,44 +173,37 @@ pub async fn search_events(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::events::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::events::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get all the items that match the query.
-    let events: Vec<Event> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let events: Vec<Event> = sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = events
         .into_iter()
         .map(|event| (event.id, event.description))
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no events found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest { query, documents };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)

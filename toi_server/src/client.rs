@@ -26,7 +26,9 @@ impl ModelClient {
     ) -> Result<serde_json::Value, (StatusCode, String)> {
         let mut value = serde_json::to_value(request)
             .map_err(|err| ApiClientError::RequestJson.into_response(&err))?;
-        let request = value.as_object_mut().expect("empty request value");
+        let request = value
+            .as_object_mut()
+            .expect("request value shouldn't be empty");
         if !config.json.is_empty() {
             if let Some(json) = serde_json::to_value(&config.json)
                 .map_err(|err| ApiClientError::DefaultJson.into_response(&err))?

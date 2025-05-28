@@ -7,14 +7,12 @@ use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
 use schemars::schema_for;
-use utoipa::openapi::extensions::ExtensionsBuilder;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
         accounts::{BankAccount, BankAccountQueryParams},
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        search::SimilaritySearchParams,
         state::ToiState,
         transactions::{
             BankAccountHistory, BankAccountTransaction, BankAccountTransactionQueryParams,
@@ -42,37 +40,12 @@ pub fn bank_account_transactions_router(state: ToiState) -> OpenApiRouter {
 }
 
 pub fn transactions_router(state: ToiState) -> OpenApiRouter {
-    let mut router = OpenApiRouter::new()
+    OpenApiRouter::new()
         .routes(routes!(
             delete_matching_transactions,
             get_matching_transactions,
         ))
-        .with_state(state);
-
-    let openapi = router.get_openapi_mut();
-    let paths = openapi.paths.paths.get_mut("").expect("doesn't exist");
-
-    // Update DELETE and GET /banking/transactions extensions
-    let transactions_json_schema = schema_for!(TransactionQueryParams);
-    let transactions_json_schema =
-        serde_json::to_value(transactions_json_schema).expect("schema unserializable");
-    let transaction_extensions = ExtensionsBuilder::new()
-        .add("x-json-schema-params", transactions_json_schema)
-        .build();
-    paths
-        .delete
-        .as_mut()
-        .expect("DELETE doesn't exist")
-        .extensions
-        .get_or_insert(transaction_extensions.clone());
-    paths
-        .get
-        .as_mut()
-        .expect("GET doesn't exist")
-        .extensions
-        .get_or_insert(transaction_extensions);
-
-    router
+        .with_state(state)
 }
 
 pub async fn search_bank_account_transactions(
@@ -97,10 +70,8 @@ pub async fn search_bank_account_transactions(
     } = params;
     let bank_account_query_params = BankAccountQueryParams {
         ids: bank_account_id.map(|i| vec![i]),
-        similarity_search_params: bank_account_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: bank_account_use_reranking_filter,
-        }),
+        query: bank_account_query,
+        use_reranking_filter: bank_account_use_reranking_filter,
         created_from: bank_account_created_from,
         created_to: bank_account_created_to,
         order_by: bank_account_order_by,
@@ -121,10 +92,8 @@ pub async fn search_bank_account_transactions(
     let transaction_query_params = TransactionQueryParams {
         bank_account_id: Some(bank_account.id),
         ids: transaction_ids,
-        similarity_search_params: transaction_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: transaction_use_reranking_filter,
-        }),
+        query: transaction_query,
+        use_reranking_filter: transaction_use_reranking_filter,
         posted_from: transaction_posted_from,
         posted_to: transaction_posted_to,
         order_by: transaction_order_by,
@@ -142,47 +111,52 @@ pub async fn search_transactions(
     let TransactionQueryParams {
         bank_account_id,
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         posted_from,
         posted_to,
         order_by,
         limit,
     } = params;
 
-    let mut query = schema::transactions::table
+    let mut sql_query = schema::transactions::table
         .select(Transaction::as_select())
         .into_boxed();
 
     // Filter items based on parent ID.
     if let Some(bank_account_id) = bank_account_id {
-        query = query.filter(schema::transactions::bank_account_id.eq(bank_account_id));
+        sql_query = sql_query.filter(schema::transactions::bank_account_id.eq(bank_account_id));
     }
 
     // Filter items created on or after date.
     if let Some(posted_from) = posted_from {
-        query = query.filter(schema::transactions::posted_at.ge(posted_from));
+        sql_query = sql_query.filter(schema::transactions::posted_at.ge(posted_from));
     }
 
     // Filter items created on or before date.
     if let Some(posted_to) = posted_to {
-        query = query.filter(schema::transactions::posted_at.le(posted_to));
+        sql_query = sql_query.filter(schema::transactions::posted_at.le(posted_to));
     }
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::transactions::posted_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::transactions::posted_at.desc()),
+        Some(utils::OrderBy::Oldest) => {
+            sql_query = sql_query.order(schema::transactions::posted_at)
+        }
+        Some(utils::OrderBy::Newest) => {
+            sql_query = sql_query.order(schema::transactions::posted_at.desc())
+        }
         None => {
             // By default, filter items similar to a given query.
-            if let Some(ref similarity_search_params) = similarity_search_params {
+            if let Some(ref query) = query {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
                     .build()
-                    .apply(&similarity_search_params.query);
+                    .apply(query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query
+                sql_query = sql_query
                     .filter(
                         schema::transactions::embedding
                             .cosine_distance(embedding.clone())
@@ -195,44 +169,37 @@ pub async fn search_transactions(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::transactions::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::transactions::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get all the items that match the query.
-    let transactions: Vec<Transaction> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let transactions: Vec<Transaction> = sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = transactions
         .into_iter()
         .map(|transaction| (transaction.id, transaction.description))
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no transactions found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest { query, documents };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)
@@ -277,10 +244,8 @@ pub async fn add_bank_account_transaction(
     } = body;
     let bank_account_query_params = BankAccountQueryParams {
         ids: bank_account_id.map(|i| vec![i]),
-        similarity_search_params: bank_account_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: bank_account_use_reranking_filter,
-        }),
+        query: bank_account_query,
+        use_reranking_filter: bank_account_use_reranking_filter,
         created_from: bank_account_created_from,
         created_to: bank_account_created_to,
         order_by: bank_account_order_by,

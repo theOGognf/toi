@@ -6,10 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{
-    models::{search::SimilaritySearchParams, tags::Tag},
-    utils,
-};
+use crate::{models::tags::Tag, utils};
 
 #[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::recipes)]
@@ -82,12 +79,18 @@ pub struct RecipeQueryParams {
     /// Update a recipe using their database-generated ID rather than
     /// searching for them.
     pub ids: Option<Vec<i32>>,
-    /// Parameters for performing similarity search against recipes.
-    /// This can be left empty or null to ignore similarity search
-    /// in cases where the user wants to filter by other params
-    /// (e.g., get items by date or get all items).
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question. This can be left empty to ignore
+    /// similarity search in cases where the user wants to filter by
+    /// other means or get all items.
+    pub query: Option<String>,
+    /// Whether to match the query string more closely using a reranking -based
+    /// approach. `true` is useful for cases where the user is looking to match
+    /// to specific words or phrases, whereas `false` is useful for more broad
+    /// matching.
+    pub use_reranking_filter: Option<bool>,
     /// Filter on recipes created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on recipes created before this ISO formatted datetime.
@@ -117,8 +120,7 @@ pub struct RecipeTagQueryParams {
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
-    #[serde(default)]
-    pub recipe_use_reranking_filter: bool,
+    pub recipe_use_reranking_filter: Option<bool>,
     /// Filter on recipes created after this ISO formatted datetime.
     pub recipe_created_from: Option<DateTime<Utc>>,
     /// Filter on recipes created before this ISO formatted datetime.
@@ -139,8 +141,9 @@ pub struct RecipeTagQueryParams {
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
-    #[serde(default)]
-    pub tag_use_reranking_filter: bool,
+    pub tag_use_reranking_filter: Option<bool>,
+    /// Whether to match the query string more closely, character-for-character.
+    pub tag_use_edit_distance_filter: Option<bool>,
     /// Limit the max number of tags to return from the search.
     #[param(minimum = 1)]
     pub tag_limit: Option<i64>,
@@ -151,12 +154,18 @@ pub struct NewRecipeTagsRequest {
     /// Update a recipe using their database-generated ID rather than
     /// searching for them.
     pub ids: Option<Vec<i32>>,
-    /// Parameters for performing similarity search against recipes.
-    /// This can be left empty or null to ignore similarity search
-    /// in cases where the user wants to filter by other params
-    /// (e.g., get items by date or get all items).
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question. This can be left empty to ignore
+    /// similarity search in cases where the user wants to filter by
+    /// other means or get all items.
+    pub query: Option<String>,
+    /// Whether to match the query string more closely using a reranking -based
+    /// approach. `true` is useful for cases where the user is looking to match
+    /// to specific words or phrases, whereas `false` is useful for more broad
+    /// matching.
+    pub use_reranking_filter: Option<bool>,
     /// Filter on recipes created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on recipes created before this ISO formatted datetime.

@@ -216,7 +216,7 @@ async fn chat(
                             .limit(16)
                             .load(&mut conn)
                             .await
-                            .expect("no APi items found")
+                            .expect("should have some API items")
                     };
                     // Rerank the results and reevaluate to see if they're relevant.
                     debug!("reranking API search results for relevance");
@@ -241,7 +241,7 @@ async fn chat(
                             .filter(schema::openapi::id.eq(parent_id))
                             .first(&mut conn)
                             .await
-                            .expect("APi item found")
+                            .expect("should find API item")
                     };
 
                     info!(

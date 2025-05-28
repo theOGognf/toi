@@ -19,7 +19,7 @@ async fn datetime_routes() -> Result<(), Box<dyn std::error::Error>> {
     let openapi_router =
         OpenApiRouter::new().nest("/datetime", toi_server::routes::datetime::datetime_router());
     let (router, _) = openapi_router.split_for_parts();
-    let listener = TcpListener::bind(state.server_config.bind_addr.clone()).await?;
+    let listener = TcpListener::bind(state.server_config.bind_addr).await?;
 
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });

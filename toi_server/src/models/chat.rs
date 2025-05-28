@@ -45,7 +45,7 @@ impl GeneratedRequest {
     pub fn into_assistant_message(self) -> Message {
         Message {
             role: MessageRole::Assistant,
-            content: serde_json::to_string_pretty(&self).expect("request is not serializable"),
+            content: serde_json::to_string_pretty(&self).expect("request should be serializable"),
         }
     }
 
@@ -64,7 +64,7 @@ impl GeneratedRequest {
             request_builder = request_builder.json(&body);
         }
 
-        request_builder.build().expect("invalid request")
+        request_builder.build().expect("request should be valid")
     }
 }
 

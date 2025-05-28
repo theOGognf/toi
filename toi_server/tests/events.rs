@@ -4,7 +4,6 @@ use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::events::{Event, EventQueryParams};
-use toi_server::models::search::SimilaritySearchParams;
 
 mod utils;
 
@@ -46,12 +45,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
 
     // Retrieve the event using search.
     let query = EventQueryParams::builder()
-        .similarity_search_params(
-            SimilaritySearchParams::builder()
-                .query("oil change".to_string())
-                .use_reranking_filter(false)
-                .build(),
-        )
+        .query("oil change".to_string())
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;

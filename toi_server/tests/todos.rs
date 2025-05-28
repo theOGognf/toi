@@ -3,7 +3,6 @@ use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::search::SimilaritySearchParams;
 use toi_server::models::todos::{Todo, TodoQueryParams};
 
 mod utils;
@@ -44,12 +43,7 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
 
     // Retrieve the todo using search.
     let query = TodoQueryParams::builder()
-        .similarity_search_params(
-            SimilaritySearchParams::builder()
-                .query("Change my car oil".to_string())
-                .use_reranking_filter(false)
-                .build(),
-        )
+        .query("change my car oil".to_string())
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;

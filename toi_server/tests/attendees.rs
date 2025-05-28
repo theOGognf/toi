@@ -72,9 +72,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     let url = format!("http://{}/events/attendees", state.server_config.bind_addr);
     let body = AttendeeQueryParams::builder()
         .event_query("birthday party".to_string())
-        .event_use_reranking_filter(false)
         .contact_query("marky".to_string())
-        .contact_use_reranking_filter(false)
         .build();
     let response = client.post(&url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
@@ -85,9 +83,7 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Retrieve the attendees using search.
     let query = AttendeeQueryParams::builder()
         .event_query("birthday party".to_string())
-        .event_use_reranking_filter(false)
         .contact_query("marky".to_string())
-        .contact_use_reranking_filter(false)
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;

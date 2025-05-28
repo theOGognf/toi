@@ -39,7 +39,7 @@ async fn client(
         .http2_keep_alive_timeout(timeout)
         .read_timeout(timeout)
         .build()
-        .expect("failed to build client");
+        .expect("shouldn't fail to build client");
 
     loop {
         if let Some(ServerRequest::Start(request)) = rx.recv().await {
@@ -50,7 +50,7 @@ async fn client(
                             let message = ServerResponse::Error(format!("{err:?}"));
                             tx.send(message)
                                 .await
-                                .expect("server response channel full");
+                                .expect("server response channel shouldn't be full");
                         }
                         Ok(response) if response.status() == 200 => {
                             let stream = response
@@ -67,7 +67,7 @@ async fn client(
                                                     match data {
                                                         "[DONE]" => {
                                                             let message = ServerResponse::Done;
-                                                            tx.send(message).await.expect("server response channel full");
+                                                            tx.send(message).await.expect("server response channel shouldn't be full");
                                                             break
                                                         }
                                                         "\n" | "" => {}
@@ -76,11 +76,11 @@ async fn client(
                                                             match response {
                                                                 Ok(chunk) => {
                                                                     let message = ServerResponse::Chunk(chunk);
-                                                                    tx.send(message).await.expect("server response channel full");
+                                                                    tx.send(message).await.expect("server response channel shouldn't be full");
                                                                 }
                                                                 Err(err) => {
                                                                     let message = ServerResponse::Error(format!("{err:?}"));
-                                                                    tx.send(message).await.expect("server response channel full");
+                                                                    tx.send(message).await.expect("server response channel shouldn't be full");
                                                                     break
                                                                 }
                                                             }
@@ -92,19 +92,19 @@ async fn client(
                                             // end with the '[DONE]' string before returning no lines.
                                             Ok(None) => {
                                                 let message = ServerResponse::Error("server response didn't end on [DONE]".to_string());
-                                                tx.send(message).await.expect("server response channel full");
+                                                tx.send(message).await.expect("server response channel shouldn't be full");
                                                 break
                                             },
                                             Err(err) => {
                                                 let message = ServerResponse::Error(format!("{err:?}"));
-                                                tx.send(message).await.expect("server response channel full");
+                                                tx.send(message).await.expect("server response channel shouldn't be full");
                                                 break
                                             },
                                         }
                                     }
                                     Some(ServerRequest::Cancel) = rx.recv() => {
                                         let message = ServerResponse::Done;
-                                        tx.send(message).await.expect("server response channel full");
+                                        tx.send(message).await.expect("server response channel shouldn't be full");
                                         break
                                     }
                                 }
@@ -125,13 +125,13 @@ async fn client(
                             let message = ServerResponse::Error(text);
                             tx.send(message)
                                 .await
-                                .expect("server response channel full");
+                                .expect("server response channel shouldn't be full");
                         }
                     }
                 }
                 Some(ServerRequest::Cancel) = rx.recv() => {
                     let message = ServerResponse::Done;
-                    tx.send(message).await.expect("server response channel full");
+                    tx.send(message).await.expect("server response channel shouldn't be full");
                 }
             }
         }
@@ -184,7 +184,7 @@ fn repl(mut rx: Receiver<()>, tx: &Sender<UserRequest>) -> Result<(), ReadlineEr
                     let _ = rl.add_history_entry(&input);
                     let message = UserRequest::Prompt(input);
                     tx.blocking_send(message)
-                        .expect("user request channel full");
+                        .expect("user request channel shouldn't be full");
                     break;
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -208,7 +208,7 @@ fn ctrlc_handler(tx: Sender<UserRequest>) -> Result<(), ctrlc::Error> {
     set_handler(move || {
         let message = UserRequest::Cancel;
         tx.blocking_send(message)
-            .expect("server response interrupt channel full");
+            .expect("server response interrupt channel shouldn't be full");
     })?;
 
     thread::park();
@@ -254,7 +254,7 @@ impl History {
         self.size = self
             .size
             .checked_add_signed(total_usage)
-            .expect("overflow from adding token usage");
+            .expect("shouldn't overflow from adding token usage");
         self.messages.push_back(message);
         self.usages.push_back(usage);
         self.buffer.clear();
@@ -265,7 +265,7 @@ impl History {
                 self.size = self
                     .size
                     .checked_add_signed(-total_usage)
-                    .expect("overflow from subbing token usage");
+                    .expect("shouldn't overflow from subbing token usage");
                 self.messages = self.messages.split_off(2);
             }
         }

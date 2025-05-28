@@ -45,34 +45,36 @@ pub async fn search_contacts(
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let ContactQueryParams {
         ids,
-        birthday_falls_on_search_params,
-        similarity_search_params,
+        birthday,
+        birthday_falls_on,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
         limit,
     } = params;
 
-    let mut query = schema::contacts::table
+    let mut sql_query = schema::contacts::table
         .select(Contact::as_select())
         .into_boxed();
 
     // Filter items created on or after date.
     if let Some(created_from) = created_from {
-        query = query.filter(schema::contacts::created_at.ge(created_from));
+        sql_query = sql_query.filter(schema::contacts::created_at.ge(created_from));
     }
 
     // Filter items created on or before date.
     if let Some(created_to) = created_to {
-        query = query.filter(schema::contacts::created_at.le(created_to));
+        sql_query = sql_query.filter(schema::contacts::created_at.le(created_to));
     }
 
     // Filter items according to birthdays.
-    if let Some(birthday_falls_on_search_params) = birthday_falls_on_search_params {
-        match birthday_falls_on_search_params.falls_on {
-            utils::DateFallsOn::Month => {
-                let year = birthday_falls_on_search_params.birthday.year();
-                let month = birthday_falls_on_search_params.birthday.month();
+    if let Some(birthday) = birthday {
+        match birthday_falls_on {
+            Some(utils::DateFallsOn::Month) => {
+                let year = birthday.year();
+                let month = birthday.month();
                 let num_days_in_month = {
                     let month = u8::try_from(month).map_err(|_| {
                         (
@@ -100,49 +102,45 @@ pub async fn search_contacts(
                         StatusCode::BAD_REQUEST,
                         "invalid birthday search".to_string(),
                     ))?;
-                query = query.filter(
+                sql_query = sql_query.filter(
                     schema::contacts::birthday
                         .ge(first_day_of_month)
                         .and(schema::contacts::birthday.le(last_day_of_month)),
                 );
             }
-            utils::DateFallsOn::Week => {
-                let num_days_from_sunday = birthday_falls_on_search_params
-                    .birthday
-                    .weekday()
-                    .num_days_from_sunday();
-                let this_weeks_sunday = birthday_falls_on_search_params.birthday
-                    - Duration::days(num_days_from_sunday.into());
+            Some(utils::DateFallsOn::Week) => {
+                let num_days_from_sunday = birthday.weekday().num_days_from_sunday();
+                let this_weeks_sunday = birthday - Duration::days(num_days_from_sunday.into());
                 let this_weeks_saturday = this_weeks_sunday + Duration::days(6);
-                query = query.filter(
+                sql_query = sql_query.filter(
                     schema::contacts::birthday
                         .ge(this_weeks_sunday)
                         .and(schema::contacts::birthday.le(this_weeks_saturday)),
                 );
             }
-            utils::DateFallsOn::Day => {
-                query = query.filter(
-                    schema::contacts::birthday.eq(birthday_falls_on_search_params.birthday),
-                );
+            Some(utils::DateFallsOn::Day) | None => {
+                sql_query = sql_query.filter(schema::contacts::birthday.eq(birthday));
             }
         }
     }
 
     // Order items.
     match order_by {
-        Some(utils::OrderBy::Oldest) => query = query.order(schema::contacts::created_at),
-        Some(utils::OrderBy::Newest) => query = query.order(schema::contacts::created_at.desc()),
+        Some(utils::OrderBy::Oldest) => sql_query = sql_query.order(schema::contacts::created_at),
+        Some(utils::OrderBy::Newest) => {
+            sql_query = sql_query.order(schema::contacts::created_at.desc())
+        }
         None => {
             // By default, filter items similar to a given query.
-            if let Some(ref similarity_search_params) = similarity_search_params {
+            if let Some(ref query) = query {
                 let input = EmbeddingPromptTemplate::builder()
                     .instruction_prefix(INSTRUCTION_PREFIX.to_string())
                     .query_prefix(QUERY_PREFIX.to_string())
                     .build()
-                    .apply(&similarity_search_params.query);
+                    .apply(query);
                 let embedding_request = EmbeddingRequest { input };
                 let embedding = state.model_client.embed(embedding_request).await?;
-                query = query
+                sql_query = sql_query
                     .filter(
                         schema::contacts::embedding
                             .cosine_distance(embedding.clone())
@@ -155,16 +153,16 @@ pub async fn search_contacts(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::contacts::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::contacts::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get all the items that match the query.
-    let contacts: Vec<Contact> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let contacts: Vec<Contact> = sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) = contacts
         .into_iter()
         .map(|contact| {
@@ -190,29 +188,22 @@ pub async fn search_contacts(
         })
         .unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no contacts found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest { query, documents };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)
@@ -303,7 +294,8 @@ pub async fn delete_matching_contacts(
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ContactDeleteParams {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
@@ -311,8 +303,10 @@ pub async fn delete_matching_contacts(
     } = params;
     let params = ContactQueryParams {
         ids,
-        birthday_falls_on_search_params: None,
-        similarity_search_params,
+        birthday: None,
+        birthday_falls_on: None,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
@@ -393,15 +387,18 @@ pub async fn update_matching_contact(
     let UpdateContactRequest {
         id,
         contact_updates,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,
     } = body;
     let params = ContactQueryParams {
         ids: id.map(|i| vec![i]),
-        birthday_falls_on_search_params: None,
-        similarity_search_params,
+        birthday: None,
+        birthday_falls_on: None,
+        query,
+        use_reranking_filter,
         created_from,
         created_to,
         order_by,

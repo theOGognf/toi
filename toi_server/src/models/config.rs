@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 fn default_bind_addr() -> SocketAddr {
     "127.0.0.1:6969"
         .parse()
-        .expect("invalid default bind address")
+        .expect("default bind address should be valid")
 }
 
 fn default_distance_threshold() -> f64 {

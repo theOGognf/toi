@@ -1,15 +1,11 @@
 use bon::Builder;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{Insertable, Queryable, Selectable};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{
-    models::contacts::Contact,
-    models::events::{Event, EventFallsOnSearchParams},
-    utils,
-};
+use crate::{models::contacts::Contact, models::events::Event, utils};
 
 #[derive(Insertable, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::event_attendees)]
@@ -43,18 +39,18 @@ pub struct AttendeeQueryParams {
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
-    #[serde(default)]
-    pub event_use_reranking_filter: bool,
+    pub event_use_reranking_filter: Option<bool>,
     /// Filter on events created after this ISO formatted datetime.
     pub event_created_from: Option<DateTime<Utc>>,
     /// Filter on events created before this ISO formatted datetime.
     pub event_created_to: Option<DateTime<Utc>>,
-    /// Parameters for performing a search against event days.
-    /// This can be left empty or null to ignore these search options
-    /// in cases where the user wants to filter by other params
-    /// (e.g., get items by date or get all items).
-    #[serde(flatten)]
-    pub event_day_falls_on_search_params: Option<EventFallsOnSearchParams>,
+    /// Event day search parameter. What kind of search depends on
+    /// the `falls_on` field.
+    pub event_day: Option<NaiveDate>,
+    /// What kind of calendar object the event falls on. Used
+    /// to search if an event falls on the month of, week of,
+    /// or day of `event_day`.
+    pub event_day_falls_on: Option<utils::DateFallsOn>,
     /// How to order results for retrieved events.
     pub event_order_by: Option<utils::OrderBy>,
     /// Search contacts using their database-generated IDs rather than
@@ -71,8 +67,7 @@ pub struct AttendeeQueryParams {
     /// Whether to match the query string more closely using a reranking -based
     /// approach. `True` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
-    #[serde(default)]
-    pub contact_use_reranking_filter: bool,
+    pub contact_use_reranking_filter: Option<bool>,
     /// Limit the max number of contacts to return from the search.
     #[param(minimum = 1)]
     pub contact_limit: Option<i64>,

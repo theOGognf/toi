@@ -6,7 +6,6 @@ use utoipa_axum::router::OpenApiRouter;
 use toi_server::models::contacts::{
     Contact, ContactDeleteParams, ContactQueryParams, ContactUpdates, UpdateContactRequest,
 };
-use toi_server::models::search::SimilaritySearchParams;
 
 mod utils;
 
@@ -56,12 +55,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
 
     // Retrieve the contact using search.
     let query = ContactQueryParams::builder()
-        .similarity_search_params(
-            SimilaritySearchParams::builder()
-                .query("who is marky mark".to_string())
-                .use_reranking_filter(false)
-                .build(),
-        )
+        .query("who is marky mark".to_string())
         .build();
     let response = client.get(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;
@@ -71,12 +65,7 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
 
     // Delete the contact using search.
     let query = ContactDeleteParams::builder()
-        .similarity_search_params(
-            SimilaritySearchParams::builder()
-                .query("who is marky mark".to_string())
-                .use_reranking_filter(false)
-                .build(),
-        )
+        .query("who is marky mark".to_string())
         .build();
     let response = client.delete(&url).query(&query).send().await?;
     let response = utils::assert_ok_response(response).await?;

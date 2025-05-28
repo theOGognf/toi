@@ -21,7 +21,9 @@ pub fn reset_database(db_connection_url: &str) -> Result<Output, String> {
             "database",
             "reset",
             "--migration-dir",
-            migrations_dir.to_str().expect("invalid migration dir"),
+            migrations_dir
+                .to_str()
+                .expect("migration dir should be valid"),
         ])
         .output()
         .map_err(|err| format!("{err:?}"))

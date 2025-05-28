@@ -13,7 +13,6 @@ use crate::{
         attendees::{Attendee, AttendeeQueryParams, Attendees},
         contacts::{Contact, ContactQueryParams},
         events::{Event, EventQueryParams},
-        search::SimilaritySearchParams,
         state::ToiState,
     },
     routes::{contacts::search_contacts, events::search_events},
@@ -41,7 +40,8 @@ pub async fn search_attendees(
         event_use_reranking_filter,
         event_created_from,
         event_created_to,
-        event_day_falls_on_search_params,
+        event_day,
+        event_day_falls_on,
         event_order_by,
         contact_ids,
         contact_query,
@@ -50,11 +50,10 @@ pub async fn search_attendees(
     } = params;
     let event_query_params = EventQueryParams {
         ids: event_id.map(|i| vec![i]),
-        event_day_falls_on_search_params,
-        similarity_search_params: event_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: event_use_reranking_filter,
-        }),
+        event_day,
+        event_day_falls_on,
+        query: event_query,
+        use_reranking_filter: event_use_reranking_filter,
         created_from: event_created_from,
         created_to: event_created_to,
         order_by: event_order_by,
@@ -73,11 +72,10 @@ pub async fn search_attendees(
         .map_err(utils::diesel_error)?;
     let contact_query_params = ContactQueryParams {
         ids: contact_ids,
-        birthday_falls_on_search_params: None,
-        similarity_search_params: contact_query.map(|query| SimilaritySearchParams {
-            query,
-            use_reranking_filter: contact_use_reranking_filter,
-        }),
+        birthday: None,
+        birthday_falls_on: None,
+        query: contact_query,
+        use_reranking_filter: contact_use_reranking_filter,
         created_from: None,
         created_to: None,
         order_by: None,

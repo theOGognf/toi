@@ -173,7 +173,7 @@ pub async fn get_news(
                         items
                             .len()
                             .try_into()
-                            .expect("news items length doesn't fit in i64"),
+                            .expect("news items length should fit in i64"),
                     )
                     .load(&mut conn)
                     .await?;

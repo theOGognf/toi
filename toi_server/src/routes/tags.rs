@@ -18,6 +18,8 @@ use crate::{
     schema, utils,
 };
 
+const EDIT_SIMILARITY_THRESHOLD: f64 = 0.80;
+
 // Prefixes are used for embedding instructions.
 const INSTRUCTION_PREFIX: &str =
     "Instruction: Given a user query, find tags similar to the one the user mentions";
@@ -36,21 +38,23 @@ pub async fn search_tags(
 ) -> Result<Vec<i32>, (StatusCode, String)> {
     let TagQueryParams {
         ids,
-        similarity_search_params,
+        query,
+        use_reranking_filter,
+        use_edit_distance_filter,
         limit,
     } = params;
 
-    let mut query = schema::tags::table.select(Tag::as_select()).into_boxed();
+    let mut sql_query = schema::tags::table.select(Tag::as_select()).into_boxed();
 
-    if let Some(ref similarity_search_params) = similarity_search_params {
+    if let Some(ref query) = query {
         let input = EmbeddingPromptTemplate::builder()
             .instruction_prefix(INSTRUCTION_PREFIX.to_string())
             .query_prefix(QUERY_PREFIX.to_string())
             .build()
-            .apply(&similarity_search_params.query);
+            .apply(query);
         let embedding_request = EmbeddingRequest { input };
         let embedding = state.model_client.embed(embedding_request).await?;
-        query = query
+        sql_query = sql_query
             .filter(
                 schema::tags::embedding
                     .cosine_distance(embedding.clone())
@@ -61,42 +65,46 @@ pub async fn search_tags(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        query = query.or_filter(schema::tags::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::tags::id.eq_any(ids))
     }
 
     // Limit number of items.
     if let Some(limit) = limit {
-        query = query.limit(limit);
+        sql_query = sql_query.limit(limit);
     }
 
     // Get all the items that match the query.
-    let tags: Vec<Tag> = query.load(conn).await.map_err(utils::diesel_error)?;
+    let tags: Vec<Tag> = sql_query.load(conn).await.map_err(utils::diesel_error)?;
     let (ids, documents): (Vec<i32>, Vec<String>) =
         tags.into_iter().map(|tag| (tag.id, tag.name)).unzip();
     if ids.is_empty() {
-        return Err((StatusCode::NOT_FOUND, "no tags found".to_string()));
+        return Ok(ids);
     }
 
     // Rerank and filter items once more.
-    let ids = match similarity_search_params {
-        Some(similarity_search_params) => {
-            if similarity_search_params.use_reranking_filter {
-                let rerank_request = RerankRequest {
-                    query: similarity_search_params.query,
-                    documents,
-                };
-                let rerank_response = state.model_client.rerank(rerank_request).await?;
-                rerank_response
-                    .results
-                    .into_iter()
-                    .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-                    .map(|item| ids[item.index])
-                    .collect()
-            } else {
-                ids
-            }
+    let ids = match (query, use_reranking_filter) {
+        (Some(query), Some(true)) => {
+            let rerank_request = RerankRequest {
+                query: query.clone(),
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            rerank_response
+                .results
+                .into_iter()
+                .filter(|item| {
+                    let score = strsim::normalized_damerau_levenshtein(&query, &item.document.text);
+                    let mut result =
+                        item.relevance_score >= state.server_config.similarity_threshold;
+                    if let Some(true) = use_edit_distance_filter {
+                        result &= score >= EDIT_SIMILARITY_THRESHOLD;
+                    }
+                    result
+                })
+                .map(|item| ids[item.index])
+                .collect()
         }
-        None => ids,
+        _ => ids,
     };
 
     Ok(ids)
@@ -133,49 +141,27 @@ pub async fn add_tag(
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewTagRequest { name } = body;
 
-    let input = EmbeddingPromptTemplate::builder()
-        .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-        .query_prefix(QUERY_PREFIX.to_string())
-        .build()
-        .apply(&name);
-    let embedding_request = EmbeddingRequest { input };
-    let embedding = state.model_client.embed(embedding_request).await?;
-
     // Make sure a similar tag doesn't already exist.
-    let tags: Vec<Tag> = schema::tags::table
-        .select(Tag::as_select())
-        .filter(
-            schema::tags::embedding
-                .cosine_distance(embedding.clone())
-                .le(state.server_config.distance_threshold),
-        )
-        .order((
-            schema::tags::embedding.cosine_distance(embedding.clone()),
-            schema::tags::id,
-        ))
-        .load(&mut conn)
-        .await
-        .map_err(utils::diesel_error)?;
-    if !tags.is_empty() {
-        let (ids, documents): (Vec<i32>, Vec<String>) =
-            tags.into_iter().map(|tag| (tag.id, tag.name)).unzip();
-
-        let rerank_request = RerankRequest {
-            query: name.clone(),
-            documents,
-        };
-        let rerank_response = state.model_client.rerank(rerank_request).await?;
-        let ids: Vec<i32> = rerank_response
-            .results
-            .into_iter()
-            .filter(|item| item.relevance_score >= state.server_config.similarity_threshold)
-            .map(|item| ids[item.index])
-            .collect();
-        if !ids.is_empty() {
+    let params = TagQueryParams {
+        ids: None,
+        query: Some(name.clone()),
+        use_reranking_filter: Some(true),
+        use_edit_distance_filter: Some(true),
+        limit: Some(1),
+    };
+    let ids = search_tags(&state, params, &mut conn).await;
+    match ids {
+        Ok(ids) if !ids.is_empty() => {
             return Err((StatusCode::CONFLICT, "tag already exists".to_string()));
         }
+        Ok(_) => {}
+        Err(other) => return Err(other),
     }
 
+    let embedding_request = EmbeddingRequest {
+        input: name.clone(),
+    };
+    let embedding = state.model_client.embed(embedding_request).await?;
     let new_tag = NewTag { name, embedding };
     let result = diesel::insert_into(schema::tags::table)
         .values(new_tag)

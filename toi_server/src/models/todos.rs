@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{models::search::SimilaritySearchParams, utils};
+use crate::utils;
 
 #[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::todos)]
@@ -54,9 +54,18 @@ pub struct CompleteTodoRequest {
     /// Defaults to current datetime.
     #[serde(default)]
     pub completed_at: DateTime<Utc>,
-    /// Parameters for performing similarity search against todos.
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question. This can be left empty to ignore
+    /// similarity search in cases where the user wants to filter by
+    /// other means or get all items.
+    pub query: Option<String>,
+    /// Whether to match the query string more closely using a reranking -based
+    /// approach. `true` is useful for cases where the user is looking to match
+    /// to specific words or phrases, whereas `false` is useful for more broad
+    /// matching.
+    pub use_reranking_filter: Option<bool>,
     /// Filter on todos created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on todos created before this ISO formatted datetime.
@@ -80,12 +89,18 @@ pub struct TodoQueryParams {
     /// Select todos using their database-generated IDs rather than
     /// searching for them.
     pub ids: Option<Vec<i32>>,
-    /// Parameters for performing similarity search against todos.
-    /// This can be left empty or null to ignore similarity search
-    /// in cases where the user wants to filter by other params
-    /// (e.g., get items by date or get all items).
-    #[serde(flatten)]
-    pub similarity_search_params: Option<SimilaritySearchParams>,
+    /// User query string to compare embeddings against. Basically,
+    /// if the user is asking something like "what color is my jacket?",
+    /// then the query string should be something like "jacket color" or
+    /// the user's original question. This can be left empty to ignore
+    /// similarity search in cases where the user wants to filter by
+    /// other means or get all items.
+    pub query: Option<String>,
+    /// Whether to match the query string more closely using a reranking -based
+    /// approach. `true` is useful for cases where the user is looking to match
+    /// to specific words or phrases, whereas `false` is useful for more broad
+    /// matching.
+    pub use_reranking_filter: Option<bool>,
     /// Filter on todos created after this ISO formatted datetime.
     pub created_from: Option<DateTime<Utc>>,
     /// Filter on todos created before this ISO formatted datetime.
