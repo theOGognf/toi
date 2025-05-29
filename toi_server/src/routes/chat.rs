@@ -175,154 +175,141 @@ async fn chat(
     // Search across OpenAPI spec paths for relevant endpoints. If none are
     // found, respond like a normal chat assistant. Otherwise, execute an
     // HTTP request to fulfill the user's request.
-    let streaming_generation_request = match request.messages.last() {
-        Some(message) => {
-            debug!(">> {}", message.content);
-            let system_prompt = CommandPrompt {};
-            let generation_request = GenerationRequest::builder()
-                .messages(system_prompt.to_messages(&request.messages))
-                .response_format(system_prompt.into_response_format())
-                .build();
-            debug!("preparing extraction request");
-            let generated_command_extraction =
-                state.model_client.generate(generation_request).await?;
-            debug!("parsing extraction request");
-            let generated_command_extraction = parse_generated_response::<
-                GeneratedCommandExtraction,
-            >(&generated_command_extraction)?;
-            debug!("extraction={:?}", generated_command_extraction);
-            let GeneratedCommandExtraction { command, .. } = generated_command_extraction;
-            match command {
-                Some(command) => {
-                    debug!("embedding message for API search");
-                    let input = EmbeddingPromptTemplate::builder()
-                        .instruction_prefix(INSTRUCTION_PREFIX.to_string())
-                        .query_prefix(QUERY_PREFIX.to_string())
-                        .build()
-                        .apply(&command);
-                    let embedding_request = EmbeddingRequest { input };
-                    let embedding = state.model_client.embed(embedding_request).await?;
+    let streaming_generation_request = if let Some(message) = request.messages.last() {
+        debug!(">> {}", message.content);
+        let system_prompt = CommandPrompt {};
+        let generation_request = GenerationRequest::builder()
+            .messages(system_prompt.to_messages(&request.messages))
+            .response_format(system_prompt.into_response_format())
+            .build();
+        debug!("preparing extraction request");
+        let generated_command_extraction = state.model_client.generate(generation_request).await?;
+        debug!("parsing extraction request");
+        let generated_command_extraction =
+            parse_generated_response::<GeneratedCommandExtraction>(&generated_command_extraction)?;
+        debug!("extraction={:?}", generated_command_extraction);
+        let GeneratedCommandExtraction { command, .. } = generated_command_extraction;
+        if let Some(command) = command {
+            debug!("embedding message for API search");
+            let input = EmbeddingPromptTemplate::builder()
+                .instruction_prefix(INSTRUCTION_PREFIX.to_string())
+                .query_prefix(QUERY_PREFIX.to_string())
+                .build()
+                .apply(&command);
+            let embedding_request = EmbeddingRequest { input };
+            let embedding = state.model_client.embed(embedding_request).await?;
 
-                    let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-                    let items: Vec<SearchableOpenApiPathItem> = {
-                        use diesel::{QueryDsl, SelectableHelper};
-                        use diesel_async::RunQueryDsl;
-                        use pgvector::VectorExpressionMethods;
+            let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
+            let items: Vec<SearchableOpenApiPathItem> = {
+                use diesel::{QueryDsl, SelectableHelper};
+                use diesel_async::RunQueryDsl;
+                use pgvector::VectorExpressionMethods;
 
-                        // There should always be some items returned here.
-                        schema::searchable_openapi::table
-                            .select(SearchableOpenApiPathItem::as_select())
-                            .order(schema::searchable_openapi::embedding.cosine_distance(embedding))
-                            .limit(16)
-                            .load(&mut conn)
-                            .await
-                            .expect("should have some API items")
-                    };
-                    // Rerank the results and reevaluate to see if they're relevant.
-                    debug!("reranking API search results for relevance");
-                    let (mut ids, documents): (Vec<i32>, Vec<String>) = items
-                        .into_iter()
-                        .map(|item| (item.parent_id, item.description))
-                        .unzip();
-                    let rerank_request = RerankRequest {
-                        query: command,
-                        documents,
-                    };
-                    let rerank_response = state.model_client.rerank(rerank_request).await?;
-                    let most_relevant_result = &rerank_response.results[0];
-                    let parent_id = ids.swap_remove(most_relevant_result.index);
-                    let item: OpenApiPathItem = {
-                        use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
-                        use diesel_async::RunQueryDsl;
+                // There should always be some items returned here.
+                schema::searchable_openapi::table
+                    .select(SearchableOpenApiPathItem::as_select())
+                    .order(schema::searchable_openapi::embedding.cosine_distance(embedding))
+                    .limit(16)
+                    .load(&mut conn)
+                    .await
+                    .expect("should have some API items")
+            };
+            // Rerank the results and reevaluate to see if they're relevant.
+            debug!("reranking API search results for relevance");
+            let (mut ids, documents): (Vec<i32>, Vec<String>) = items
+                .into_iter()
+                .map(|item| (item.parent_id, item.description))
+                .unzip();
+            let rerank_request = RerankRequest {
+                query: command,
+                documents,
+            };
+            let rerank_response = state.model_client.rerank(rerank_request).await?;
+            let most_relevant_result = &rerank_response.results[0];
+            let parent_id = ids.swap_remove(most_relevant_result.index);
+            let item: OpenApiPathItem = {
+                use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
+                use diesel_async::RunQueryDsl;
 
-                        // There should always be some items returned here.
-                        schema::openapi::table
-                            .select(OpenApiPathItem::as_select())
-                            .filter(schema::openapi::id.eq(parent_id))
-                            .first(&mut conn)
-                            .await
-                            .expect("should find API item")
-                    };
+                // There should always be some items returned here.
+                schema::openapi::table
+                    .select(OpenApiPathItem::as_select())
+                    .filter(schema::openapi::id.eq(parent_id))
+                    .first(&mut conn)
+                    .await
+                    .expect("should find API item")
+            };
 
-                    info!(
-                        "most relevant API (uri={} method={}) scored at {:.3}",
-                        item.path, item.method, most_relevant_result.relevance_score
-                    );
-                    if most_relevant_result.relevance_score
-                        >= state.server_config.similarity_threshold
-                    {
-                        debug!("API passes similarity threshold");
+            info!(
+                "most relevant API (uri={} method={}) scored at {:.3}",
+                item.path, item.method, most_relevant_result.relevance_score
+            );
+            if most_relevant_result.relevance_score >= state.server_config.similarity_threshold {
+                debug!("API passes similarity threshold");
 
-                        // Convert user request into HTTP request.
-                        let OpenApiPathItem {
-                            path,
-                            method,
-                            description,
-                            params,
-                            body,
-                        } = item;
-                        let system_prompt = HttpRequestPrompt {
-                            path,
-                            method,
-                            params,
-                            body,
-                        };
-                        let generation_request = GenerationRequest::builder()
-                            .messages(system_prompt.to_messages(&request.messages))
-                            .response_format(system_prompt.into_response_format())
-                            .build();
-                        debug!("preparing proxy API request");
-                        let generated_request =
-                            state.model_client.generate(generation_request).await?;
-                        debug!("parsing proxy API request");
-                        let generated_request =
-                            parse_generated_response::<GeneratedRequest>(&generated_request)?;
-                        debug!("proxy API request={:?}", generated_request);
+                // Convert user request into HTTP request.
+                let OpenApiPathItem {
+                    path,
+                    method,
+                    description,
+                    params,
+                    body,
+                } = item;
+                let system_prompt = HttpRequestPrompt {
+                    path,
+                    method,
+                    params,
+                    body,
+                };
+                let generation_request = GenerationRequest::builder()
+                    .messages(system_prompt.to_messages(&request.messages))
+                    .response_format(system_prompt.into_response_format())
+                    .build();
+                debug!("preparing proxy API request");
+                let generated_request = state.model_client.generate(generation_request).await?;
+                debug!("parsing proxy API request");
+                let generated_request =
+                    parse_generated_response::<GeneratedRequest>(&generated_request)?;
+                debug!("proxy API request={:?}", generated_request);
 
-                        // Add the HTTP request to the context as an assistant message.
-                        let server_addr =
-                            format!("127.0.0.1:{}", &state.server_config.bind_addr.port());
-                        let http_request =
-                            generated_request.to_http_request(&state.api_client, &server_addr);
-                        let assistant_message = generated_request.into_assistant_message();
-                        request.messages.push(assistant_message);
+                // Add the HTTP request to the context as an assistant message.
+                let server_addr = format!("127.0.0.1:{}", &state.server_config.bind_addr.port());
+                let http_request =
+                    generated_request.to_http_request(&state.api_client, &server_addr);
+                let assistant_message = generated_request.into_assistant_message();
+                request.messages.push(assistant_message);
 
-                        // Execute the HTTP request.
-                        debug!("sending proxy API request");
-                        let response = state
-                            .api_client
-                            .execute(http_request)
-                            .await
-                            .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;
-                        debug!("receiving proxy API response");
-                        let content = response
-                            .text()
-                            .await
-                            .unwrap_or_else(|err| format!("{err:?}"));
+                // Execute the HTTP request.
+                debug!("sending proxy API request");
+                let response = state
+                    .api_client
+                    .execute(http_request)
+                    .await
+                    .map_err(|err| ApiClientError::ApiConnection.into_response(&err))?;
+                debug!("receiving proxy API response");
+                let content = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|err| format!("{err:?}"));
 
-                        // Add the HTTP response as a pseudo user response.
-                        request.messages.push(Message {
-                            role: MessageRole::User,
-                            content,
-                        });
-                        debug!("summarizing API response");
-                        SummaryPrompt { description }
-                            .to_streaming_generation_request(&request.messages)
-                    } else {
-                        debug!("no APIs pass similarity threshold");
-                        SimplePrompt {}.to_streaming_generation_request(&request.messages)
-                    }
-                }
-                None => {
-                    warn!("no command found in request");
-                    SimplePrompt {}.to_streaming_generation_request(&request.messages)
-                }
+                // Add the HTTP response as a pseudo user response.
+                request.messages.push(Message {
+                    role: MessageRole::User,
+                    content,
+                });
+                debug!("summarizing API response");
+                SummaryPrompt { description }.to_streaming_generation_request(&request.messages)
+            } else {
+                debug!("no APIs pass similarity threshold");
+                SimplePrompt {}.to_streaming_generation_request(&request.messages)
             }
-        }
-        None => {
-            warn!("no message found in request");
+        } else {
+            warn!("no command found in request");
             SimplePrompt {}.to_streaming_generation_request(&request.messages)
         }
+    } else {
+        warn!("no message found in request");
+        SimplePrompt {}.to_streaming_generation_request(&request.messages)
     };
 
     debug!("beginning response stream");

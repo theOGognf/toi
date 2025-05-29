@@ -133,10 +133,10 @@ pub async fn search_transactions(
     // Order items.
     match order_by {
         Some(utils::OrderBy::Oldest) => {
-            sql_query = sql_query.order(schema::transactions::posted_at)
+            sql_query = sql_query.order(schema::transactions::posted_at);
         }
         Some(utils::OrderBy::Newest) => {
-            sql_query = sql_query.order(schema::transactions::posted_at.desc())
+            sql_query = sql_query.order(schema::transactions::posted_at.desc());
         }
         None => {
             // By default, filter items similar to a given query.
@@ -161,7 +161,7 @@ pub async fn search_transactions(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        sql_query = sql_query.or_filter(schema::transactions::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::transactions::id.eq_any(ids));
     }
 
     // Limit number of items.

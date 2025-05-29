@@ -74,7 +74,7 @@ pub async fn search_recipes(
     match order_by {
         Some(utils::OrderBy::Oldest) => sql_query = sql_query.order(schema::recipes::created_at),
         Some(utils::OrderBy::Newest) => {
-            sql_query = sql_query.order(schema::recipes::created_at.desc())
+            sql_query = sql_query.order(schema::recipes::created_at.desc());
         }
         None => {
             // By default, filter items similar to a given query.
@@ -119,7 +119,7 @@ pub async fn search_recipes(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        sql_query = sql_query.or_filter(schema::recipes::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::recipes::id.eq_any(ids));
     }
 
     // Limit number of items.
@@ -374,7 +374,7 @@ pub async fn add_recipe_tags(
             .into_iter()
             .next()
             .ok_or((StatusCode::NOT_FOUND, "no matching tags".to_string()))?;
-        for recipe_id in recipe_ids.iter() {
+        for recipe_id in &recipe_ids {
             let new_recipe_tag = NewRecipeTag {
                 recipe_id: *recipe_id,
                 tag_id,

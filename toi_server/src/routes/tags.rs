@@ -63,7 +63,7 @@ pub async fn search_tags(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        sql_query = sql_query.or_filter(schema::tags::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::tags::id.eq_any(ids));
     }
 
     // Limit number of items.

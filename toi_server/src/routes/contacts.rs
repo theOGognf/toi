@@ -121,7 +121,7 @@ pub async fn search_contacts(
     match order_by {
         Some(utils::OrderBy::Oldest) => sql_query = sql_query.order(schema::contacts::created_at),
         Some(utils::OrderBy::Newest) => {
-            sql_query = sql_query.order(schema::contacts::created_at.desc())
+            sql_query = sql_query.order(schema::contacts::created_at.desc());
         }
         None => {
             // By default, filter items similar to a given query.
@@ -146,7 +146,7 @@ pub async fn search_contacts(
 
     // Filter items according to their ids.
     if let Some(ids) = ids {
-        sql_query = sql_query.or_filter(schema::contacts::id.eq_any(ids))
+        sql_query = sql_query.or_filter(schema::contacts::id.eq_any(ids));
     }
 
     // Limit number of items.

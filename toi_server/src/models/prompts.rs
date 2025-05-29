@@ -73,6 +73,7 @@ Respond concisely in JSON format."
 }
 
 impl CommandPrompt {
+    #[must_use]
     pub fn into_response_format(self) -> Value {
         json!(
             {
@@ -151,6 +152,7 @@ pub struct HttpRequestPrompt {
 }
 
 impl HttpRequestPrompt {
+    #[must_use]
     pub fn into_response_format(self) -> Value {
         // The base response format is just the path and method.
         let mut response_format = json!(
