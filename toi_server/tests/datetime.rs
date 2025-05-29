@@ -24,40 +24,34 @@ async fn datetime_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/datetime", state.server_config.bind_addr);
+    let datetime_url = format!("http://{}/datetime", state.server_config.bind_addr);
 
     // Get current time and check that the day is correct.
     let now = Utc::now();
-    let response = client.get(format!("{url}/now")).send().await?;
+    let response = client.get(format!("{datetime_url}/now")).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let datetime1 = response.json::<DateTime<Utc>>().await?;
     assert_eq!(datetime1.day(), now.day());
 
     // Shift the time by a couple of days and then check the day again.
+    let shift_url = format!("{datetime_url}/shift");
     let body = DateTimeShiftRequest::builder()
         .datetime(now)
         .days(2)
         .build();
-    let response = client
-        .post(format!("{url}/shift"))
-        .json(&body)
-        .send()
-        .await?;
+    let response = client.post(shift_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let datetime2 = response.json::<DateTime<Utc>>().await?;
     assert_eq!(datetime2.day(), (now + Duration::days(2)).day());
 
     // Finally, check the weekday of today.
+    let weekday_url = format!("{datetime_url}/weekday");
     let params = json!(
         {
             "datetime": now
         }
     );
-    let response = client
-        .get(format!("{url}/weekday"))
-        .query(&params)
-        .send()
-        .await?;
+    let response = client.get(weekday_url).query(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let weekday = response.json::<Weekday>().await?;
     assert_eq!(weekday, now.weekday());

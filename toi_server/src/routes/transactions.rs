@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
@@ -11,13 +7,13 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        accounts::{BankAccount, BankAccountQueryParams},
+        accounts::{BankAccount, BankAccountSearchParams},
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         state::ToiState,
         transactions::{
-            BankAccountHistory, BankAccountTransaction, BankAccountTransactionQueryParams,
+            BankAccountHistory, BankAccountTransaction, BankAccountTransactionSearchParams,
             LinkedTransaction, NewBankAccountTransactionRequest, NewLinkedTransaction, Transaction,
-            TransactionQueryParams,
+            TransactionSearchParams,
         },
     },
     routes::accounts::search_bank_accounts,
@@ -31,29 +27,25 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn bank_account_transactions_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_bank_account_transaction,
-            delete_matching_bank_account_transactions,
-            get_matching_bank_account_transactions,
-        ))
+        .routes(routes!(add_bank_account_transaction))
+        .routes(routes!(delete_matching_bank_account_transactions))
+        .routes(routes!(get_matching_bank_account_transactions))
         .with_state(state)
 }
 
 pub fn transactions_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            delete_matching_transactions,
-            get_matching_transactions,
-        ))
+        .routes(routes!(delete_matching_transactions))
+        .routes(routes!(get_matching_transactions))
         .with_state(state)
 }
 
 pub async fn search_bank_account_transactions(
     state: &ToiState,
-    params: BankAccountTransactionQueryParams,
+    params: BankAccountTransactionSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<(BankAccount, Vec<i32>), (StatusCode, String)> {
-    let BankAccountTransactionQueryParams {
+    let BankAccountTransactionSearchParams {
         bank_account_id,
         bank_account_query,
         bank_account_use_reranking_filter,
@@ -68,7 +60,7 @@ pub async fn search_bank_account_transactions(
         transaction_order_by,
         transaction_limit,
     } = params;
-    let bank_account_query_params = BankAccountQueryParams {
+    let bank_account_query_params = BankAccountSearchParams {
         ids: bank_account_id.map(|i| vec![i]),
         query: bank_account_query,
         use_reranking_filter: bank_account_use_reranking_filter,
@@ -89,7 +81,7 @@ pub async fn search_bank_account_transactions(
         .await
         .map_err(utils::diesel_error)?;
 
-    let transaction_query_params = TransactionQueryParams {
+    let transaction_query_params = TransactionSearchParams {
         bank_account_id: Some(bank_account.id),
         ids: transaction_ids,
         query: transaction_query,
@@ -105,10 +97,10 @@ pub async fn search_bank_account_transactions(
 
 pub async fn search_transactions(
     state: &ToiState,
-    params: TransactionQueryParams,
+    params: TransactionSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let TransactionQueryParams {
+    let TransactionSearchParams {
         bank_account_id,
         ids,
         query,
@@ -228,7 +220,7 @@ pub async fn search_transactions(
 #[axum::debug_handler]
 pub async fn add_bank_account_transaction(
     State(state): State<ToiState>,
-    Json(body): Json<NewBankAccountTransactionRequest>,
+    Json(params): Json<NewBankAccountTransactionRequest>,
 ) -> Result<Json<BankAccountTransaction>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewBankAccountTransactionRequest {
@@ -241,8 +233,8 @@ pub async fn add_bank_account_transaction(
         transaction_description,
         transaction_amount,
         transaction_posted_at,
-    } = body;
-    let bank_account_query_params = BankAccountQueryParams {
+    } = params;
+    let bank_account_query_params = BankAccountSearchParams {
         ids: bank_account_id.map(|i| vec![i]),
         query: bank_account_query,
         use_reranking_filter: bank_account_use_reranking_filter,
@@ -294,12 +286,12 @@ pub async fn add_bank_account_transaction(
 /// - Remove bank account transactions for
 /// - Delete bank account transactions
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(BankAccountTransactionQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(BankAccountTransactionSearchParams)))
     ),
-    params(BankAccountTransactionQueryParams),
+    request_body = BankAccountTransactionSearchParams,
     responses(
         (status = 200, description = "Successfully deleted transactions", body = BankAccountHistory),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -311,7 +303,7 @@ pub async fn add_bank_account_transaction(
 #[axum::debug_handler]
 pub async fn delete_matching_bank_account_transactions(
     State(state): State<ToiState>,
-    Query(params): Query<BankAccountTransactionQueryParams>,
+    Json(params): Json<BankAccountTransactionSearchParams>,
 ) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (bank_account, transaction_ids) =
@@ -337,12 +329,12 @@ pub async fn delete_matching_bank_account_transactions(
 /// - Remove transactions for
 /// - Delete transactions
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TransactionQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TransactionSearchParams)))
     ),
-    params(TransactionQueryParams),
+    request_body = TransactionSearchParams,
     responses(
         (status = 200, description = "Successfully deleted transactions", body = [LinkedTransaction]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -354,7 +346,7 @@ pub async fn delete_matching_bank_account_transactions(
 #[axum::debug_handler]
 pub async fn delete_matching_transactions(
     State(state): State<ToiState>,
-    Query(params): Query<TransactionQueryParams>,
+    Json(params): Json<TransactionSearchParams>,
 ) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let transaction_ids = search_transactions(&state, params, &mut conn).await?;
@@ -375,12 +367,12 @@ pub async fn delete_matching_transactions(
 /// - What bank account transactions do I have
 /// - How many bank account transactions do I have
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(BankAccountTransactionQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(BankAccountTransactionSearchParams)))
     ),
-    params(BankAccountTransactionQueryParams),
+    request_body = BankAccountTransactionSearchParams,
     responses(
         (status = 200, description = "Successfully got transactions", body = BankAccountHistory),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -392,7 +384,7 @@ pub async fn delete_matching_transactions(
 #[axum::debug_handler]
 pub async fn get_matching_bank_account_transactions(
     State(state): State<ToiState>,
-    Query(params): Query<BankAccountTransactionQueryParams>,
+    Json(params): Json<BankAccountTransactionSearchParams>,
 ) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (bank_account, transaction_ids) =
@@ -418,12 +410,12 @@ pub async fn get_matching_bank_account_transactions(
 /// - What transactions do I have
 /// - How many transactions do I have
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TransactionQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TransactionSearchParams)))
     ),
-    params(TransactionQueryParams),
+    request_body = TransactionSearchParams,
     responses(
         (status = 200, description = "Successfully got transactions", body = [LinkedTransaction]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -435,7 +427,7 @@ pub async fn get_matching_bank_account_transactions(
 #[axum::debug_handler]
 pub async fn get_matching_transactions(
     State(state): State<ToiState>,
-    Query(params): Query<TransactionQueryParams>,
+    Json(params): Json<TransactionSearchParams>,
 ) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let transaction_ids = search_transactions(&state, params, &mut conn).await?;

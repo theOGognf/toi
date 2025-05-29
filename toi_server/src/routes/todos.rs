@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
@@ -13,7 +9,7 @@ use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         state::ToiState,
-        todos::{CompleteTodoRequest, NewTodo, NewTodoRequest, Todo, TodoQueryParams},
+        todos::{CompleteTodoRequest, NewTodo, NewTodoRequest, Todo, TodoSearchParams},
     },
     schema, utils,
 };
@@ -25,21 +21,18 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn todos_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_todo,
-            complete_matching_todos,
-            delete_matching_todos,
-            get_matching_todos
-        ))
+        .routes(routes!(add_todo, complete_matching_todos))
+        .routes(routes!(delete_matching_todos))
+        .routes(routes!(get_matching_todos))
         .with_state(state)
 }
 
 async fn search_todos(
     state: &ToiState,
-    params: TodoQueryParams,
+    params: TodoSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let TodoQueryParams {
+    let TodoSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -191,14 +184,14 @@ async fn search_todos(
 #[axum::debug_handler]
 pub async fn add_todo(
     State(state): State<ToiState>,
-    Json(body): Json<NewTodoRequest>,
+    Json(params): Json<NewTodoRequest>,
 ) -> Result<Json<Todo>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewTodoRequest {
         item,
         due_at,
         completed_at,
-    } = body;
+    } = params;
     let embedding_request = EmbeddingRequest {
         input: item.clone(),
     };
@@ -239,7 +232,7 @@ pub async fn add_todo(
 #[axum::debug_handler]
 pub async fn complete_matching_todos(
     State(state): State<ToiState>,
-    Json(body): Json<CompleteTodoRequest>,
+    Json(params): Json<CompleteTodoRequest>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let CompleteTodoRequest {
@@ -255,8 +248,8 @@ pub async fn complete_matching_todos(
         never_due,
         order_by,
         limit,
-    } = body;
-    let params = TodoQueryParams {
+    } = params;
+    let params = TodoSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -289,12 +282,12 @@ pub async fn complete_matching_todos(
 /// - Remove todos
 /// - Delete as many todos
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TodoQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TodoSearchParams)))
     ),
-    params(TodoQueryParams),
+    request_body = TodoSearchParams,
     responses(
         (status = 200, description = "Successfully deleted todos", body = [Todo]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -306,7 +299,7 @@ pub async fn complete_matching_todos(
 #[axum::debug_handler]
 pub async fn delete_matching_todos(
     State(state): State<ToiState>,
-    Query(params): Query<TodoQueryParams>,
+    Json(params): Json<TodoSearchParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_todos(&state, params, &mut conn).await?;
@@ -326,12 +319,12 @@ pub async fn delete_matching_todos(
 /// - What todos are there on
 /// - How many todos are there about
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TodoQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TodoSearchParams)))
     ),
-    params(TodoQueryParams),
+    request_body = TodoSearchParams,
     responses(
         (status = 200, description = "Successfully got todos", body = [Todo]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -343,7 +336,7 @@ pub async fn delete_matching_todos(
 #[axum::debug_handler]
 pub async fn get_matching_todos(
     State(state): State<ToiState>,
-    Query(params): Query<TodoQueryParams>,
+    Json(params): Json<TodoSearchParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_todos(&state, params, &mut conn).await?;

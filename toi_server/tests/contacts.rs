@@ -1,10 +1,10 @@
-use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
 use toi_server::models::contacts::{
-    Contact, ContactDeleteParams, ContactQueryParams, ContactUpdates, UpdateContactRequest,
+    Contact, ContactDeleteParams, ContactSearchParams, ContactUpdates, NewContactRequest,
+    UpdateContactRequest,
 };
 
 mod utils;
@@ -29,16 +29,15 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/contacts", state.server_config.bind_addr);
+    let contacts_url = format!("http://{}/contacts", state.server_config.bind_addr);
 
     // Make a contact.
-    let first_name = "Marky mark";
-    let body = json!(
-        {
-            "first_name": first_name
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+
+    let first_name = "Marky mark".to_string();
+    let body = NewContactRequest::builder()
+        .first_name(first_name.clone())
+        .build();
+    let response = client.post(&contacts_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let contact1 = response.json::<Contact>().await?;
     assert_eq!(contact1.first_name, first_name);
@@ -48,26 +47,35 @@ async fn contacts_routes() -> Result<(), Box<dyn std::error::Error>> {
     let body = UpdateContactRequest::builder()
         .contact_updates(ContactUpdates::builder().phone(phone.to_string()).build())
         .build();
-    let response = client.put(&url).json(&body).send().await?;
+    let response = client.put(&contacts_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let contact2 = response.json::<Contact>().await?;
     assert_eq!(contact2.phone, Some(phone.to_string()));
 
     // Retrieve the contact using search.
-    let query = ContactQueryParams::builder()
+    let search_contacts_url = format!("{contacts_url}/search");
+    let params = ContactSearchParams::builder()
         .query("who is marky mark".to_string())
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client
+        .post(search_contacts_url)
+        .json(&params)
+        .send()
+        .await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_contacts1 = response.json::<Vec<Contact>>().await?;
-    assert_eq!(vec_contacts1.len(), 1);
-    assert_eq!(vec_contacts1.first(), Some(contact2).as_ref());
+    assert_eq!(vec_contacts1, vec![contact2]);
 
     // Delete the contact using search.
-    let query = ContactDeleteParams::builder()
+    let delete_contacts_url = format!("{contacts_url}/delete");
+    let params = ContactDeleteParams::builder()
         .query("who is marky mark".to_string())
         .build();
-    let response = client.delete(&url).query(&query).send().await?;
+    let response = client
+        .post(delete_contacts_url)
+        .json(&params)
+        .send()
+        .await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_contacts2 = response.json::<Vec<Contact>>().await?;
     assert_eq!(vec_contacts2, vec_contacts1);

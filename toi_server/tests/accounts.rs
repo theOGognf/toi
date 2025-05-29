@@ -1,9 +1,8 @@
-use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::accounts::{BankAccount, BankAccountQueryParams};
+use toi_server::models::accounts::{BankAccount, BankAccountSearchParams, NewBankAccountRequest};
 
 mod utils;
 
@@ -27,32 +26,39 @@ async fn accounts_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/banking/accounts", state.server_config.bind_addr);
+    let accounts_url = format!("http://{}/banking/accounts", state.server_config.bind_addr);
 
     // Make an account.
-    let description = "checking";
-    let body = json!(
-        {
-            "description": description
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let account_description = "checking".to_string();
+    let body = NewBankAccountRequest::builder()
+        .description(account_description.clone())
+        .build();
+    let response = client.post(&accounts_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let account1 = response.json::<BankAccount>().await?;
-    assert_eq!(account1.description, description);
+    assert_eq!(account1.description, account_description);
 
     // Retrieve the account using search.
-    let query = BankAccountQueryParams::builder()
-        .query(description.to_string())
+    let search_accounts_url = format!("{accounts_url}/search");
+    let params = BankAccountSearchParams::builder()
+        .query(account_description.to_string())
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client
+        .post(search_accounts_url)
+        .json(&params)
+        .send()
+        .await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_accounts1 = response.json::<Vec<BankAccount>>().await?;
-    assert_eq!(vec_accounts1.len(), 1);
-    assert_eq!(vec_accounts1.first(), Some(account1).as_ref());
+    assert_eq!(vec_accounts1, vec![account1]);
 
     // Delete the account using search.
-    let response = client.delete(&url).query(&query).send().await?;
+    let delete_accounts_url = format!("{accounts_url}/delete");
+    let response = client
+        .post(delete_accounts_url)
+        .json(&params)
+        .send()
+        .await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_accounts2 = response.json::<Vec<BankAccount>>().await?;
     assert_eq!(vec_accounts2, vec_accounts1);

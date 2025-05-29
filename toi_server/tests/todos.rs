@@ -1,9 +1,8 @@
-use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::todos::{Todo, TodoQueryParams};
+use toi_server::models::todos::{NewTodoRequest, Todo, TodoSearchParams};
 
 mod utils;
 
@@ -27,32 +26,29 @@ async fn todos_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/todos", state.server_config.bind_addr);
+    let todos_url = format!("http://{}/todos", state.server_config.bind_addr);
 
     // Make a todo.
-    let item = "Change my car oil";
-    let body = json!(
-        {
-            "item": item
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let item = "Change my car oil".to_string();
+    let body = NewTodoRequest::builder().item(item.clone()).build();
+    let response = client.post(&todos_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let todo1 = response.json::<Todo>().await?;
     assert_eq!(todo1.item, item);
 
     // Retrieve the todo using search.
-    let query = TodoQueryParams::builder()
+    let search_todos_url = format!("{todos_url}/search");
+    let params = TodoSearchParams::builder()
         .query("change my car oil".to_string())
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client.post(search_todos_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_todos1 = response.json::<Vec<Todo>>().await?;
-    assert_eq!(vec_todos1.len(), 1);
-    assert_eq!(vec_todos1.first(), Some(todo1).as_ref());
+    assert_eq!(vec_todos1, vec![todo1]);
 
     // Delete the todo using search.
-    let response = client.delete(&url).query(&query).send().await?;
+    let delete_todos_url = format!("{todos_url}/delete");
+    let response = client.post(delete_todos_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_todos2 = response.json::<Vec<Todo>>().await?;
     assert_eq!(vec_todos2, vec_todos1);

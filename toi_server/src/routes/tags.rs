@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
@@ -13,7 +9,7 @@ use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         state::ToiState,
-        tags::{NewTag, NewTagRequest, Tag, TagQueryParams},
+        tags::{NewTag, NewTagRequest, Tag, TagSearchParams},
     },
     schema, utils,
 };
@@ -27,16 +23,18 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn tags_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_tag, delete_matching_tags, get_matching_tags))
+        .routes(routes!(add_tag))
+        .routes(routes!(delete_matching_tags))
+        .routes(routes!(get_matching_tags))
         .with_state(state)
 }
 
 pub async fn search_tags(
     state: &ToiState,
-    params: TagQueryParams,
+    params: TagSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let TagQueryParams {
+    let TagSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -136,13 +134,13 @@ pub async fn search_tags(
 #[axum::debug_handler]
 pub async fn add_tag(
     State(state): State<ToiState>,
-    Json(body): Json<NewTagRequest>,
+    Json(params): Json<NewTagRequest>,
 ) -> Result<Json<Tag>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let NewTagRequest { name } = body;
+    let NewTagRequest { name } = params;
 
     // Make sure a similar tag doesn't already exist.
-    let params = TagQueryParams {
+    let params = TagSearchParams {
         ids: None,
         query: Some(name.clone()),
         use_reranking_filter: Some(true),
@@ -180,12 +178,12 @@ pub async fn add_tag(
 /// - Remove tags
 /// - Delete as many tags
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TagQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TagSearchParams)))
     ),
-    params(TagQueryParams),
+    request_body = TagSearchParams,
     responses(
         (status = 200, description = "Successfully deleted tags", body = [Tag]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -197,7 +195,7 @@ pub async fn add_tag(
 #[axum::debug_handler]
 pub async fn delete_matching_tags(
     State(state): State<ToiState>,
-    Query(params): Query<TagQueryParams>,
+    Json(params): Json<TagSearchParams>,
 ) -> Result<Json<Vec<Tag>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_tags(&state, params, &mut conn).await?;
@@ -217,12 +215,12 @@ pub async fn delete_matching_tags(
 /// - What tags are there
 /// - How many tags are there
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(TagQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(TagSearchParams)))
     ),
-    params(TagQueryParams),
+    request_body = TagSearchParams,
     responses(
         (status = 200, description = "Successfully got tags", body = [Tag]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -234,7 +232,7 @@ pub async fn delete_matching_tags(
 #[axum::debug_handler]
 pub async fn get_matching_tags(
     State(state): State<ToiState>,
-    Query(params): Query<TagQueryParams>,
+    Json(params): Json<TagSearchParams>,
 ) -> Result<Json<Vec<Tag>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_tags(&state, params, &mut conn).await?;

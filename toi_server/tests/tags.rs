@@ -1,9 +1,8 @@
-use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::tags::{Tag, TagQueryParams};
+use toi_server::models::tags::{NewTagRequest, Tag, TagSearchParams};
 
 mod utils;
 
@@ -27,48 +26,41 @@ async fn tags_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/tags", state.server_config.bind_addr);
+    let tags_url = format!("http://{}/tags", state.server_config.bind_addr);
 
     // Make a tag.
-    let name1 = "asian";
-    let body = json!(
-        {
-            "name": name1
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let name1 = "asian".to_string();
+    let body = NewTagRequest::builder().name(name1.clone()).build();
+    let response = client.post(&tags_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let tag1 = response.json::<Tag>().await?;
     assert_eq!(tag1.name, name1);
 
     // Make a second tag.
-    let name2 = "korean";
-    let body = json!(
-        {
-            "name": name2
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let name2 = "korean".to_string();
+    let body = NewTagRequest::builder().name(name2.clone()).build();
+    let response = client.post(&tags_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let tag2 = response.json::<Tag>().await?;
     assert_eq!(tag2.name, name2);
 
     // Retrieve the second tag using search.
-    let query = TagQueryParams::builder()
+    let search_tags_url = format!("{tags_url}/search");
+    let params = TagSearchParams::builder()
         .query("korean".to_string())
         .use_reranking_filter(true)
         .use_edit_distance_filter(true)
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client.post(search_tags_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_tags1 = response.json::<Vec<Tag>>().await?;
-    assert_eq!(vec_tags1.len(), 1);
-    assert_eq!(vec_tags1.first(), Some(tag2).as_ref());
+    assert_eq!(vec_tags1, vec![tag2]);
 
     // Delete the tag using search.
-    let response = client.delete(&url).query(&query).send().await?;
+    let delete_tags_url = format!("{tags_url}/delete");
+    let response = client.post(delete_tags_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_tags2 = response.json::<Vec<Tag>>().await?;
-    assert_eq!(vec_tags1, vec_tags2);
+    assert_eq!(vec_tags2, vec_tags1);
     Ok(())
 }

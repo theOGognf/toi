@@ -1,9 +1,11 @@
-use serde_json::json;
+use std::str::FromStr;
+
+use chrono::DateTime;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::events::{Event, EventQueryParams};
+use toi_server::models::events::{Event, EventSearchParams, NewEventRequest};
 
 mod utils;
 
@@ -27,34 +29,33 @@ async fn events_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/events", state.server_config.bind_addr);
+    let events_url = format!("http://{}/events", state.server_config.bind_addr);
 
     // Make an event.
-    let description = "Oil change";
-    let body = json!(
-        {
-            "description": description,
-            "starts_at": "2025-05-08T22:38:38+0000",
-            "ends_at": "2025-05-08T23:38:38+0000"
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let event_description = "Oil change".to_string();
+    let body = NewEventRequest::builder()
+        .description(event_description.clone())
+        .starts_at(DateTime::from_str("2025-05-08T22:38:38+0000")?)
+        .ends_at(DateTime::from_str("2025-05-08T23:38:38+0000")?)
+        .build();
+    let response = client.post(&events_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let event1 = response.json::<Event>().await?;
-    assert_eq!(event1.description, description);
+    assert_eq!(event1.description, event_description);
 
     // Retrieve the event using search.
-    let query = EventQueryParams::builder()
+    let search_events_url = format!("{events_url}/search");
+    let params = EventSearchParams::builder()
         .query("oil change".to_string())
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client.post(search_events_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_events1 = response.json::<Vec<Event>>().await?;
-    assert_eq!(vec_events1.len(), 1);
-    assert_eq!(vec_events1.first(), Some(event1).as_ref());
+    assert_eq!(vec_events1, vec![event1]);
 
     // Delete the event using search.
-    let response = client.delete(&url).query(&query).send().await?;
+    let delete_events_url = format!("{events_url}/delete");
+    let response = client.post(delete_events_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_events2 = response.json::<Vec<Event>>().await?;
     assert_eq!(vec_events2, vec_events1);

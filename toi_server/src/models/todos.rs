@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::utils;
 
@@ -34,7 +34,7 @@ pub struct NewTodo {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Deserialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewTodoRequest {
     /// Todo item to add.
     pub item: String,
@@ -84,8 +84,8 @@ pub struct CompleteTodoRequest {
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, JsonSchema, Serialize, IntoParams)]
-pub struct TodoQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct TodoSearchParams {
     /// Select todos using their database-generated IDs rather than
     /// searching for them.
     pub ids: Option<Vec<i32>>,
@@ -120,6 +120,5 @@ pub struct TodoQueryParams {
     /// How to order results for retrieved todos.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of todos to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

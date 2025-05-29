@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::utils;
 
@@ -34,7 +34,7 @@ pub struct NewEvent {
     pub ends_at: DateTime<Utc>,
 }
 
-#[derive(Deserialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewEventRequest {
     /// Event description to add.
     pub description: String,
@@ -44,8 +44,8 @@ pub struct NewEventRequest {
     pub ends_at: DateTime<Utc>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct EventQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct EventSearchParams {
     /// Select events using their database-generated IDs rather than searching
     /// for them.
     pub ids: Option<Vec<i32>>,
@@ -75,6 +75,5 @@ pub struct EventQueryParams {
     /// How to order results for retrieved events.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of events to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

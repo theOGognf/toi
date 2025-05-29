@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::{models::tags::Tag, utils};
 
@@ -62,7 +62,7 @@ pub struct NewRecipeTag {
     pub tag_id: i32,
 }
 
-#[derive(Deserialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewRecipeRequest {
     /// Recipe title or description.
     pub description: String,
@@ -74,8 +74,8 @@ pub struct NewRecipeRequest {
     pub tags: Vec<String>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct RecipeQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct RecipeSearchParams {
     /// Update a recipe using their database-generated ID rather than
     /// searching for them.
     pub ids: Option<Vec<i32>>,
@@ -100,12 +100,11 @@ pub struct RecipeQueryParams {
     /// Recipe tags to search with.
     pub tags: Option<Vec<String>>,
     /// Limit the max number of recipes to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct RecipeTagQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct RecipeTagSearchParams {
     /// Select an recipe using its database-generated IDs rather than
     /// searching for it first.
     pub recipe_id: Option<i32>,
@@ -118,7 +117,7 @@ pub struct RecipeTagQueryParams {
     /// (e.g., get items by date or get all items).
     pub recipe_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub recipe_use_reranking_filter: Option<bool>,
     /// Filter on recipes created after this ISO formatted datetime.
@@ -139,17 +138,16 @@ pub struct RecipeTagQueryParams {
     /// (e.g., get items by date or get all items).
     pub tag_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub tag_use_reranking_filter: Option<bool>,
     /// Whether to match the query string more closely, character-for-character.
     pub tag_use_edit_distance_filter: Option<bool>,
     /// Limit the max number of tags to return from the search.
-    #[param(minimum = 1)]
     pub tag_limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewRecipeTagsRequest {
     /// Update a recipe using their database-generated ID rather than
     /// searching for them.
@@ -175,6 +173,5 @@ pub struct NewRecipeTagsRequest {
     /// Recipe tags to add.
     pub tags: Vec<String>,
     /// Limit the max number of recipes to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

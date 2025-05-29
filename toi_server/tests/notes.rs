@@ -1,9 +1,8 @@
-use serde_json::json;
 use serial_test::serial;
 use tokio::net::TcpListener;
 use utoipa_axum::router::OpenApiRouter;
 
-use toi_server::models::notes::{Note, NoteQueryParams};
+use toi_server::models::notes::{NewNoteRequest, Note, NoteSearchParams};
 
 mod utils;
 
@@ -27,32 +26,31 @@ async fn notes_routes() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn server and create a client for all test requests.
     let _ = tokio::spawn(async move { axum::serve(listener, router).await });
     let client = reqwest::Client::new();
-    let url = format!("http://{}/notes", state.server_config.bind_addr);
+    let notes_url = format!("http://{}/notes", state.server_config.bind_addr);
 
     // Make a note.
-    let content = "My car takes OW-20 oil";
-    let body = json!(
-        {
-            "content": content
-        }
-    );
-    let response = client.post(&url).json(&body).send().await?;
+    let note_content = "My car takes OW-20 oil".to_string();
+    let body = NewNoteRequest::builder()
+        .content(note_content.clone())
+        .build();
+    let response = client.post(&notes_url).json(&body).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let note1 = response.json::<Note>().await?;
-    assert_eq!(note1.content, content);
+    assert_eq!(note1.content, note_content);
 
     // Retrieve the note using search.
-    let query = NoteQueryParams::builder()
+    let search_notes_url = format!("{notes_url}/search");
+    let params = NoteSearchParams::builder()
         .query("what's my car oil type".to_string())
         .build();
-    let response = client.get(&url).query(&query).send().await?;
+    let response = client.post(search_notes_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_notes1 = response.json::<Vec<Note>>().await?;
-    assert_eq!(vec_notes1.len(), 1);
-    assert_eq!(vec_notes1.first(), Some(note1).as_ref());
+    assert_eq!(vec_notes1, vec![note1]);
 
     // Delete the note using search.
-    let response = client.delete(&url).query(&query).send().await?;
+    let delete_notes_url = format!("{notes_url}/delete");
+    let response = client.post(delete_notes_url).json(&params).send().await?;
     let response = utils::assert_ok_response(response).await?;
     let vec_notes2 = response.json::<Vec<Note>>().await?;
     assert_eq!(vec_notes2, vec_notes1);

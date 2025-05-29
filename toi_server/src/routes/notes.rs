@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use pgvector::VectorExpressionMethods;
@@ -12,7 +8,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        notes::{NewNote, NewNoteRequest, Note, NoteQueryParams},
+        notes::{NewNote, NewNoteRequest, Note, NoteSearchParams},
         state::ToiState,
     },
     schema, utils,
@@ -25,16 +21,18 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn notes_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_note, delete_matching_notes, get_matching_notes))
+        .routes(routes!(add_note,))
+        .routes(routes!(delete_matching_notes))
+        .routes(routes!(get_matching_notes))
         .with_state(state)
 }
 
 async fn search_notes(
     state: &ToiState,
-    params: NoteQueryParams,
+    params: NoteSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let NoteQueryParams {
+    let NoteSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -146,10 +144,10 @@ async fn search_notes(
 #[axum::debug_handler]
 pub async fn add_note(
     State(state): State<ToiState>,
-    Json(body): Json<NewNoteRequest>,
+    Json(params): Json<NewNoteRequest>,
 ) -> Result<Json<Note>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let NewNoteRequest { content } = body;
+    let NewNoteRequest { content } = params;
     let embedding_request = EmbeddingRequest {
         input: content.clone(),
     };
@@ -172,12 +170,12 @@ pub async fn add_note(
 /// - Remove notes
 /// - Delete as many notes
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(NoteQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(NoteSearchParams)))
     ),
-    params(NoteQueryParams),
+    request_body = NoteSearchParams,
     responses(
         (status = 200, description = "Successfully deleted notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -189,7 +187,7 @@ pub async fn add_note(
 #[axum::debug_handler]
 pub async fn delete_matching_notes(
     State(state): State<ToiState>,
-    Query(params): Query<NoteQueryParams>,
+    Json(params): Json<NoteSearchParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_notes(&state, params, &mut conn).await?;
@@ -209,12 +207,12 @@ pub async fn delete_matching_notes(
 /// - What notes are there
 /// - How many notes are there
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(NoteQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(NoteSearchParams)))
     ),
-    params(NoteQueryParams),
+    request_body = NoteSearchParams,
     responses(
         (status = 200, description = "Successfully got notes", body = [Note]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -226,7 +224,7 @@ pub async fn delete_matching_notes(
 #[axum::debug_handler]
 pub async fn get_matching_notes(
     State(state): State<ToiState>,
-    Query(params): Query<NoteQueryParams>,
+    Json(params): Json<NoteSearchParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_notes(&state, params, &mut conn).await?;

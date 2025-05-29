@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::utils;
 
@@ -28,14 +28,14 @@ pub struct NewNote {
     pub embedding: Vector,
 }
 
-#[derive(Deserialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewNoteRequest {
     /// Note content to add.
     pub content: String,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
-pub struct NoteQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct NoteSearchParams {
     /// Select notes using their database-generated IDs rather than searching
     /// for them.
     pub ids: Option<Vec<i32>>,
@@ -58,6 +58,5 @@ pub struct NoteQueryParams {
     /// How to order results for retrieved notes.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of notes to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

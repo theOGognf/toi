@@ -5,7 +5,7 @@ use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::utils;
 
@@ -67,7 +67,7 @@ pub struct NewContact {
     pub embedding: Vector,
 }
 
-#[derive(Deserialize, JsonSchema, Serialize, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewContactRequest {
     /// Contact's first name.
     pub first_name: String,
@@ -100,7 +100,7 @@ impl fmt::Display for NewContactRequest {
     }
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct ContactDeleteParams {
     /// Select contacts according to their database-generated IDs rather
     /// than searching for them.
@@ -124,15 +124,11 @@ pub struct ContactDeleteParams {
     /// How to order results for retrieved contacts.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of contacts to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct BirthdayFallsOnSearchParams {}
-
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct ContactQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct ContactSearchParams {
     /// Select contacts according to their database-generated IDs rather
     /// than searching for them.
     pub ids: Option<Vec<i32>>,
@@ -162,7 +158,6 @@ pub struct ContactQueryParams {
     /// How to order results for retrieved contacts.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of contacts to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 

@@ -51,14 +51,14 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
 )]
 #[axum::debug_handler]
 pub async fn shift(
-    Json(body): Json<DateTimeShiftRequest>,
+    Json(params): Json<DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
-    let time_delta = Duration::days(body.days)
-        + Duration::weeks(body.weeks)
-        + Duration::hours(body.hours)
-        + Duration::minutes(body.minutes)
-        + Duration::seconds(body.seconds);
-    let result = body
+    let time_delta = Duration::days(params.days)
+        + Duration::weeks(params.weeks)
+        + Duration::hours(params.hours)
+        + Duration::minutes(params.minutes)
+        + Duration::seconds(params.seconds);
+    let result = params
         .datetime
         .checked_add_signed(time_delta)
         .ok_or((StatusCode::BAD_REQUEST, "duration overflow".to_string()))?;

@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
 use schemars::schema_for;
@@ -10,9 +6,9 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        attendees::{Attendee, AttendeeQueryParams, Attendees},
-        contacts::{Contact, ContactQueryParams},
-        events::{Event, EventQueryParams},
+        attendees::{Attendee, AttendeeSearchParams, Attendees},
+        contacts::{Contact, ContactSearchParams},
+        events::{Event, EventSearchParams},
         state::ToiState,
     },
     routes::{contacts::search_contacts, events::search_events},
@@ -21,20 +17,18 @@ use crate::{
 
 pub fn attendees_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_attendees,
-            delete_matching_attendees,
-            get_matching_attendees,
-        ))
+        .routes(routes!(add_attendees))
+        .routes(routes!(delete_matching_attendees))
+        .routes(routes!(get_matching_attendees))
         .with_state(state)
 }
 
 pub async fn search_attendees(
     state: &ToiState,
-    params: AttendeeQueryParams,
+    params: AttendeeSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<(Event, Vec<i32>), (StatusCode, String)> {
-    let AttendeeQueryParams {
+    let AttendeeSearchParams {
         event_id,
         event_query,
         event_use_reranking_filter,
@@ -48,7 +42,7 @@ pub async fn search_attendees(
         contact_use_reranking_filter,
         contact_limit,
     } = params;
-    let event_query_params = EventQueryParams {
+    let event_query_params = EventSearchParams {
         ids: event_id.map(|i| vec![i]),
         event_day,
         event_day_falls_on,
@@ -70,7 +64,7 @@ pub async fn search_attendees(
         .first(conn)
         .await
         .map_err(utils::diesel_error)?;
-    let contact_query_params = ContactQueryParams {
+    let contact_query_params = ContactSearchParams {
         ids: contact_ids,
         birthday: None,
         birthday_falls_on: None,
@@ -95,9 +89,9 @@ pub async fn search_attendees(
     post,
     path = "",
     extensions(
-        ("x-json-schema-body" = json!(schema_for!(AttendeeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(AttendeeSearchParams)))
     ),
-    request_body = AttendeeQueryParams,
+    request_body = AttendeeSearchParams,
     responses(
         (status = 201, description = "Successfully added a attendee", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -108,10 +102,10 @@ pub async fn search_attendees(
 #[axum::debug_handler]
 pub async fn add_attendees(
     State(state): State<ToiState>,
-    Json(body): Json<AttendeeQueryParams>,
+    Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
-    let (event, contact_ids) = search_attendees(&state, body, &mut conn).await?;
+    let (event, contact_ids) = search_attendees(&state, params, &mut conn).await?;
     let contacts = schema::contacts::table
         .select(Contact::as_select())
         .filter(schema::contacts::id.eq_any(&contact_ids))
@@ -142,12 +136,12 @@ pub async fn add_attendees(
 /// - Remove attendees with
 /// - Delete attendees
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(AttendeeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(AttendeeSearchParams)))
     ),
-    params(AttendeeQueryParams),
+    request_body = AttendeeSearchParams,
     responses(
         (status = 200, description = "Successfully deleted attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -159,7 +153,7 @@ pub async fn add_attendees(
 #[axum::debug_handler]
 pub async fn delete_matching_attendees(
     State(state): State<ToiState>,
-    Query(params): Query<AttendeeQueryParams>,
+    Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (event, contact_ids) = search_attendees(&state, params, &mut conn).await?;
@@ -197,12 +191,12 @@ pub async fn delete_matching_attendees(
 /// - What attendees do I have on
 /// - How many attendees do I have
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(AttendeeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(AttendeeSearchParams)))
     ),
-    params(AttendeeQueryParams),
+    request_body = AttendeeSearchParams,
     responses(
         (status = 200, description = "Successfully got attendees", body = Attendees),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -214,7 +208,7 @@ pub async fn delete_matching_attendees(
 #[axum::debug_handler]
 pub async fn get_matching_attendees(
     State(state): State<ToiState>,
-    Query(params): Query<AttendeeQueryParams>,
+    Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (event, contact_ids) = search_attendees(&state, params, &mut conn).await?;

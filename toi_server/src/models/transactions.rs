@@ -4,7 +4,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::{models::accounts::BankAccount, utils};
 
@@ -40,8 +40,8 @@ pub struct Transaction {
     pub posted_at: DateTime<Utc>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct TransactionQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct TransactionSearchParams {
     /// Select a bank account using its database-generated IDs rather than
     /// searching for it first.
     #[serde(skip)]
@@ -68,11 +68,10 @@ pub struct TransactionQueryParams {
     /// How to order results for retrieved transactions.
     pub order_by: Option<utils::OrderBy>,
     /// Limit the max number of transactions to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }
 
-#[derive(Deserialize, JsonSchema, Serialize, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewBankAccountTransactionRequest {
     /// Select a bank account using its database-generated IDs rather than
     /// searching for it first.
@@ -86,7 +85,7 @@ pub struct NewBankAccountTransactionRequest {
     /// (e.g., get items by date or get all items).
     pub bank_account_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub bank_account_use_reranking_filter: Option<bool>,
     /// Filter on bank accounts created after this ISO formatted datetime.
@@ -119,8 +118,8 @@ pub struct BankAccountTransaction {
     pub transaction: Transaction,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct BankAccountTransactionQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct BankAccountTransactionSearchParams {
     /// Select a bank account using its database-generated IDs rather than
     /// searching for it first.
     pub bank_account_id: Option<i32>,
@@ -133,7 +132,7 @@ pub struct BankAccountTransactionQueryParams {
     /// (e.g., get items by date or get all items).
     pub bank_account_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub bank_account_use_reranking_filter: Option<bool>,
     /// Filter on bank accounts created after this ISO formatted datetime.
@@ -154,7 +153,7 @@ pub struct BankAccountTransactionQueryParams {
     /// (e.g., get items by date or get all items).
     pub transaction_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub transaction_use_reranking_filter: Option<bool>,
     /// Filter on transactions created after this ISO formatted datetime.
@@ -164,6 +163,5 @@ pub struct BankAccountTransactionQueryParams {
     /// How to order results for retrieved transactions.
     pub transaction_order_by: Option<utils::OrderBy>,
     /// Limit the max number of transactions to return from the search.
-    #[param(minimum = 1)]
     pub transaction_limit: Option<i64>,
 }

@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use chrono::{Datelike, Duration, Month, NaiveDate};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
@@ -14,7 +10,7 @@ use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         contacts::{
-            Contact, ContactDeleteParams, ContactQueryParams, NewContact, NewContactRequest,
+            Contact, ContactDeleteParams, ContactSearchParams, NewContact, NewContactRequest,
             UpdateContactRequest,
         },
         state::ToiState,
@@ -29,21 +25,18 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn contacts_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_contact,
-            delete_matching_contacts,
-            get_matching_contacts,
-            update_matching_contact
-        ))
+        .routes(routes!(add_contact, update_matching_contact))
+        .routes(routes!(delete_matching_contacts,))
+        .routes(routes!(get_matching_contacts))
         .with_state(state)
 }
 
 pub async fn search_contacts(
     state: &ToiState,
-    params: ContactQueryParams,
+    params: ContactSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let ContactQueryParams {
+    let ContactSearchParams {
         ids,
         birthday,
         birthday_falls_on,
@@ -232,11 +225,11 @@ pub async fn search_contacts(
 #[axum::debug_handler]
 pub async fn add_contact(
     State(state): State<ToiState>,
-    Json(body): Json<NewContactRequest>,
+    Json(params): Json<NewContactRequest>,
 ) -> Result<Json<Contact>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let embedding_request = EmbeddingRequest {
-        input: body.to_string(),
+        input: params.to_string(),
     };
     let embedding = state.model_client.embed(embedding_request).await?;
     let NewContactRequest {
@@ -246,7 +239,7 @@ pub async fn add_contact(
         phone,
         birthday,
         relationship,
-    } = body;
+    } = params;
     let new_contact = NewContact {
         first_name,
         last_name,
@@ -272,12 +265,12 @@ pub async fn add_contact(
 /// - Erase all contacts
 /// - Remove contacts
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(ContactDeleteParams)))
+        ("x-json-schema-body" = json!(schema_for!(ContactDeleteParams)))
     ),
-    params(ContactDeleteParams),
+    request_body = ContactDeleteParams,
     responses(
         (status = 200, description = "Successfully deleted contacts", body = [Contact]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -289,7 +282,7 @@ pub async fn add_contact(
 #[axum::debug_handler]
 pub async fn delete_matching_contacts(
     State(state): State<ToiState>,
-    Query(params): Query<ContactDeleteParams>,
+    Json(params): Json<ContactDeleteParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ContactDeleteParams {
@@ -301,7 +294,7 @@ pub async fn delete_matching_contacts(
         order_by,
         limit,
     } = params;
-    let params = ContactQueryParams {
+    let params = ContactSearchParams {
         ids,
         birthday: None,
         birthday_falls_on: None,
@@ -329,12 +322,12 @@ pub async fn delete_matching_contacts(
 /// - What contacts
 /// - How many contacts
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(ContactQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(ContactSearchParams)))
     ),
-    params(ContactQueryParams),
+    request_body = ContactSearchParams,
     responses(
         (status = 200, description = "Successfully got contacts", body = [Contact]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -346,7 +339,7 @@ pub async fn delete_matching_contacts(
 #[axum::debug_handler]
 pub async fn get_matching_contacts(
     State(state): State<ToiState>,
-    Query(params): Query<ContactQueryParams>,
+    Json(params): Json<ContactSearchParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_contacts(&state, params, &mut conn).await?;
@@ -381,7 +374,7 @@ pub async fn get_matching_contacts(
 #[axum::debug_handler]
 pub async fn update_matching_contact(
     State(state): State<ToiState>,
-    Json(body): Json<UpdateContactRequest>,
+    Json(params): Json<UpdateContactRequest>,
 ) -> Result<Json<Contact>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let UpdateContactRequest {
@@ -392,8 +385,8 @@ pub async fn update_matching_contact(
         created_from,
         created_to,
         order_by,
-    } = body;
-    let params = ContactQueryParams {
+    } = params;
+    let params = ContactSearchParams {
         ids: id.map(|i| vec![i]),
         birthday: None,
         birthday_falls_on: None,

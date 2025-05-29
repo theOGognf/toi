@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use chrono::{Datelike, Duration, Month, NaiveDate, NaiveTime};
 use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
 use diesel_async::RunQueryDsl;
@@ -13,7 +9,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::{
     models::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
-        events::{Event, EventQueryParams, NewEvent, NewEventRequest},
+        events::{Event, EventSearchParams, NewEvent, NewEventRequest},
         state::ToiState,
     },
     schema, utils,
@@ -26,20 +22,18 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn events_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_event,
-            delete_matching_events,
-            get_matching_events,
-        ))
+        .routes(routes!(add_event))
+        .routes(routes!(delete_matching_events))
+        .routes(routes!(get_matching_events))
         .with_state(state)
 }
 
 pub async fn search_events(
     state: &ToiState,
-    params: EventQueryParams,
+    params: EventSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let EventQueryParams {
+    let EventSearchParams {
         ids,
         event_day,
         event_day_falls_on,
@@ -232,14 +226,14 @@ pub async fn search_events(
 #[axum::debug_handler]
 pub async fn add_event(
     State(state): State<ToiState>,
-    Json(body): Json<NewEventRequest>,
+    Json(params): Json<NewEventRequest>,
 ) -> Result<Json<Event>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewEventRequest {
         description,
         starts_at,
         ends_at,
-    } = body;
+    } = params;
     let embedding_request = EmbeddingRequest {
         input: description.clone(),
     };
@@ -267,12 +261,12 @@ pub async fn add_event(
 /// - Remove events with
 /// - Delete events
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(EventQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(EventSearchParams)))
     ),
-    params(EventQueryParams),
+    request_body = EventSearchParams,
     responses(
         (status = 200, description = "Successfully deleted events", body = [Event]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -284,7 +278,7 @@ pub async fn add_event(
 #[axum::debug_handler]
 pub async fn delete_matching_events(
     State(state): State<ToiState>,
-    Query(params): Query<EventQueryParams>,
+    Json(params): Json<EventSearchParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_events(&state, params, &mut conn).await?;
@@ -304,12 +298,12 @@ pub async fn delete_matching_events(
 /// - What events do I have on
 /// - How many events do I have
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(EventQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(EventSearchParams)))
     ),
-    params(EventQueryParams),
+    request_body = EventSearchParams,
     responses(
         (status = 200, description = "Successfully got events", body = [Event]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -321,7 +315,7 @@ pub async fn delete_matching_events(
 #[axum::debug_handler]
 pub async fn get_matching_events(
     State(state): State<ToiState>,
-    Query(params): Query<EventQueryParams>,
+    Json(params): Json<EventSearchParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_events(&state, params, &mut conn).await?;

@@ -3,7 +3,7 @@ use diesel::{Insertable, Queryable, Selectable};
 use pgvector::Vector;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Debug, Deserialize, PartialEq, Queryable, Selectable, Serialize, ToSchema)]
 #[diesel(table_name = crate::schema::tags)]
@@ -23,14 +23,14 @@ pub struct NewTag {
     pub embedding: Vector,
 }
 
-#[derive(Deserialize, JsonSchema, ToSchema)]
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
 pub struct NewTagRequest {
     /// Tag name to add.
     pub name: String,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize)]
-pub struct TagQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct TagSearchParams {
     /// Select tags using their database-generated IDs rather than searching
     /// for them.
     pub ids: Option<Vec<i32>>,
@@ -49,6 +49,5 @@ pub struct TagQueryParams {
     /// Whether to match the query string more closely, character-for-character.
     pub use_edit_distance_filter: Option<bool>,
     /// Limit the max number of tags to return from the search.
-    #[param(minimum = 1)]
     pub limit: Option<i64>,
 }

@@ -1,8 +1,4 @@
-use axum::{
-    extract::{Query, State},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use diesel::{BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl, SelectableHelper};
 use diesel_async::{AsyncConnection, RunQueryDsl, scoped_futures::ScopedFutureExt};
 use pgvector::VectorExpressionMethods;
@@ -14,10 +10,10 @@ use crate::{
         client::{EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         recipes::{
             NewRecipe, NewRecipeRequest, NewRecipeTag, NewRecipeTagsRequest, Recipe, RecipePreview,
-            RecipeQueryParams, RecipeTagQueryParams, RecipeTags,
+            RecipeSearchParams, RecipeTagSearchParams, RecipeTags,
         },
         state::ToiState,
-        tags::{Tag, TagQueryParams},
+        tags::{Tag, TagSearchParams},
     },
     routes::tags::search_tags,
     schema, utils,
@@ -30,29 +26,23 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn recipes_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(
-            add_recipe,
-            delete_matching_recipes,
-            get_matching_recipes,
-        ))
-        .routes(routes!(
-            delete_matching_recipe_previews,
-            get_matching_recipe_previews
-        ))
-        .routes(routes!(
-            add_recipe_tags,
-            delete_matching_recipe_tags,
-            get_matching_recipe_tags
-        ))
+        .routes(routes!(add_recipe))
+        .routes(routes!(delete_matching_recipes))
+        .routes(routes!(get_matching_recipes))
+        .routes(routes!(delete_matching_recipe_previews))
+        .routes(routes!(get_matching_recipe_previews))
+        .routes(routes!(add_recipe_tags))
+        .routes(routes!(get_matching_recipe_tags))
+        .routes(routes!(delete_matching_recipe_tags))
         .with_state(state)
 }
 
 pub async fn search_recipes(
     state: &ToiState,
-    params: RecipeQueryParams,
+    params: RecipeSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<Vec<i32>, (StatusCode, String)> {
-    let RecipeQueryParams {
+    let RecipeSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -110,7 +100,7 @@ pub async fn search_recipes(
     if let Some(tags) = tags {
         let mut tag_ids = vec![];
         for tag in tags {
-            let params = TagQueryParams {
+            let params = TagSearchParams {
                 ids: None,
                 query: Some(tag),
                 use_reranking_filter: Some(true),
@@ -168,10 +158,10 @@ pub async fn search_recipes(
 
 pub async fn search_recipe_tags(
     state: &ToiState,
-    params: RecipeTagQueryParams,
+    params: RecipeTagSearchParams,
     conn: &mut utils::Conn<'_>,
 ) -> Result<(RecipePreview, Vec<i32>), (StatusCode, String)> {
-    let RecipeTagQueryParams {
+    let RecipeTagSearchParams {
         recipe_id,
         recipe_query,
         recipe_use_reranking_filter,
@@ -184,7 +174,7 @@ pub async fn search_recipe_tags(
         tag_use_edit_distance_filter,
         tag_limit,
     } = params;
-    let recipe_query_params = RecipeQueryParams {
+    let recipe_query_params = RecipeSearchParams {
         ids: recipe_id.map(|i| vec![i]),
         query: recipe_query,
         use_reranking_filter: recipe_use_reranking_filter,
@@ -206,21 +196,21 @@ pub async fn search_recipe_tags(
         .await
         .map_err(utils::diesel_error)?;
 
-    let mut query = schema::recipe_tags::table
+    let mut sql_query = schema::recipe_tags::table
         .select(schema::recipe_tags::tag_id)
         .filter(schema::recipe_tags::recipe_id.eq(recipe_preview.id))
         .into_boxed();
 
     if let Some(tag_ids) = tag_ids {
-        query = query.filter(schema::recipe_tags::tag_id.eq_any(tag_ids));
+        sql_query = sql_query.filter(schema::recipe_tags::tag_id.eq_any(tag_ids));
     }
 
-    let tag_ids = query.load(conn).await.map_err(utils::diesel_error)?;
+    let tag_ids = sql_query.load(conn).await.map_err(utils::diesel_error)?;
     if tag_ids.is_empty() {
         return Ok((recipe_preview, tag_ids));
     }
 
-    let tag_query_params = TagQueryParams {
+    let tag_query_params = TagSearchParams {
         ids: Some(tag_ids),
         query: tag_query,
         use_reranking_filter: tag_use_reranking_filter,
@@ -254,7 +244,7 @@ pub async fn search_recipe_tags(
 #[axum::debug_handler]
 pub async fn add_recipe(
     State(state): State<ToiState>,
-    Json(body): Json<NewRecipeRequest>,
+    Json(params): Json<NewRecipeRequest>,
 ) -> Result<Json<Recipe>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewRecipeRequest {
@@ -262,11 +252,11 @@ pub async fn add_recipe(
         ingredients,
         instructions,
         tags,
-    } = body;
+    } = params;
     // Get tag IDs for matching tags.
     let mut tag_ids = vec![];
     for tag in tags {
-        let params = TagQueryParams {
+        let params = TagSearchParams {
             ids: None,
             query: Some(tag),
             use_reranking_filter: Some(true),
@@ -345,7 +335,7 @@ pub async fn add_recipe(
 #[axum::debug_handler]
 pub async fn add_recipe_tags(
     State(state): State<ToiState>,
-    Json(body): Json<NewRecipeTagsRequest>,
+    Json(params): Json<NewRecipeTagsRequest>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let NewRecipeTagsRequest {
@@ -357,8 +347,8 @@ pub async fn add_recipe_tags(
         order_by,
         tags,
         limit,
-    } = body;
-    let params = RecipeQueryParams {
+    } = params;
+    let params = RecipeSearchParams {
         ids,
         query,
         use_reranking_filter,
@@ -372,7 +362,7 @@ pub async fn add_recipe_tags(
     // Get tag IDs for matching tags.
     let mut new_recipe_tags = vec![];
     for tag in tags {
-        let params = TagQueryParams {
+        let params = TagSearchParams {
             ids: None,
             query: Some(tag),
             use_reranking_filter: Some(true),
@@ -413,12 +403,12 @@ pub async fn add_recipe_tags(
 /// - Erase recipes that
 /// - Remove recipes with
 #[utoipa::path(
-    delete,
-    path = "",
+    post,
+    path = "/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeSearchParams)))
     ),
-    params(RecipeQueryParams),
+    request_body = RecipeSearchParams,
     responses(
         (status = 200, description = "Successfully deleted recipes", body = [Recipe]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -430,7 +420,7 @@ pub async fn add_recipe_tags(
 #[axum::debug_handler]
 pub async fn delete_matching_recipes(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeQueryParams>,
+    Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_recipes(&state, params, &mut conn).await?;
@@ -451,12 +441,12 @@ pub async fn delete_matching_recipes(
 /// - Erase recipe previews that
 /// - Remove recipe previews with
 #[utoipa::path(
-    delete,
-    path = "/previews",
+    post,
+    path = "/previews/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeSearchParams)))
     ),
-    params(RecipeQueryParams),
+    request_body = RecipeSearchParams,
     responses(
         (status = 200, description = "Successfully deleted recipe previews", body = [RecipePreview]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -468,7 +458,7 @@ pub async fn delete_matching_recipes(
 #[axum::debug_handler]
 pub async fn delete_matching_recipe_previews(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeQueryParams>,
+    Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<RecipePreview>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_recipes(&state, params, &mut conn).await?;
@@ -490,12 +480,12 @@ pub async fn delete_matching_recipe_previews(
 /// - Erase recipe tags for
 /// - Remove recipe tags with
 #[utoipa::path(
-    delete,
-    path = "/tags",
+    post,
+    path = "/tags/delete",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeTagQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeTagSearchParams)))
     ),
-    params(RecipeTagQueryParams),
+    request_body = RecipeSearchParams,
     responses(
         (status = 200, description = "Successfully deleted recipe tags", body = RecipeTags),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -507,7 +497,7 @@ pub async fn delete_matching_recipe_previews(
 #[axum::debug_handler]
 pub async fn delete_matching_recipe_tags(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeTagQueryParams>,
+    Json(params): Json<RecipeTagSearchParams>,
 ) -> Result<Json<RecipeTags>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (recipe_preview, ids) = search_recipe_tags(&state, params, &mut conn).await?;
@@ -552,12 +542,12 @@ pub async fn delete_matching_recipe_tags(
 /// - List recipes
 /// - What recipes do I have on
 #[utoipa::path(
-    get,
-    path = "",
+    post,
+    path = "/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeSearchParams)))
     ),
-    params(RecipeQueryParams),
+    request_body = RecipeSearchParams,
     responses(
         (status = 200, description = "Successfully got recipes", body = [Recipe]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -569,7 +559,7 @@ pub async fn delete_matching_recipe_tags(
 #[axum::debug_handler]
 pub async fn get_matching_recipes(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeQueryParams>,
+    Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_recipes(&state, params, &mut conn).await?;
@@ -591,12 +581,12 @@ pub async fn get_matching_recipes(
 /// - List recipe previews
 /// - What recipe previews do I have on
 #[utoipa::path(
-    get,
-    path = "/previews",
+    post,
+    path = "/previews/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeSearchParams)))
     ),
-    params(RecipeQueryParams),
+    request_body = RecipeSearchParams,
     responses(
         (status = 200, description = "Successfully got recipe previews", body = [RecipePreview]),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -608,7 +598,7 @@ pub async fn get_matching_recipes(
 #[axum::debug_handler]
 pub async fn get_matching_recipe_previews(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeQueryParams>,
+    Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<RecipePreview>>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let ids = search_recipes(&state, params, &mut conn).await?;
@@ -628,12 +618,12 @@ pub async fn get_matching_recipe_previews(
 /// - List recipe tags
 /// - What recipe tags do I have on
 #[utoipa::path(
-    get,
-    path = "/tags",
+    post,
+    path = "/tags/search",
     extensions(
-        ("x-json-schema-params" = json!(schema_for!(RecipeTagQueryParams)))
+        ("x-json-schema-body" = json!(schema_for!(RecipeTagSearchParams)))
     ),
-    params(RecipeTagQueryParams),
+    request_body = RecipeTagSearchParams,
     responses(
         (status = 200, description = "Successfully got recipe tags", body = RecipeTags),
         (status = 400, description = "Default JSON elements configured by the user are invalid"),
@@ -645,7 +635,7 @@ pub async fn get_matching_recipe_previews(
 #[axum::debug_handler]
 pub async fn get_matching_recipe_tags(
     State(state): State<ToiState>,
-    Query(params): Query<RecipeTagQueryParams>,
+    Json(params): Json<RecipeTagSearchParams>,
 ) -> Result<Json<RecipeTags>, (StatusCode, String)> {
     let mut conn = state.pool.get().await.map_err(utils::internal_error)?;
     let (recipe_preview, ids) = search_recipe_tags(&state, params, &mut conn).await?;

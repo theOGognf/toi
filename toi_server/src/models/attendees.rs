@@ -3,7 +3,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{Insertable, Queryable, Selectable};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::ToSchema;
 
 use crate::{models::contacts::Contact, models::events::Event, utils};
 
@@ -23,8 +23,8 @@ pub struct Attendees {
     pub contacts: Vec<Contact>,
 }
 
-#[derive(Builder, Deserialize, IntoParams, JsonSchema, Serialize, ToSchema)]
-pub struct AttendeeQueryParams {
+#[derive(Builder, Deserialize, JsonSchema, Serialize, ToSchema)]
+pub struct AttendeeSearchParams {
     /// Select an event using its database-generated IDs rather than
     /// searching for it first.
     pub event_id: Option<i32>,
@@ -37,7 +37,7 @@ pub struct AttendeeQueryParams {
     /// (e.g., get items by date or get all items).
     pub event_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub event_use_reranking_filter: Option<bool>,
     /// Filter on events created after this ISO formatted datetime.
@@ -65,10 +65,9 @@ pub struct AttendeeQueryParams {
     /// (e.g., get items by date or get all items).
     pub contact_query: Option<String>,
     /// Whether to match the query string more closely using a reranking -based
-    /// approach. `True` is useful for cases where the user is looking to match
+    /// approach. `true` is useful for cases where the user is looking to match
     /// to a specific phrase, name, or words.
     pub contact_use_reranking_filter: Option<bool>,
     /// Limit the max number of contacts to return from the search.
-    #[param(minimum = 1)]
     pub contact_limit: Option<i64>,
 }
