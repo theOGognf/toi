@@ -8,7 +8,8 @@
 
 This is a proof-of-concept for an extensible personal assistant.
 
-See [`toi_client/README.md`][1] and [`toi_server/README.md`][2] for more info.
+See [`toi_client/README.md`][1] and [`toi_server/README.md`][2] for more info
+on the client and server, respectively.
 
 # Requirements
 
@@ -19,25 +20,37 @@ of VRAM. That isn't to say this project will not work natively on Windows,
 with CPUs, or even with GPUs with less VRAM; I simply have not tested it with 
 those variations.
 
-# Running the server
+# Quick start
 
-Build and run the server and its supporting services using the provided
-Docker Compose file:
+1. Run the server using the provided Docker Compose file:
 
-```bash
-docker compose up -d --build
-```
+   ```bash
+   docker compose up -d
+   ```
 
-You can configure runtime environment variables using a local `.env` file.
-As an example, you can change the build target and log level with an `.env`
-file with the following contents:
+   You can configure runtime environment variables using a local `.env` file.
+   As an example, you can change the build target and log level with an `.env`
+   file with the following contents:
 
-```bash
-RELEASE=true
-RUST_LOG=info,tower_http=trace
-```
 
-# Testing the server
+   ```bash
+   RELEASE=true
+   RUST_LOG=info,tower_http=trace
+   ```
+
+2. Install the client binary:
+
+   ```bash
+   cargo install toi_client
+   ```
+
+3. Start an interactive REPL session using the client binary:
+
+   ```bash
+   toi_client
+   ```
+
+# Testing
 
 Build and test the server using the provided test Docker Compose file:
 
