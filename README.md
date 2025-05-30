@@ -20,7 +20,7 @@ of VRAM. That isn't to say this project will not work natively on Windows,
 with CPUs, or even with GPUs with less VRAM; I simply have not tested it with 
 those variations.
 
-# Quick start
+# Quickstart
 
 1. Run the server using the provided Docker Compose file:
 
