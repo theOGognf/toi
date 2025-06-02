@@ -9,7 +9,7 @@
 This is a proof-of-concept for an extensible personal assistant.
 
 See [`toi_client/README.md`][1] and [`toi_server/README.md`][2] for more info
-on the client and server, respectively. See [`CONTRIBUTING.md`] for how to add
+on the client and server, respectively. See [`CONTRIBUTING.md`][3] for how to add
 new features to the personal assistant.
 
 # Requirements
@@ -68,5 +68,6 @@ the following (and probably other things) are out of scope:
 - UIs beyond the provided REPL
 
 [0]: assets/demo.gif?raw=true
-[1]: https://github.com/theOGognf/toi/tree/main/toi_client
-[2]: https://github.com/theOGognf/toi/tree/main/toi_server
+[1]: toi_client
+[2]: toi_server
+[3]: CONTRIBUTING.md
