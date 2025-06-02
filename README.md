@@ -33,7 +33,6 @@ those variations.
    As an example, you can change the build target and log level with an `.env`
    file with the following contents:
 
-
    ```bash
    RELEASE=true
    RUST_LOG=info,tower_http=trace
