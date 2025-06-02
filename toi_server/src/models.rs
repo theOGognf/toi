@@ -9,6 +9,7 @@ pub mod events;
 pub mod news;
 pub mod notes;
 pub mod openapi;
+pub mod places;
 pub mod prompts;
 pub mod recipes;
 pub mod state;
