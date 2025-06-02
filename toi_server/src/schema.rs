@@ -96,6 +96,21 @@ diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::*;
 
+    places (id) {
+        id -> Int4,
+        name -> Text,
+        description -> Text,
+        address -> Nullable<Text>,
+        phone -> Nullable<Text>,
+        embedding -> Vector,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use pgvector::sql_types::*;
+
     recipe_tags (recipe_id, tag_id) {
         recipe_id -> Int4,
         tag_id -> Int4,
@@ -182,6 +197,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     news,
     notes,
     openapi,
+    places,
     recipe_tags,
     recipes,
     searchable_openapi,
