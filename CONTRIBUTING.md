@@ -9,7 +9,7 @@ added are completely independent of other, pre-existing features.
    docker compose up -d db
    ```
 
-2. Create a new migration and add its SQL up/down statements.
+2. Create a migration and add its SQL up/down statements.
 
    ```bash
    diesel migration generate <MIGRATION_NAME>
@@ -26,23 +26,23 @@ added are completely independent of other, pre-existing features.
 
    (Ex: [git show f4b01c7a6eea0ae73f1d577908d3220a24001d33][1])
 
-4. Add the feature data structures/models.
+4. Add data structures/models.
 
    (Ex: [git show ddd0687d95df929539f60e6732963236f8314c03][2])
 
-5. Add the feature endpoints.
+5. Add endpoints.
 
    (Ex: [git show 96a9633b4b47492e6cd97fddb3a372410d9e42f7][3])
 
-6. Add the feature router to the main router.
+6. Add endpoints to the main router.
 
    (Ex: [git show 4f1b50d58fef5e450428cbd54a8fd78c67c646af][4])
 
-7. Add an integration test.
+7. Add tests.
 
    (Ex: [git show 088433e17fa2a431e7ea246b3820fc0772e64577][5])
 
-8. Test the new feature.
+8. Test everything.
 
    ```bash
    docker compose -f docker-compose.test.yaml up -d --build && \
