@@ -71,6 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             toi_server::routes::notes::notes_router(state.clone()),
         )
         .nest(
+            "/places",
+            toi_server::routes::places::places_router(state.clone()),
+        )
+        .nest(
             "/recipes",
             toi_server::routes::recipes::recipes_router(state.clone()),
         )
