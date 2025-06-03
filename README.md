@@ -8,11 +8,8 @@
 
 This project is a proof-of-concept for an extensible personal assistant.
 
-- For details on the client and server, see:
-
-   - [`toi_client/README.md`][1]
-   - [`toi_server/README.md`][2]
-
+- For details on the client and server, see [`toi_client/README.md`][1] and 
+  [`toi_server/README.md`][2].
 - To extend the assistant, see [`CONTRIBUTING.md`][3].
 
 # Requirements
