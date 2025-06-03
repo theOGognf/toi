@@ -6,12 +6,14 @@
 
 # toi
 
-This is a proof-of-concept for an extensible personal assistant.
+This project is a proof-of-concept for an extensible personal assistant.
 
-See [`toi_client/README.md`][1] and [`toi_server/README.md`][2] for more info
-on the client and server, respectively.
+- For details on the client and server, see:
 
-See [`CONTRIBUTING.md`][3] for how to add new features to the personal assistant.
+   - [`toi_client/README.md`][1]
+   - [`toi_server/README.md`][2]
+
+- To extend the assistant, see [`CONTRIBUTING.md`][3].
 
 # Requirements
 
