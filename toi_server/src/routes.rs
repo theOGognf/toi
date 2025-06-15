@@ -1,6 +1,6 @@
 pub mod accounts;
+pub mod assistant;
 pub mod attendees;
-pub mod chat;
 pub mod contacts;
 pub mod datetime;
 pub mod events;

@@ -92,11 +92,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     let openapi = openapi_router.get_openapi_mut();
 
-    // Add the main /chat endpoint to the router so it can be included in
+    // Add the main /assistant endpoint to the router so it can be included in
     // the docs, but excluded from its own system prompt. Then continue building
     // the API router.
-    let chat_router = toi_server::routes::chat::chat_router(openapi, state.clone()).await?;
-    let openapi_router = openapi_router.nest("/chat", chat_router);
+    let assistant_router =
+        toi_server::routes::assistant::assistant_router(openapi, state.clone()).await?;
+    let openapi_router = openapi_router.nest("/assistant", assistant_router);
     let (router, api) = openapi_router.split_for_parts();
     let router = router
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))

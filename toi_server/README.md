@@ -1,7 +1,7 @@
 # toi_server
 
-A proof-of-concept for a personal assistant server with type-safe tool search
-and tool usage via HTTP API endpoints.
+A personal assistant server with type-safe tool search and tool usage via
+HTTP API endpoints.
 
 # Requirements
 
@@ -66,7 +66,7 @@ reranking similarity threshold values referenced by the [configuration struct][7
 
 Generally, the flow of a user's request goes as follows:
 
-- A user makes a request to the `/chat` endpoint
+- A user makes a request to the `/assistant` endpoint
 - An embedding API is used for vector search to find server endpoint descriptions
 similar to the user's most recent message/query
 - The vector search results are filtered and reranked using a reranking API

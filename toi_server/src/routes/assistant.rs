@@ -6,7 +6,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::{
     models::{
-        chat::{GeneratedCommandExtraction, GeneratedRequest, parse_generated_response},
+        assistant::{GeneratedCommandExtraction, GeneratedRequest, parse_generated_response},
         client::{ApiClientError, EmbeddingPromptTemplate, EmbeddingRequest, RerankRequest},
         openapi::{NewSearchableOpenApiPathItem, OpenApiPathItem, SearchableOpenApiPathItem},
         prompts::{CommandPrompt, HttpRequestPrompt, SimplePrompt, SummaryPrompt, SystemPrompt},
@@ -19,7 +19,7 @@ use crate::{
 const INSTRUCTION_PREFIX: &str = "Instruction: Given a user query, retrieve RESTful API descriptions based on the command within the user's query";
 const QUERY_PREFIX: &str = "Query: ";
 
-pub async fn chat_router(
+pub async fn assistant_router(
     openapi: &mut OpenApi,
     state: ToiState,
 ) -> Result<OpenApiRouter, Box<dyn std::error::Error>> {
@@ -27,7 +27,7 @@ pub async fn chat_router(
     let mut conn = state.pool.get().await?;
 
     // Go through and embed all OpenAPI path specs so they can be used as
-    // context for generating HTTP requests within the /chat endpoint.
+    // context for generating HTTP requests within the /assistant endpoint.
     // Start by deleting all the pre-existing OpenAPI path specs just in
     // case there are any updates.
     info!("preparing OpenAPI endpoints for automation");
@@ -36,7 +36,7 @@ pub async fn chat_router(
         .execute(&mut conn)
         .await?;
     for (path, item) in &mut openapi.paths.paths {
-        // Parameterized paths are not supported by the /chat endpoint.
+        // Parameterized paths are not supported by the /assistant endpoint.
         if !path.contains('{') {
             for (method, op) in [
                 ("DELETE", &mut item.delete),
@@ -151,7 +151,9 @@ pub async fn chat_router(
 
     drop(conn);
 
-    let router = OpenApiRouter::new().routes(routes!(chat)).with_state(state);
+    let router = OpenApiRouter::new()
+        .routes(routes!(assist))
+        .with_state(state);
 
     Ok(router)
 }
@@ -168,7 +170,7 @@ pub async fn chat_router(
     )
 )]
 #[axum::debug_handler]
-async fn chat(
+async fn assist(
     State(state): State<ToiState>,
     Json(mut request): Json<GenerationRequest>,
 ) -> Result<Body, (StatusCode, String)> {

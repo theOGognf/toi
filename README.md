@@ -6,10 +6,10 @@
 
 # toi
 
-This project is a proof-of-concept for an extensible personal assistant.
+An extensible personal assistant web server with a simple REPL chat client.
 
-- For details on the client and server, see [`toi_client/README.md`][1] and 
-  [`toi_server/README.md`][2].
+- For details on the server and client, see [`toi_server/README.md`][1] and 
+  [`toi_client/README.md`][2], respectively.
 - To extend the assistant, see [`CONTRIBUTING.md`][3].
 
 # Requirements
@@ -55,7 +55,10 @@ those variations.
 Build and test the server using the provided test Docker Compose file:
 
 ```bash
-docker compose -f docker-compose.test.yaml up -d --build
+f=docker-compose.test.yaml \
+   && docker compose -f $f up -d --build \
+   && docker compose -f $f logs -f api \
+   && docker compose -f $f down
 ```
 
 # Non-goals
@@ -64,10 +67,10 @@ This project is largely a learning exercise and a proof of concept. As such,
 the following (and probably other things) are out of scope:
 
 - Support for multiple users or tenants
-- Additional tool calling -like endpoints similar to the `/chat` endpoint
+- Additional tool calling -like endpoints similar to the `/assistant` endpoint
 - UIs beyond the provided REPL
 
 [0]: assets/demo.gif?raw=true
-[1]: toi_client
-[2]: toi_server
+[1]: toi_server
+[2]: toi_client
 [3]: CONTRIBUTING.md
