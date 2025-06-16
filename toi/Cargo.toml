@@ -11,4 +11,4 @@ license = "Apache-2.0"
 bon = "3.6.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-utoipa = { git = "https://github.com/juhaku/utoipa", rev = "7bde710045c677f4d2b02113cfa6a57bdf392fe0" }
+utoipa = "5.4.0"

@@ -32,9 +32,9 @@ tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6.2", features = ["trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-utoipa = { git = "https://github.com/juhaku/utoipa", features = ["chrono"], rev = "7bde710045c677f4d2b02113cfa6a57bdf392fe0" }
-utoipa-axum = { git = "https://github.com/juhaku/utoipa", rev = "7bde710045c677f4d2b02113cfa6a57bdf392fe0" }
-utoipa-swagger-ui = { git = "https://github.com/juhaku/utoipa", features = ["axum", "vendored"], rev = "7bde710045c677f4d2b02113cfa6a57bdf392fe0" }
+utoipa = { version = "5.4.0", features = ["chrono"] }
+utoipa-axum = "0.2.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["vendored", "axum"] }
 
 [dev-dependencies]
 serial_test = "3.2.0"
