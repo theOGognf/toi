@@ -45,8 +45,10 @@ added are completely independent of other, pre-existing features.
 8. Test everything.
 
    ```bash
-   docker compose -f docker-compose.test.yaml up -d --build && \
-    docker logs -f toi-api-1
+   f=docker-compose.test.yaml \
+      && docker compose -f $f up -d --build \
+      && docker compose -f $f logs -f api \
+      && docker compose -f $f down
    ```
 
    The logs should show all tests passing.
