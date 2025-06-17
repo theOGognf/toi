@@ -50,17 +50,6 @@ those variations.
    toi_client
    ```
 
-# Testing
-
-Build and test the server using the provided test Docker Compose file:
-
-```bash
-f=docker-compose.test.yaml \
-   && docker compose -f $f up -d --build \
-   && docker compose -f $f logs -f api \
-   && docker compose -f $f down
-```
-
 # Non-goals
 
 This project is largely a learning exercise and a proof of concept. As such,
