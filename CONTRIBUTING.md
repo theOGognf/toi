@@ -42,7 +42,14 @@ added are completely independent of other, pre-existing features.
 
    (Ex: [git show 088433e17fa2a431e7ea246b3820fc0772e64577][5])
 
-8. Test everything.
+8. Make final formatting and clippy updates.
+
+   ```bash
+   cargo fmt
+   cargo clippy
+   ```
+
+9. Test everything.
 
    ```bash
    f=docker-compose.test.yaml \
@@ -52,13 +59,6 @@ added are completely independent of other, pre-existing features.
    ```
 
    The logs should show all tests passing.
-
-9. Make final formatting and clippy updates.
-
-   ```bash
-   cargo fmt
-   cargo clippy
-   ```
 
 [0]: https://github.com/theOGognf/toi/commit/ec443a37bc243a37c5a7efd1412b33693c6ada6b
 [1]: https://github.com/theOGognf/toi/commit/f4b01c7a6eea0ae73f1d577908d3220a24001d33
