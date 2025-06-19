@@ -275,9 +275,10 @@ async fn assist(
                 debug!("proxy API request={:?}", generated_request);
 
                 // Add the HTTP request to the context as an assistant message.
-                let server_addr = format!("127.0.0.1:{}", &state.server_config.bind_addr.port());
-                let http_request =
-                    generated_request.to_http_request(&state.api_client, &server_addr);
+                let http_request = generated_request.to_localhost_http_request(
+                    &state.api_client,
+                    &state.server_config.bind_addr.port(),
+                );
                 let assistant_message = generated_request.into_assistant_message();
                 request.messages.push(assistant_message);
 

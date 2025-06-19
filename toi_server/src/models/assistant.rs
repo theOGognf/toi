@@ -50,10 +50,10 @@ impl GeneratedRequest {
     }
 
     #[must_use]
-    pub fn to_http_request(&self, api_client: &Client, binding_addr: &str) -> Request {
+    pub fn to_localhost_http_request(&self, api_client: &Client, server_port: &u16) -> Request {
         let mut request_builder = api_client.request(
             self.method.clone().into(),
-            format!("http://{binding_addr}{}", self.path),
+            format!("http://127.0.0.1:{server_port}{}", self.path),
         );
 
         if let Some(params) = &self.params {
