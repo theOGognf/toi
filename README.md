@@ -50,6 +50,17 @@ those variations.
    toi_client
    ```
 
+# Motivation
+
+In addition to wanting to learn some of the dependencies I used in this project,
+I've been thinking about making a self-hosted personal assistant that I could 
+use and easily extend myself for a while now. Recently, there's been a flurry of
+AI tool usage articles, followed by the announcement of the Model Context 
+Protocol (MCP), and now MCP servers are popping-up everywhere. Eventually, I
+couldn't resist the intrusive thought of *"well, you could just build type-safe
+tools using plain ol' HTTP endpoints, OpenAPI schemas, and JSON Schemas"*. And
+so that's what this is.
+
 # Non-goals
 
 This project is largely a learning exercise and a proof of concept. As such,

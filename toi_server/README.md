@@ -64,33 +64,18 @@ reranking similarity threshold values referenced by the [configuration struct][7
 
 # How it works
 
-Generally, the flow of a user's request goes as follows:
-
 - A user makes a request to the `/assistant` endpoint
-- An embedding API is used for vector search to find server endpoint descriptions
-similar to the user's most recent message/query
-- The vector search results are filtered and reranked using a reranking API
-- If the top endpoint result matches the user's query within a threshold,
-its JSON Schema is used to make an HTTP request for that endpoint using
-a generation API
+- The embedding API is used for vector search to find server endpoint
+  descriptions similar to the user's most recent message/query
+- The vector search results are filtered and reranked using the reranking API
+- If the best-fit endpoint matches the user's query within a threshold,
+  its JSON Schema is used to build an HTTP request using the generation API
 - The generated HTTP request is added as an assistant message to the local 
-context
-- The generated HTTP request is sent to the top endpoint
+  context
+- The generated HTTP request is sent to the best-fit endpoint
 - The HTTP response is added as a user message to the local context
-- A generation API is used to stream a summarization of the response
-back to the user
-
-# Motivation
-
-In addition to wanting to learn some of the dependencies I used in this project,
-I've been thinking about making a self-hosted personal assistant that I could 
-use and easily extend myself for a while now. Recently, there's been a flurry of
-AI tool usage articles, followed by the announcement of the Model Context 
-Protocol (MCP), and now MCP servers are popping-up everywhere. Eventually, I
-couldn't resist the intrusive thought of *"well, you could just build type-safe
-tools using plain ol' HTTP endpoints, OpenAPI schemas, and JSON Schemas"*.
-
-And so that's what this is.
+- The generation API is used to stream a summarization of the response back
+  to the user
 
 # Related artifacts
 
