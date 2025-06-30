@@ -48,6 +48,7 @@ ENV RUST_LOG=info,tower_http=trace
 
 WORKDIR /usr/app
 
+COPY --from=builder /usr/app/toi_server/toi.json /usr/app/toi.json
 COPY --from=builder /usr/local/bin/toi_server /usr/local/bin/toi_server
 
 CMD ["toi_server"]

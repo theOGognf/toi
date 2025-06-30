@@ -12,8 +12,6 @@ services:
       - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}
     ports:
       - "6969:6969"
-    volumes:
-      - ./toi_server/toi.json:/usr/app/toi.json
     depends_on:
       db:
         condition: service_healthy
@@ -51,9 +49,9 @@ services:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
+      interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 60
     deploy:
       resources:
         reservations:
@@ -74,9 +72,9 @@ services:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
+      interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 60
     deploy:
       resources:
         reservations:
@@ -96,9 +94,9 @@ services:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
+      interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 60
     deploy:
       resources:
         reservations:

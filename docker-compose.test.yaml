@@ -12,8 +12,6 @@ services:
       - TOI_CONFIG_PATH=${TOI_CONFIG_PATH:-./toi.json}
     ports:
       - "6969:6969"
-    volumes:
-      - ./toi_server/toi.json:/usr/app/toi.json
     depends_on:
       db:
         condition: service_healthy
