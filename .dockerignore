@@ -2,9 +2,11 @@
 .env
 .git*
 assets
+data
 docker-compose.yaml
 Dockerfile
 LICENSE
+pgdata
 README.md
 rustfmt.toml
 target
