@@ -1,12 +1,12 @@
 # Makefile
 
 # Usage:
-#   make bin				# build and move binary (default is debug)
-#   make bin RELEASE=1		# build and move binary in release mode
-#   make cook				# build dependencies
-#   make cook RELEASE=yes	# build dependencies in release mode
-#   make test				# build tests
-#   make test RELEASE=true	# build tests in release mode
+# 	make bin				# build and move binary (default is debug)
+# 	make bin RELEASE=1		# build and move binary in release mode
+# 	make cook				# build dependencies
+# 	make cook RELEASE=yes	# build dependencies in release mode
+# 	make test				# build tests
+# 	make test RELEASE=true	# build tests in release mode
 
 RELEASE ?= false
 RELEASE_LOWER := $(shell printf '%s' $(RELEASE) | tr A-Z a-z)
