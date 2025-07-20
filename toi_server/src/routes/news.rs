@@ -68,7 +68,7 @@ pub async fn news_router(state: ToiState) -> Result<OpenApiRouter, Box<dyn std::
     )
 )]
 #[axum::debug_handler]
-pub async fn get_news_article(
+async fn get_news_article(
     State(state): State<ToiState>,
     Path(alias): Path<String>,
 ) -> Result<Redirect, (StatusCode, String)> {
@@ -120,7 +120,7 @@ pub async fn get_news_article(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_news(
+async fn get_news(
     State(state): State<ToiState>,
     Json(body): Json<GetNewsRequest>,
 ) -> Result<Json<Vec<NewRedirect>>, (StatusCode, String)> {

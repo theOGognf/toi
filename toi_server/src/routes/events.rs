@@ -224,7 +224,7 @@ pub async fn search_events(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_event(
+async fn add_event(
     State(state): State<ToiState>,
     Json(params): Json<NewEventRequest>,
 ) -> Result<Json<Event>, (StatusCode, String)> {
@@ -276,7 +276,7 @@ pub async fn add_event(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_events(
+async fn delete_matching_events(
     State(state): State<ToiState>,
     Json(params): Json<EventSearchParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
@@ -313,7 +313,7 @@ pub async fn delete_matching_events(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_events(
+async fn get_matching_events(
     State(state): State<ToiState>,
     Json(params): Json<EventSearchParams>,
 ) -> Result<Json<Vec<Event>>, (StatusCode, String)> {

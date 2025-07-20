@@ -144,7 +144,7 @@ pub async fn search_bank_accounts(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_bank_account(
+async fn add_bank_account(
     State(state): State<ToiState>,
     Json(params): Json<NewBankAccountRequest>,
 ) -> Result<Json<BankAccount>, (StatusCode, String)> {
@@ -190,7 +190,7 @@ pub async fn add_bank_account(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_bank_accounts(
+async fn delete_matching_bank_accounts(
     State(state): State<ToiState>,
     Json(params): Json<BankAccountSearchParams>,
 ) -> Result<Json<Vec<BankAccount>>, (StatusCode, String)> {
@@ -228,7 +228,7 @@ pub async fn delete_matching_bank_accounts(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_bank_accounts(
+async fn get_matching_bank_accounts(
     State(state): State<ToiState>,
     Json(params): Json<BankAccountSearchParams>,
 ) -> Result<Json<Vec<BankAccount>>, (StatusCode, String)> {

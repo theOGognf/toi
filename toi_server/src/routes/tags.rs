@@ -132,7 +132,7 @@ pub async fn search_tags(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_tag(
+async fn add_tag(
     State(state): State<ToiState>,
     Json(params): Json<NewTagRequest>,
 ) -> Result<Json<Tag>, (StatusCode, String)> {
@@ -193,7 +193,7 @@ pub async fn add_tag(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_tags(
+async fn delete_matching_tags(
     State(state): State<ToiState>,
     Json(params): Json<TagSearchParams>,
 ) -> Result<Json<Vec<Tag>>, (StatusCode, String)> {
@@ -230,7 +230,7 @@ pub async fn delete_matching_tags(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_tags(
+async fn get_matching_tags(
     State(state): State<ToiState>,
     Json(params): Json<TagSearchParams>,
 ) -> Result<Json<Vec<Tag>>, (StatusCode, String)> {

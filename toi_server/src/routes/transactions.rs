@@ -218,7 +218,7 @@ pub async fn search_transactions(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_bank_account_transaction(
+async fn add_bank_account_transaction(
     State(state): State<ToiState>,
     Json(params): Json<NewBankAccountTransactionRequest>,
 ) -> Result<Json<BankAccountTransaction>, (StatusCode, String)> {
@@ -301,7 +301,7 @@ pub async fn add_bank_account_transaction(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_bank_account_transactions(
+async fn delete_matching_bank_account_transactions(
     State(state): State<ToiState>,
     Json(params): Json<BankAccountTransactionSearchParams>,
 ) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
@@ -344,7 +344,7 @@ pub async fn delete_matching_bank_account_transactions(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_transactions(
+async fn delete_matching_transactions(
     State(state): State<ToiState>,
     Json(params): Json<TransactionSearchParams>,
 ) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {
@@ -382,7 +382,7 @@ pub async fn delete_matching_transactions(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_bank_account_transactions(
+async fn get_matching_bank_account_transactions(
     State(state): State<ToiState>,
     Json(params): Json<BankAccountTransactionSearchParams>,
 ) -> Result<Json<BankAccountHistory>, (StatusCode, String)> {
@@ -425,7 +425,7 @@ pub async fn get_matching_bank_account_transactions(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_transactions(
+async fn get_matching_transactions(
     State(state): State<ToiState>,
     Json(params): Json<TransactionSearchParams>,
 ) -> Result<Json<Vec<LinkedTransaction>>, (StatusCode, String)> {

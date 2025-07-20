@@ -23,7 +23,7 @@ pub fn weather_router(state: ToiState) -> OpenApiRouter {
         .with_state(state)
 }
 
-async fn geocode(
+pub async fn geocode(
     params: &WeatherQueryParams,
     client: &reqwest::Client,
 ) -> Result<Point, (StatusCode, String)> {
@@ -87,7 +87,7 @@ async fn geocode(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_weather_alerts(
+async fn get_weather_alerts(
     State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<WeatherAlerts>, (StatusCode, String)> {
@@ -135,7 +135,7 @@ pub async fn get_weather_alerts(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_gridpoint_weather_forecast(
+async fn get_gridpoint_weather_forecast(
     State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<GridpointForecast>, (StatusCode, String)> {
@@ -174,7 +174,7 @@ pub async fn get_gridpoint_weather_forecast(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_zone_weather_forecast(
+async fn get_zone_weather_forecast(
     State(client): State<reqwest::Client>,
     Query(params): Query<WeatherQueryParams>,
 ) -> Result<Json<ZoneForecast>, (StatusCode, String)> {

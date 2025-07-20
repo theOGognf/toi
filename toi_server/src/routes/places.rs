@@ -22,7 +22,7 @@ const QUERY_PREFIX: &str = "Query: ";
 pub fn places_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(add_place, update_matching_place))
-        .routes(routes!(delete_matching_places,))
+        .routes(routes!(delete_matching_places))
         .routes(routes!(get_matching_places))
         .with_state(state)
 }
@@ -158,7 +158,7 @@ pub async fn search_places(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_place(
+async fn add_place(
     State(state): State<ToiState>,
     Json(params): Json<NewPlaceRequest>,
 ) -> Result<Json<Place>, (StatusCode, String)> {
@@ -211,7 +211,7 @@ pub async fn add_place(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_places(
+async fn delete_matching_places(
     State(state): State<ToiState>,
     Json(params): Json<PlaceSearchParams>,
 ) -> Result<Json<Vec<Place>>, (StatusCode, String)> {
@@ -248,7 +248,7 @@ pub async fn delete_matching_places(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_places(
+async fn get_matching_places(
     State(state): State<ToiState>,
     Json(params): Json<PlaceSearchParams>,
 ) -> Result<Json<Vec<Place>>, (StatusCode, String)> {
@@ -282,7 +282,7 @@ pub async fn get_matching_places(
     )
 )]
 #[axum::debug_handler]
-pub async fn update_matching_place(
+async fn update_matching_place(
     State(state): State<ToiState>,
     Json(params): Json<UpdatePlaceRequest>,
 ) -> Result<Json<Place>, (StatusCode, String)> {

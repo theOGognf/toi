@@ -26,7 +26,7 @@ const QUERY_PREFIX: &str = "Query: ";
 pub fn contacts_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(add_contact, update_matching_contact))
-        .routes(routes!(delete_matching_contacts,))
+        .routes(routes!(delete_matching_contacts))
         .routes(routes!(get_matching_contacts))
         .with_state(state)
 }
@@ -223,7 +223,7 @@ pub async fn search_contacts(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_contact(
+async fn add_contact(
     State(state): State<ToiState>,
     Json(params): Json<NewContactRequest>,
 ) -> Result<Json<Contact>, (StatusCode, String)> {
@@ -280,7 +280,7 @@ pub async fn add_contact(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_contacts(
+async fn delete_matching_contacts(
     State(state): State<ToiState>,
     Json(params): Json<ContactDeleteParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
@@ -337,7 +337,7 @@ pub async fn delete_matching_contacts(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_contacts(
+async fn get_matching_contacts(
     State(state): State<ToiState>,
     Json(params): Json<ContactSearchParams>,
 ) -> Result<Json<Vec<Contact>>, (StatusCode, String)> {
@@ -372,7 +372,7 @@ pub async fn get_matching_contacts(
     )
 )]
 #[axum::debug_handler]
-pub async fn update_matching_contact(
+async fn update_matching_contact(
     State(state): State<ToiState>,
     Json(params): Json<UpdateContactRequest>,
 ) -> Result<Json<Contact>, (StatusCode, String)> {

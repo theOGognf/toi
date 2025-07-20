@@ -100,7 +100,7 @@ pub async fn search_attendees(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_attendees(
+async fn add_attendees(
     State(state): State<ToiState>,
     Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
@@ -151,7 +151,7 @@ pub async fn add_attendees(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_attendees(
+async fn delete_matching_attendees(
     State(state): State<ToiState>,
     Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {
@@ -206,7 +206,7 @@ pub async fn delete_matching_attendees(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_attendees(
+async fn get_matching_attendees(
     State(state): State<ToiState>,
     Json(params): Json<AttendeeSearchParams>,
 ) -> Result<Json<Attendees>, (StatusCode, String)> {

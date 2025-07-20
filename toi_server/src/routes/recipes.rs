@@ -242,7 +242,7 @@ pub async fn search_recipe_tags(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_recipe(
+async fn add_recipe(
     State(state): State<ToiState>,
     Json(params): Json<NewRecipeRequest>,
 ) -> Result<Json<Recipe>, (StatusCode, String)> {
@@ -333,7 +333,7 @@ pub async fn add_recipe(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_recipe_tags(
+async fn add_recipe_tags(
     State(state): State<ToiState>,
     Json(params): Json<NewRecipeTagsRequest>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
@@ -418,7 +418,7 @@ pub async fn add_recipe_tags(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_recipes(
+async fn delete_matching_recipes(
     State(state): State<ToiState>,
     Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
@@ -456,7 +456,7 @@ pub async fn delete_matching_recipes(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_recipe_previews(
+async fn delete_matching_recipe_previews(
     State(state): State<ToiState>,
     Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<RecipePreview>>, (StatusCode, String)> {
@@ -495,7 +495,7 @@ pub async fn delete_matching_recipe_previews(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_recipe_tags(
+async fn delete_matching_recipe_tags(
     State(state): State<ToiState>,
     Json(params): Json<RecipeTagSearchParams>,
 ) -> Result<Json<RecipeTags>, (StatusCode, String)> {
@@ -557,7 +557,7 @@ pub async fn delete_matching_recipe_tags(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_recipes(
+async fn get_matching_recipes(
     State(state): State<ToiState>,
     Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<Recipe>>, (StatusCode, String)> {
@@ -596,7 +596,7 @@ pub async fn get_matching_recipes(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_recipe_previews(
+async fn get_matching_recipe_previews(
     State(state): State<ToiState>,
     Json(params): Json<RecipeSearchParams>,
 ) -> Result<Json<Vec<RecipePreview>>, (StatusCode, String)> {
@@ -633,7 +633,7 @@ pub async fn get_matching_recipe_previews(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_recipe_tags(
+async fn get_matching_recipe_tags(
     State(state): State<ToiState>,
     Json(params): Json<RecipeTagSearchParams>,
 ) -> Result<Json<RecipeTags>, (StatusCode, String)> {

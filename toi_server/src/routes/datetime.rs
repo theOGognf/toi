@@ -26,7 +26,7 @@ pub fn datetime_router() -> OpenApiRouter {
     )
 )]
 #[axum::debug_handler]
-pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
+async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     let result = Utc::now();
     Ok(Json(result))
 }
@@ -50,7 +50,7 @@ pub async fn now() -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     )
 )]
 #[axum::debug_handler]
-pub async fn shift(
+async fn shift(
     Json(params): Json<DateTimeShiftRequest>,
 ) -> Result<Json<DateTime<Utc>>, (StatusCode, String)> {
     let time_delta = Duration::days(params.days)
@@ -86,7 +86,7 @@ pub async fn shift(
     ),
 )]
 #[axum::debug_handler]
-pub async fn weekday(
+async fn weekday(
     Query(params): Query<DateTimeWeekdayParams>,
 ) -> Result<Json<Weekday>, (StatusCode, String)> {
     let result = params.datetime.weekday();

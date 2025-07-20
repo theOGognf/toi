@@ -27,7 +27,7 @@ pub fn todos_router(state: ToiState) -> OpenApiRouter {
         .with_state(state)
 }
 
-async fn search_todos(
+pub async fn search_todos(
     state: &ToiState,
     params: TodoSearchParams,
     conn: &mut utils::Conn<'_>,
@@ -182,7 +182,7 @@ async fn search_todos(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_todo(
+async fn add_todo(
     State(state): State<ToiState>,
     Json(params): Json<NewTodoRequest>,
 ) -> Result<Json<Todo>, (StatusCode, String)> {
@@ -230,7 +230,7 @@ pub async fn add_todo(
     )
 )]
 #[axum::debug_handler]
-pub async fn complete_matching_todos(
+async fn complete_matching_todos(
     State(state): State<ToiState>,
     Json(params): Json<CompleteTodoRequest>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
@@ -297,7 +297,7 @@ pub async fn complete_matching_todos(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_todos(
+async fn delete_matching_todos(
     State(state): State<ToiState>,
     Json(params): Json<TodoSearchParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {
@@ -334,7 +334,7 @@ pub async fn delete_matching_todos(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_todos(
+async fn get_matching_todos(
     State(state): State<ToiState>,
     Json(params): Json<TodoSearchParams>,
 ) -> Result<Json<Vec<Todo>>, (StatusCode, String)> {

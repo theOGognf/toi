@@ -126,7 +126,7 @@ impl ModelClient {
         request: Request,
     ) -> Result<ResponseModel, (StatusCode, String)> {
         let base_url = config.base_url.trim_end_matches('/');
-        let url = format!("{base_url}{endpoint}",);
+        let url = format!("{base_url}{endpoint}");
         let request = Self::build_request_json(config, request)?;
         client
             .post(&url)

@@ -21,13 +21,13 @@ const QUERY_PREFIX: &str = "Query: ";
 
 pub fn notes_router(state: ToiState) -> OpenApiRouter {
     OpenApiRouter::new()
-        .routes(routes!(add_note,))
+        .routes(routes!(add_note))
         .routes(routes!(delete_matching_notes))
         .routes(routes!(get_matching_notes))
         .with_state(state)
 }
 
-async fn search_notes(
+pub async fn search_notes(
     state: &ToiState,
     params: NoteSearchParams,
     conn: &mut utils::Conn<'_>,
@@ -142,7 +142,7 @@ async fn search_notes(
     )
 )]
 #[axum::debug_handler]
-pub async fn add_note(
+async fn add_note(
     State(state): State<ToiState>,
     Json(params): Json<NewNoteRequest>,
 ) -> Result<Json<Note>, (StatusCode, String)> {
@@ -185,7 +185,7 @@ pub async fn add_note(
     )
 )]
 #[axum::debug_handler]
-pub async fn delete_matching_notes(
+async fn delete_matching_notes(
     State(state): State<ToiState>,
     Json(params): Json<NoteSearchParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
@@ -222,7 +222,7 @@ pub async fn delete_matching_notes(
     )
 )]
 #[axum::debug_handler]
-pub async fn get_matching_notes(
+async fn get_matching_notes(
     State(state): State<ToiState>,
     Json(params): Json<NoteSearchParams>,
 ) -> Result<Json<Vec<Note>>, (StatusCode, String)> {
