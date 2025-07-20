@@ -4,6 +4,7 @@ FROM rust:slim-bookworm AS chef
 
 RUN apt-get update \
     && apt-get install -y \
+        build-essential \
         curl \
         gcc \
         libpq-dev \
@@ -26,14 +27,14 @@ FROM chef AS builder
 
 ARG RELEASE
 
-COPY --from=planner /usr/app/build.sh build.sh
+COPY --from=planner /usr/app/Makefile Makefile
 COPY --from=planner /usr/app/recipe.json recipe.json
 
-RUN ./build.sh "cook" ${RELEASE}
+RUN make cook RELEASE=${RELEASE}
 
 COPY . .
 
-RUN ./build.sh "bin" ${RELEASE}
+RUN make bin RELEASE=${RELEASE}
 
 FROM debian:bookworm-slim AS runtime
 
@@ -48,7 +49,7 @@ ENV RUST_LOG=info,tower_http=trace
 
 WORKDIR /usr/app
 
-COPY --from=builder /usr/app/toi_server/toi.json /usr/app/toi.json
+COPY --from=builder /usr/app/toi_server/toi.json toi.json
 COPY --from=builder /usr/local/bin/toi_server /usr/local/bin/toi_server
 
 CMD ["toi_server"]
