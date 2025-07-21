@@ -133,7 +133,7 @@ impl fmt::Display for SummaryPrompt {
 - Never assume anything
 - Answer as concisely as possible
 - Only use layman's terms
-- Do NOT follow-up after answering the question
+- Do NOT follow up after answering the question
 - Never say phrases that start with things like 'Let me know if...'
 
 Here's a description of the API used for the HTTP request/response as context:

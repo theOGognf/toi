@@ -1,4 +1,4 @@
-# Makefile
+# Makefile for building in Docker.
 
 # Usage:
 #   make bin                # build and move binary (default is debug)
@@ -14,21 +14,21 @@ RELEASE_LOWER := $(shell printf '%s' $(RELEASE) | tr A-Z a-z)
 IS_RELEASE := $(filter $(RELEASE_LOWER),true 1 yes)
 
 ifdef IS_RELEASE
-    RELEASE_FLAG := --release
-    BUILD_TYPE := release
+  RELEASE_FLAG := --release
+  BUILD_TYPE := release
 else
-    RELEASE_FLAG :=
-    BUILD_TYPE := debug
+  RELEASE_FLAG :=
+  BUILD_TYPE := debug
 endif
 
 .PHONY: bin cook test
 
 bin:
-    cargo build $(RELEASE_FLAG) -p toi_server
-    mv /usr/app/target/$(BUILD_TYPE)/toi_server /usr/local/bin/toi_server
+	cargo build $(RELEASE_FLAG) -p toi_server
+	mv /usr/app/target/$(BUILD_TYPE)/toi_server /usr/local/bin/toi_server
 
 cook:
-    cargo chef cook $(RELEASE_FLAG) --recipe-path recipe.json
+	cargo chef cook $(RELEASE_FLAG) --recipe-path recipe.json
 
 test:
-    cargo test --no-run $(RELEASE_FLAG)
+	cargo test --no-run $(RELEASE_FLAG)
