@@ -1,7 +1,6 @@
 # toi_server
 
-A personal assistant server with type-safe tool search and tool usage via
-HTTP API endpoints.
+A personal assistant server with type-safe tool search and usage over HTTP.
 
 # Requirements
 
@@ -65,10 +64,11 @@ reranking similarity threshold values referenced by the [configuration struct][7
 # How it works
 
 - A user makes a request to the `/assistant` endpoint
+- The generation API is used to parse the user's command from the request
 - The embedding API is used for vector search to find server endpoint
-  descriptions similar to the user's most recent message/query
+  descriptions similar to the user's command
 - The vector search results are filtered and reranked using the reranking API
-- If the best-fit endpoint matches the user's query within a threshold,
+- If the best-fit endpoint matches the user's command within a threshold,
   its JSON Schema is used to build an HTTP request using the generation API
 - The generated HTTP request is added as an assistant message to the local 
   context

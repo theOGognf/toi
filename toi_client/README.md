@@ -5,7 +5,7 @@ assistant server.
 
 # Features
 
-- Basic context size management based on token usage
+- Basic context size management through token usage
 - CTRL+C to interrupt the response stream during a response
 - CTRL+C to clear the input buffer when it isn't empty
 - CTRL+C to exit when the input buffer is empty

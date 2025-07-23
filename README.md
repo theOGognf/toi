@@ -6,7 +6,7 @@
 
 # toi
 
-An extensible personal assistant web server with a simple REPL chat client.
+An extensible personal assistant HTTP server with a simple REPL chat client.
 
 - For details on the server and client, see [`toi_server/README.md`][1] and 
   [`toi_client/README.md`][2], respectively.
