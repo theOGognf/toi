@@ -108,11 +108,13 @@ impl fmt::Display for SimplePrompt {
         write!(
             f,
             r"You are a helpful assistant that always follows these rules:
-- Never mention you're an AI language model or that you have limitations
+- NEVER mention you're an AI language model or that you have limitations
 - If you don't know the answer to something, say so
-- Never assume anything
-- Answer as concise as possible
-- Only use layman's terms"
+- NEVER assume anything
+- Answer as concisely as possible
+- Only use layman's terms
+- NEVER use emojis
+- NEVER phrases like 'Let me know if...'"
         )
     }
 }
@@ -130,11 +132,11 @@ impl fmt::Display for SummaryPrompt {
 - If the HTTP response indicates an error, describe the error in detail, apologize, and then ask the user to try again
 - If the HTTP response is OK, treat it as fact and DO NOT contradict it
 - Only respond to the user's latest message using the HTTP response as reference
-- Never assume anything
+- NEVER assume anything
 - Answer as concisely as possible
 - Only use layman's terms
-- Do NOT follow up after answering the question
-- Never say phrases that start with things like 'Let me know if...'
+- NEVER use emojis
+- NEVER say phrases like 'Let me know if...'
 
 Here's a description of the API used for the HTTP request/response as context:
 
@@ -219,8 +221,10 @@ impl fmt::Display for HttpRequestPrompt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Your job is to construct an HTTP request. Always replace all pronouns/abbreviations with proper nouns. \
-            Respond concisely in JSON format."
+            r"Your job is to construct an HTTP request while following these rules:
+- Always replace all pronouns/abbreviations with proper nouns
+- Only fill parameters that you explicitly know from the chat context
+- Respond concisely in JSON format"
         )
     }
 }

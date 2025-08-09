@@ -43,7 +43,7 @@ services:
     command: >
       --model ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
       --task embed
-      --dtype ${EMBEDDING_DTYPE:-half}
+      --dtype ${EMBEDDING_DTYPE:-auto}
       --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
@@ -63,11 +63,13 @@ services:
   generation:
     image: vllm/vllm-openai:${GENERATION_IMAGE_VERSION:-latest}
     command: >
-      --model ${GENERATION_MODEL:-Qwen/Qwen3-1.7B}
+      --model ${GENERATION_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
       --task generate
-      --dtype ${GENERATION_DTYPE:-half}
+      --dtype ${GENERATION_DTYPE:-auto}
       --gpu-memory-utilization ${GENERATION_MEM:-0.7}
       --max-model-len ${GENERATION_LEN:-8000}
+      --max-num-seqs ${GENERATION_SEQ:-4}
+      --quantization ${GENERATION_QUANT:-bitsandbytes}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
