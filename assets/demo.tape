@@ -68,7 +68,7 @@ Type "toi_client" Sleep 500ms Enter
 
 Wait />>/
 
-Sleep 2s
+Sleep 1s
 
 Type "hello!" Sleep 500ms Enter
 
@@ -82,7 +82,7 @@ Wait />>/
 
 Sleep 2s
 
-Type "what's the weather in new york city?" Sleep 500ms Enter
+Type "what's the weather in nyc?" Sleep 500ms Enter
 
 Wait />>/
 
@@ -94,7 +94,7 @@ Wait />>/
 
 Sleep 2s
 
-Type "add a todo item to pick up more puerto rican coffee beans by the end of tomorrow" Sleep 500ms Enter
+Type "add a todo item to pick up more columbian coffee beans by the end of tomorrow" Sleep 500ms Enter
 
 Wait />>/
 

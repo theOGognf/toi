@@ -44,7 +44,7 @@ services:
       --model ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
       --task embed
       --dtype ${EMBEDDING_DTYPE:-auto}
-      --gpu-memory-utilization ${EMBEDDING_MEM:-0.1}
+      --gpu-memory-utilization ${EMBEDDING_MEM:-0.2}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
@@ -66,7 +66,7 @@ services:
       --model ${GENERATION_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
       --task generate
       --dtype ${GENERATION_DTYPE:-auto}
-      --gpu-memory-utilization ${GENERATION_MEM:-0.7}
+      --gpu-memory-utilization ${GENERATION_MEM:-0.6}
       --max-model-len ${GENERATION_LEN:-8000}
       --max-num-seqs ${GENERATION_SEQ:-4}
       --quantization ${GENERATION_QUANT:-bitsandbytes}
@@ -91,7 +91,7 @@ services:
       --model ${RERANKING_MODEL:-sentence-transformers/paraphrase-multilingual-mpnet-base-v2}
       --task score
       --dtype ${RERANKING_DTYPE:-auto}
-      --gpu-memory-utilization ${RERANKING_MEM:-0.05}
+      --gpu-memory-utilization ${RERANKING_MEM:-0.1}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
     healthcheck:
