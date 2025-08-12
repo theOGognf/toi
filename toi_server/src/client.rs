@@ -29,13 +29,12 @@ impl ModelClient {
         let request = value
             .as_object_mut()
             .expect("request value shouldn't be empty");
-        if !config.json.is_empty() {
-            if let Some(json) = serde_json::to_value(&config.json)
+        if !config.json.is_empty()
+            && let Some(json) = serde_json::to_value(&config.json)
                 .map_err(|err| ApiClientError::DefaultJson.into_response(&err))?
                 .as_object()
-            {
-                request.extend(json.clone());
-            }
+        {
+            request.extend(json.clone());
         }
         Ok(value)
     }
