@@ -114,7 +114,7 @@ impl fmt::Display for SimplePrompt {
 - Answer as concisely as possible
 - Only use layman's terms
 - NEVER use emojis
-- NEVER phrases like 'Let me know if...'"
+- NEVER say phrases like 'Let me know if...'"
         )
     }
 }
